@@ -37,3 +37,6 @@ Thumbs.db
 
 # vercel
 .vercel
+
+# trigger.dev
+.trigger
