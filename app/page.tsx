@@ -3,8 +3,12 @@
    the navy/blue theme is wired up. Full copy and section
    structure are out of scope for the platform-build plan. */
 
+import { Nav } from "../core/ui/nav";
+
 export default function MarketingHome() {
   return (
+    <>
+    <Nav />
     <main style={{ maxWidth: 1240, margin: "0 auto", padding: "120px 24px" }}>
       <span
         style={{
@@ -53,5 +57,6 @@ export default function MarketingHome() {
         subscription billing.
       </p>
     </main>
+    </>
   );
 }

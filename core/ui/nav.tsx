@@ -1,10 +1,15 @@
-/* Shared top nav — minimal, used by marketing + store + tool layouts.
-   The fancy animated pill nav from the HTML ref is intentionally not
-   imported (it's a visual/structural decision, not a build artifact). */
+/* Shared top nav. Server component so it can read the Supabase session
+   and show signed-in state without a client round-trip. */
 
 import Link from "next/link";
+import { supabaseServer } from "../lib/supabase-server";
 
-export function Nav() {
+export async function Nav() {
+  const supabase = supabaseServer();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
   return (
     <header
       style={{
@@ -37,7 +42,7 @@ export function Nav() {
         >
           KYVERIQX
         </Link>
-        <nav style={{ display: "flex", gap: 4, marginLeft: "auto" }}>
+        <nav style={{ display: "flex", gap: 4, marginLeft: "auto", alignItems: "center" }}>
           <Link
             href="/store"
             style={{
@@ -49,17 +54,46 @@ export function Nav() {
           >
             Store
           </Link>
-          <Link
-            href="/auth/login"
-            style={{
-              padding: "8px 14px",
-              fontSize: 14,
-              color: "var(--ink-300)",
-              borderRadius: 999,
-            }}
-          >
-            Login
-          </Link>
+          {user ? (
+            <>
+              <span
+                style={{
+                  padding: "8px 12px",
+                  fontSize: 13,
+                  color: "var(--ink-300)",
+                  fontFamily: "var(--font-mono)",
+                }}
+              >
+                {user.email}
+              </span>
+              <form action="/auth/signout" method="post" style={{ margin: 0 }}>
+                <button
+                  type="submit"
+                  style={{
+                    padding: "8px 14px",
+                    fontSize: 14,
+                    color: "var(--ink-300)",
+                    borderRadius: 999,
+                    cursor: "pointer",
+                  }}
+                >
+                  Sign out
+                </button>
+              </form>
+            </>
+          ) : (
+            <Link
+              href="/auth/login"
+              style={{
+                padding: "8px 14px",
+                fontSize: 14,
+                color: "var(--ink-300)",
+                borderRadius: 999,
+              }}
+            >
+              Login
+            </Link>
+          )}
         </nav>
       </div>
     </header>
