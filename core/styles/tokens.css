@@ -1,0 +1,54 @@
+/* Kyveriqx design tokens — pulled verbatim from the HTML reference.
+   Visual style only: colors, radii, font stacks, glow values.
+   Do not add structural or component CSS here. */
+
+:root {
+  /* Brand blues */
+  --blue-500: #2EA8FF;
+  --blue-400: #00C2FF;
+  --blue-600: #1E8FE0;
+  --blue-glow: rgba(46, 168, 255, 0.18);
+  --blue-glow-strong: rgba(0, 194, 255, 0.32);
+
+  /* Navy backgrounds (5-step ladder) */
+  --navy-900: #0A1422;
+  --navy-850: #0D1B2A;
+  --navy-800: #111F30;
+  --navy-700: #1B263B;
+  --navy-600: #2C3545;
+  --navy-500: #3A4459;
+
+  /* Ink / text */
+  --ink-100: #F1F5F9;
+  --ink-200: #D7DEE9;
+  --ink-300: #A8B3C4;
+  --ink-400: #7A879B;
+  --ink-500: #57647A;
+
+  /* Lines */
+  --line: rgba(255, 255, 255, 0.07);
+  --line-strong: rgba(255, 255, 255, 0.12);
+
+  /* Radii */
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
+  --radius-pill: 999px;
+
+  /* Shadows / glows */
+  --shadow-card: 0 1px 0 rgba(255, 255, 255, 0.04) inset,
+    0 30px 60px -30px rgba(0, 0, 0, 0.5);
+  --shadow-glow: 0 0 0 1px rgba(46, 168, 255, 0.22),
+    0 20px 60px -20px rgba(46, 168, 255, 0.35);
+
+  /* Easing */
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+
+  /* Layout */
+  --content-w: 1240px;
+
+  /* Fonts */
+  --font-ui: "Inter", system-ui, -apple-system, Helvetica, Arial, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
