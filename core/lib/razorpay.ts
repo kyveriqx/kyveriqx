@@ -1,6 +1,9 @@
 /* Razorpay billing client — Architecture §8.6.
    Chosen over Stripe because customers are Indian businesses billing in INR
-   (Architecture §4). Wiring is stubbed until the Razorpay account exists. */
+   (Architecture §4). One Razorpay Plan per tool, priced from `tools.price`. */
+
+import Razorpay from "razorpay";
+import { createHmac, timingSafeEqual } from "node:crypto";
 
 export type RazorpayConfig = {
   keyId: string;
@@ -20,8 +23,30 @@ export function razorpayConfig(): RazorpayConfig {
   return { keyId, keySecret, webhookSecret };
 }
 
-/* Real client is wired in once Step 6 begins:
- *   import Razorpay from "razorpay";
- *   const rp = new Razorpay({ key_id, key_secret });
- *   const sub = await rp.subscriptions.create({ plan_id, total_count, ... });
- * Plans are one-per-tool, priced in INR per `tools.price`. */
+export function razorpayClient(): Razorpay {
+  const { keyId, keySecret } = razorpayConfig();
+  return new Razorpay({ key_id: keyId, key_secret: keySecret });
+}
+
+/* Resolve the Razorpay plan_id for a tool slug. Plans live in the dashboard;
+   we map them through env vars so swapping test↔live is a one-line change
+   and the IDs never land in git. */
+export function planIdForSlug(slug: string): string {
+  const envKey = `RAZORPAY_PLAN_${slug.toUpperCase()}`;
+  const planId = process.env[envKey];
+  if (!planId) {
+    throw new Error(`Missing ${envKey} — create the Razorpay Plan and set this env var.`);
+  }
+  return planId;
+}
+
+/* Verify a Razorpay webhook signature (HMAC-SHA256 over the raw body).
+   Uses timing-safe comparison so we don't leak the secret via timing. */
+export function verifyWebhookSignature(rawBody: string, signature: string): boolean {
+  const { webhookSecret } = razorpayConfig();
+  const expected = createHmac("sha256", webhookSecret).update(rawBody).digest("hex");
+  const a = Buffer.from(expected, "utf8");
+  const b = Buffer.from(signature, "utf8");
+  if (a.length !== b.length) return false;
+  return timingSafeEqual(a, b);
+}

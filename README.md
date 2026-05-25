@@ -60,7 +60,7 @@ No DNS work needed — the wildcard `*.kyveriqx.com` handles it.
 | 3 | Vercel + Hostinger DNS + Office 365 | pending — see §6 |
 | 4 | Supabase (schema in `supabase/migrations/0001_init.sql`) | pending — create project, run migration |
 | 5 | Trigger.dev jobs (stubs in `/tools/<slug>/jobs/`) | pending — connect project |
-| 6 | Razorpay billing | pending |
+| 6 | Razorpay billing | done — `/store/checkout` + `/api/billing/subscribe` + `/api/webhooks/razorpay` |
 
 ## Documents
 
