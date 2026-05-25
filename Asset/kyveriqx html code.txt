@@ -1,0 +1,2904 @@
+<!-- Google Fonts -->
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+</style>
+
+<style>
+/* KYVERIQX landing — design tokens & base */
+
+:root {
+  --blue-500: #2EA8FF;
+  --blue-400: #00C2FF;
+  --blue-600: #1E8FE0;
+  --blue-glow: rgba(46, 168, 255, 0.18);
+  --blue-glow-strong: rgba(0, 194, 255, 0.32);
+
+  --navy-900: #0A1422;
+  --navy-850: #0D1B2A;
+  --navy-800: #111F30;
+  --navy-700: #1B263B;
+  --navy-600: #2C3545;
+  --navy-500: #3A4459;
+
+  --ink-100: #F1F5F9;
+  --ink-200: #D7DEE9;
+  --ink-300: #A8B3C4;
+  --ink-400: #7A879B;
+  --ink-500: #57647A;
+
+  --line: rgba(255, 255, 255, 0.07);
+  --line-strong: rgba(255, 255, 255, 0.12);
+
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
+  --radius-pill: 999px;
+
+  --content-w: 1240px;
+
+  --shadow-card: 0 1px 0 rgba(255,255,255,0.04) inset, 0 30px 60px -30px rgba(0,0,0,0.5);
+  --shadow-glow: 0 0 0 1px rgba(46,168,255,0.22), 0 20px 60px -20px rgba(46,168,255,0.35);
+
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+* { box-sizing: border-box; }
+
+#kyveriqx-root {
+  margin: 0; padding: 0;
+  background: var(--navy-900);
+  color: var(--ink-100);
+  font-family: 'Inter', system-ui, -apple-system, Helvetica, Arial, sans-serif;
+  font-feature-settings: "ss01", "cv11";
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  text-align: left;
+}
+
+#kyveriqx-root *, #kyveriqx-root *::before, #kyveriqx-root *::after {
+  text-align: inherit;
+}
+
+#kyveriqx-root {
+  min-height: 100vh;
+  overflow-x: hidden;
+  /* subtle navy gradient with vignette */
+  background:
+    radial-gradient(1200px 600px at 80% -10%, rgba(46,168,255,0.10), transparent 60%),
+    radial-gradient(900px 500px at 0% 30%, rgba(0,194,255,0.06), transparent 60%),
+    linear-gradient(180deg, #0A1422 0%, #0D1B2A 30%, #0A1422 100%);
+}
+
+a { color: inherit; text-decoration: none; }
+
+button {
+  font: inherit;
+  cursor: pointer;
+  border: none;
+  background: none;
+  color: inherit;
+}
+
+/* Type scale */
+.eyebrow {
+  display: inline-flex; align-items: center; gap: 10px;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--blue-500);
+}
+.eyebrow::before {
+  content: "";
+  width: 28px; height: 1px;
+  background: linear-gradient(90deg, var(--blue-500), transparent);
+}
+
+.h-display {
+  font-size: clamp(40px, 5.4vw, 76px);
+  line-height: 1.02;
+  letter-spacing: -0.025em;
+  font-weight: 600;
+  text-wrap: balance;
+}
+
+.h-section {
+  font-size: clamp(32px, 3.6vw, 52px);
+  line-height: 1.06;
+  letter-spacing: -0.022em;
+  font-weight: 600;
+  text-wrap: balance;
+}
+
+.h-card {
+  font-size: 20px;
+  line-height: 1.25;
+  letter-spacing: -0.012em;
+  font-weight: 600;
+}
+
+.body-lg {
+  font-size: 18px;
+  line-height: 1.55;
+  color: var(--ink-200);
+  text-wrap: pretty;
+}
+
+.body-md {
+  font-size: 15.5px;
+  line-height: 1.6;
+  color: var(--ink-300);
+  text-wrap: pretty;
+}
+
+.mono {
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-feature-settings: "ss02";
+}
+
+/* Section frame */
+.section {
+  position: relative;
+  padding: clamp(80px, 10vw, 140px) 24px;
+}
+.container {
+  max-width: var(--content-w);
+  margin: 0 auto;
+  position: relative;
+}
+
+/* Grid background overlay (sparingly used) */
+.grid-bg {
+  position: absolute; inset: 0;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px);
+  background-size: 64px 64px;
+  mask-image: radial-gradient(ellipse at center, black 50%, transparent 85%);
+  -webkit-mask-image: radial-gradient(ellipse at center, black 50%, transparent 85%);
+  pointer-events: none;
+}
+
+/* Buttons */
+.btn {
+  display: inline-flex; align-items: center; gap: 10px;
+  padding: 14px 22px;
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: -0.005em;
+  border-radius: var(--radius-pill);
+  transition: transform .25s var(--ease), background .25s var(--ease), box-shadow .25s var(--ease), color .25s var(--ease);
+  white-space: nowrap;
+  will-change: transform;
+}
+.btn .arrow {
+  transition: transform .25s var(--ease);
+}
+.btn:hover .arrow { transform: translateX(3px); }
+
+.btn-primary {
+  background: linear-gradient(180deg, #3FB3FF 0%, #1E8FE0 100%);
+  color: #07111F;
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,0.18) inset,
+    0 10px 30px -10px rgba(46,168,255,0.55),
+    0 0 40px -10px rgba(0,194,255,0.45);
+  font-weight: 600;
+}
+.btn-primary:hover {
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,0.28) inset,
+    0 14px 40px -10px rgba(46,168,255,0.75),
+    0 0 60px -10px rgba(0,194,255,0.6);
+}
+
+.btn-ghost {
+  background: rgba(255,255,255,0.04);
+  color: var(--ink-100);
+  border: 1px solid var(--line-strong);
+}
+.btn-ghost:hover {
+  background: rgba(255,255,255,0.08);
+  border-color: rgba(255,255,255,0.22);
+}
+
+/* Card */
+.card {
+  background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.015));
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  position: relative;
+  overflow: hidden;
+}
+.card-hover { transition: transform .35s var(--ease), border-color .35s var(--ease); }
+.card-hover:hover { transform: translateY(-4px); border-color: var(--line-strong); }
+
+/* Scroll-reveal */
+.reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity .9s var(--ease), transform .9s var(--ease);
+}
+.reveal.is-in {
+  opacity: 1;
+  transform: translateY(0);
+}
+.reveal-delay-1 { transition-delay: .08s; }
+.reveal-delay-2 { transition-delay: .16s; }
+.reveal-delay-3 { transition-delay: .24s; }
+.reveal-delay-4 { transition-delay: .32s; }
+.reveal-delay-5 { transition-delay: .40s; }
+.reveal-delay-6 { transition-delay: .48s; }
+
+/* Pill chip */
+.chip {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 6px 12px;
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: -0.005em;
+  color: var(--ink-200);
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+}
+.dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--blue-400);
+  box-shadow: 0 0 12px var(--blue-400);
+}
+
+/* Number — large display numeric */
+.numeral {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  font-weight: 600;
+}
+
+/* Section header */
+.section-head {
+  display: grid; gap: 16px;
+  max-width: 880px;
+  margin-bottom: 60px;
+}
+.section-head p {
+  margin: 0;
+}
+
+/* Divider */
+.hr {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--line-strong), transparent);
+  margin: 0;
+  border: 0;
+}
+
+/* Focus */
+:focus-visible {
+  outline: 2px solid var(--blue-500);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+::selection {
+  background: var(--blue-500);
+  color: #07111F;
+}
+
+/* Scrollbar (where visible) */
+::-webkit-scrollbar { height: 10px; width: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.08);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.16); }
+
+/* Systeme.io compatibility resets */
+#kyveriqx-root, #kyveriqx-root * { box-sizing: border-box; }
+</style>
+
+<div id="kyveriqx-root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<!-- utils.jsx -->
+<script type="text/babel">
+/* Shared hooks + small bits */
+
+// IntersectionObserver-driven reveal-on-scroll.
+function useReveal(threshold = 0.15) {
+  const ref = React.useRef(null);
+  React.useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((e) => {
+          if (e.isIntersecting) {
+            e.target.classList.add('is-in');
+            io.unobserve(e.target);
+          }
+        });
+      },
+      { threshold, rootMargin: '0px 0px -10% 0px' }
+    );
+    el.querySelectorAll('.reveal').forEach((n) => io.observe(n));
+    return () => io.disconnect();
+  }, []);
+  return ref;
+}
+
+// Animated counter — counts up when in view
+function Counter({ to, prefix = '', suffix = '', duration = 1800, decimals = 0 }) {
+  const ref = React.useRef(null);
+  const [val, setVal] = React.useState(0);
+  React.useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    let raf;
+    const io = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((e) => {
+          if (e.isIntersecting) {
+            const t0 = performance.now();
+            const tick = (now) => {
+              const p = Math.min(1, (now - t0) / duration);
+              // easeOutCubic
+              const eased = 1 - Math.pow(1 - p, 3);
+              setVal(to * eased);
+              if (p < 1) raf = requestAnimationFrame(tick);
+            };
+            raf = requestAnimationFrame(tick);
+            io.unobserve(e.target);
+          }
+        });
+      },
+      { threshold: 0.4 }
+    );
+    io.observe(el);
+    return () => { io.disconnect(); cancelAnimationFrame(raf); };
+  }, [to, duration]);
+  const formatted = decimals
+    ? val.toFixed(decimals)
+    : Math.round(val).toLocaleString();
+  return <span ref={ref} className="numeral">{prefix}{formatted}{suffix}</span>;
+}
+
+// Magnetic button — slight pull toward cursor
+function Magnetic({ children, strength = 14, className = '', ...rest }) {
+  const ref = React.useRef(null);
+  const onMove = (e) => {
+    const el = ref.current; if (!el) return;
+    const r = el.getBoundingClientRect();
+    const x = (e.clientX - r.left - r.width / 2) / r.width;
+    const y = (e.clientY - r.top - r.height / 2) / r.height;
+    el.style.transform = `translate(${x * strength}px, ${y * strength}px)`;
+  };
+  const onLeave = () => {
+    const el = ref.current; if (!el) return;
+    el.style.transform = 'translate(0,0)';
+  };
+  return (
+    <span
+      ref={ref}
+      onMouseMove={onMove}
+      onMouseLeave={onLeave}
+      className={className}
+      style={{ display: 'inline-block', transition: 'transform .35s cubic-bezier(.2,.7,.2,1)' }}
+      {...rest}
+    >
+      {children}
+    </span>
+  );
+}
+
+// Mouse parallax — returns a {x,y} normalized to [-1,1] relative to a ref
+function useMouseParallax() {
+  const ref = React.useRef(null);
+  const [p, setP] = React.useState({ x: 0, y: 0 });
+  React.useEffect(() => {
+    const el = ref.current; if (!el) return;
+    let raf;
+    const onMove = (e) => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        const r = el.getBoundingClientRect();
+        const x = (e.clientX - r.left - r.width / 2) / r.width;
+        const y = (e.clientY - r.top - r.height / 2) / r.height;
+        setP({ x: Math.max(-1, Math.min(1, x * 2)), y: Math.max(-1, Math.min(1, y * 2)) });
+      });
+    };
+    const onLeave = () => setP({ x: 0, y: 0 });
+    el.addEventListener('mousemove', onMove);
+    el.addEventListener('mouseleave', onLeave);
+    return () => {
+      el.removeEventListener('mousemove', onMove);
+      el.removeEventListener('mouseleave', onLeave);
+      cancelAnimationFrame(raf);
+    };
+  }, []);
+  return [ref, p];
+}
+
+// Small inline SVG icon set — kept simple, line-based.
+const Icon = {
+  Arrow: (p) => (
+    <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" {...p}>
+      <path d="M3 8h10M9 4l4 4-4 4" />
+    </svg>
+  ),
+  ArrowSm: (p) => (
+    <svg viewBox="0 0 12 12" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" {...p}>
+      <path d="M2.5 6h7M6.5 3l3 3-3 3" />
+    </svg>
+  ),
+  Check: (p) => (
+    <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...p}>
+      <path d="M3 8.5l3.2 3L13 4.5" />
+    </svg>
+  ),
+  X: (p) => (
+    <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" {...p}>
+      <path d="M4 4l8 8M12 4l-8 8" />
+    </svg>
+  ),
+  Plus: (p) => (
+    <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" {...p}>
+      <path d="M8 3v10M3 8h10" />
+    </svg>
+  ),
+  Minus: (p) => (
+    <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" {...p}>
+      <path d="M3 8h10" />
+    </svg>
+  ),
+  Mail: (p) => (
+    <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" {...p}>
+      <rect x="2" y="3.5" width="12" height="9" rx="1.5"/><path d="M2.5 4.5l5.5 4.5 5.5-4.5"/>
+    </svg>
+  ),
+  LinkedIn: (p) => (
+    <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor" {...p}>
+      <path d="M3.5 6h2v7h-2zM4.5 3a1.2 1.2 0 1 1 0 2.4 1.2 1.2 0 0 1 0-2.4zM7 6h1.9v1h.03c.27-.5.93-1.03 1.92-1.03 2.05 0 2.43 1.35 2.43 3.1V13h-2V9.55c0-.82-.02-1.88-1.15-1.88-1.15 0-1.33.9-1.33 1.82V13h-2V6z"/>
+    </svg>
+  ),
+  Bolt: (p) => (
+    <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" strokeLinecap="round" {...p}>
+      <path d="M9 2L3 9h4l-1 5 6-7H8z" />
+    </svg>
+  ),
+  Chart: (p) => (
+    <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" {...p}>
+      <path d="M2 13h12M4 11V8M7 11V5M10 11V7M13 11V3"/>
+    </svg>
+  ),
+  Plug: (p) => (
+    <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" {...p}>
+      <path d="M6 2v3M10 2v3M4 5h8v3a4 4 0 0 1-8 0V5zM8 12v2"/>
+    </svg>
+  ),
+  Factory: (p) => (
+    <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" {...p}>
+      <path d="M2 13V7l3 2V7l3 2V7l3 2V4l3 1v8H2zM4 11h1M7 11h1M10 11h1"/>
+    </svg>
+  ),
+  Truck: (p) => (
+    <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" {...p}>
+      <path d="M1 4h9v7H1zM10 7h3l2 2v2h-5zM4.5 12.5a1.2 1.2 0 1 0 0-2.4 1.2 1.2 0 0 0 0 2.4zM12 12.5a1.2 1.2 0 1 0 0-2.4 1.2 1.2 0 0 0 0 2.4z"/>
+    </svg>
+  ),
+  Bot: (p) => (
+    <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" {...p}>
+      <rect x="3" y="5" width="10" height="8" rx="2"/><path d="M8 2v3M6 9v1M10 9v1M3 9h-1M14 9h-1"/>
+    </svg>
+  ),
+  Refresh: (p) => (
+    <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" {...p}>
+      <path d="M14 8a6 6 0 1 1-2-4.5M14 2v3.5h-3.5"/>
+    </svg>
+  ),
+};
+
+Object.assign(window, { useReveal, Counter, Magnetic, useMouseParallax, Icon });
+
+</script>
+
+<!-- nav.jsx -->
+<script type="text/babel">
+/* Floating pill nav — morphs / contracts on scroll */
+
+function Nav() {
+  const [scrolled, setScrolled] = React.useState(false);
+  React.useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 80);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  const items = [
+    { label: 'Solution', href: '#solution' },
+    { label: 'Projects', href: '#projects' },
+    { label: 'Why us', href: '#why' },
+    { label: 'Founder', href: '#founder' },
+    { label: 'FAQs', href: '#faqs' },
+  ];
+
+  return (
+    <header className={`nav ${scrolled ? 'nav-scrolled' : ''}`}>
+      <div className="nav-shell">
+        <a href="#top" className="nav-brand" aria-label="KYVERIQX home">
+          <span className="nav-mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M5 19V5M5 12l8-7M5 12l8 7M13 5h6M13 19h6" />
+            </svg>
+          </span>
+          <span className="nav-word">KYVERIQX</span>
+        </a>
+        <nav className="nav-links" aria-label="Primary">
+          {items.map((it) => (
+            <a key={it.href} href={it.href} className="nav-link">{it.label}</a>
+          ))}
+        </nav>
+        <a href="#book" className="nav-cta btn btn-primary">
+          Book audit <Icon.ArrowSm className="arrow" />
+        </a>
+      </div>
+      <style>{`
+        .nav {
+          position: fixed;
+          top: 20px;
+          left: 0; right: 0;
+          z-index: 50;
+          display: flex; justify-content: center;
+          padding: 0 24px;
+          pointer-events: none;
+          transition: top .4s var(--ease);
+        }
+        .nav-shell {
+          pointer-events: auto;
+          display: flex; align-items: center; gap: 18px;
+          width: 100%;
+          max-width: 1080px;
+          padding: 10px 10px 10px 18px;
+          background: rgba(13, 27, 42, 0.55);
+          backdrop-filter: saturate(150%) blur(14px);
+          -webkit-backdrop-filter: saturate(150%) blur(14px);
+          border: 1px solid rgba(255,255,255,0.07);
+          border-radius: 999px;
+          transition: max-width .5s var(--ease), padding .5s var(--ease), background .4s var(--ease), border-color .4s var(--ease), box-shadow .4s var(--ease);
+        }
+        .nav-scrolled .nav-shell {
+          max-width: 760px;
+          background: rgba(10, 20, 34, 0.78);
+          border-color: rgba(255,255,255,0.10);
+          box-shadow: 0 20px 60px -30px rgba(0,0,0,0.7), 0 0 0 1px rgba(46,168,255,0.08) inset;
+        }
+        .nav-brand {
+          display: inline-flex; align-items: center; gap: 10px;
+          font-weight: 600;
+          letter-spacing: 0.04em;
+          font-size: 14px;
+          color: var(--ink-100);
+        }
+        .nav-mark {
+          width: 30px; height: 30px;
+          display: inline-grid; place-items: center;
+          border-radius: 9px;
+          background: linear-gradient(135deg, var(--blue-500), var(--blue-400));
+          color: #07111F;
+          box-shadow: 0 0 24px -4px rgba(46,168,255,0.55);
+        }
+        .nav-word {
+          font-feature-settings: "tnum";
+        }
+        .nav-links {
+          display: flex; align-items: center; gap: 4px;
+          margin-left: auto;
+          margin-right: 6px;
+        }
+        .nav-link {
+          padding: 8px 14px;
+          font-size: 14px;
+          color: var(--ink-300);
+          border-radius: 999px;
+          transition: color .25s var(--ease), background .25s var(--ease);
+        }
+        .nav-link:hover {
+          color: var(--ink-100);
+          background: rgba(255,255,255,0.04);
+        }
+        .nav-cta {
+          padding: 10px 16px;
+          font-size: 13.5px;
+        }
+        @media (max-width: 880px) {
+          .nav-links { display: none; }
+          .nav-shell { max-width: 480px; }
+          .nav-scrolled .nav-shell { max-width: 420px; }
+        }
+      `}</style>
+    </header>
+  );
+}
+
+window.Nav = Nav;
+
+</script>
+
+<!-- dashboard.jsx -->
+<script type="text/babel">
+/* Live-looking dashboard mock for hero — KPI tiles, sparkline, workflow nodes */
+
+function DashboardMock({ tilt }) {
+  // tick state — small fluctuations to feel "live"
+  const [tick, setTick] = React.useState(0);
+  React.useEffect(() => {
+    const id = setInterval(() => setTick((t) => t + 1), 1800);
+    return () => clearInterval(id);
+  }, []);
+
+  // small deterministic noise per tick
+  const wobble = (seed) => {
+    const s = Math.sin((tick + seed) * 12.9898) * 43758.5453;
+    return (s - Math.floor(s)) - 0.5;
+  };
+
+  const revenue = 4.82 + wobble(1) * 0.08;
+  const orders = 1284 + Math.round(wobble(2) * 6);
+  const ontime = (96.4 + wobble(3) * 0.3).toFixed(1);
+
+  // sparkline points
+  const spark = React.useMemo(() => {
+    const pts = [];
+    let v = 40;
+    for (let i = 0; i < 28; i++) {
+      v += (Math.sin(i * 0.6 + tick * 0.7) * 3) + (Math.random() * 2 - 1);
+      v = Math.max(20, Math.min(80, v));
+      pts.push(v);
+    }
+    return pts;
+  }, [tick]);
+
+  const w = 260, h = 70;
+  const stepX = w / (spark.length - 1);
+  const sparkPath = spark.map((y, i) => `${i ? 'L' : 'M'}${(i * stepX).toFixed(1)},${(h - y * 0.7).toFixed(1)}`).join(' ');
+  const sparkArea = `${sparkPath} L${w},${h} L0,${h} Z`;
+
+  // flow nodes pulse
+  const pulse = (tick % 3);
+
+  return (
+    <div
+      className="dash"
+      style={{
+        transform: `perspective(1400px) rotateX(${(-tilt.y * 2.2).toFixed(2)}deg) rotateY(${(tilt.x * 3.2).toFixed(2)}deg)`,
+      }}
+    >
+      {/* glow halo */}
+      <div className="dash-halo" aria-hidden="true" />
+
+      <div className="dash-frame">
+        {/* header */}
+        <div className="dash-header">
+          <div className="dash-traffic">
+            <span /><span /><span />
+          </div>
+          <div className="dash-tabs">
+            <span className="tab active">Operations</span>
+            <span className="tab">Sales</span>
+            <span className="tab">Production</span>
+          </div>
+          <div className="dash-status">
+            <span className="status-dot" />
+            <span className="mono" style={{ fontSize: 11, color: 'var(--ink-300)' }}>LIVE · 02:34s</span>
+          </div>
+        </div>
+
+        {/* body */}
+        <div className="dash-body">
+          {/* KPI row */}
+          <div className="kpi-row">
+            <div className="kpi">
+              <div className="kpi-label">Net Revenue (CR)</div>
+              <div className="kpi-value">
+                ₹{revenue.toFixed(2)}
+                <span className="kpi-delta up">+8.4%</span>
+              </div>
+              <svg className="kpi-spark" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none">
+                <defs>
+                  <linearGradient id="sg" x1="0" x2="0" y1="0" y2="1">
+                    <stop offset="0%" stopColor="#00C2FF" stopOpacity="0.35" />
+                    <stop offset="100%" stopColor="#00C2FF" stopOpacity="0" />
+                  </linearGradient>
+                </defs>
+                <path d={sparkArea} fill="url(#sg)" />
+                <path d={sparkPath} fill="none" stroke="#00C2FF" strokeWidth="1.5" />
+              </svg>
+            </div>
+            <div className="kpi">
+              <div className="kpi-label">Orders today</div>
+              <div className="kpi-value">{orders.toLocaleString()}</div>
+              <div className="kpi-bars">
+                {[42, 60, 38, 72, 55, 81, 64].map((v, i) => (
+                  <span key={i} style={{ height: `${v}%` }} />
+                ))}
+              </div>
+            </div>
+            <div className="kpi">
+              <div className="kpi-label">On-time dispatch</div>
+              <div className="kpi-value">
+                {ontime}<span style={{ color: 'var(--ink-400)', fontSize: 14, fontWeight: 500 }}>%</span>
+              </div>
+              <div className="kpi-ring">
+                <svg viewBox="0 0 60 60" width="60" height="60">
+                  <circle cx="30" cy="30" r="24" fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth="5" />
+                  <circle
+                    cx="30" cy="30" r="24"
+                    fill="none" stroke="url(#rg)" strokeWidth="5" strokeLinecap="round"
+                    strokeDasharray={`${(parseFloat(ontime) / 100) * 150.8} 200`}
+                    transform="rotate(-90 30 30)"
+                  />
+                  <defs>
+                    <linearGradient id="rg" x1="0" x2="1">
+                      <stop offset="0%" stopColor="#2EA8FF" />
+                      <stop offset="100%" stopColor="#00C2FF" />
+                    </linearGradient>
+                  </defs>
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          {/* split: workflow + alerts */}
+          <div className="dash-split">
+            <div className="panel flow">
+              <div className="panel-head">
+                <span className="panel-title">Workflow · Freight RFQ Agent</span>
+                <span className="chip mini"><span className="dot" />Running</span>
+              </div>
+              <div className="flow-grid">
+                {[
+                  { l: 'Trigger', s: 'PO Created' },
+                  { l: 'AI Agent', s: 'Push RFQ → 218 carriers' },
+                  { l: 'Action', s: 'Negotiate · lock bid' },
+                  { l: 'Output', s: 'Update ERP + notify' },
+                ].map((n, i) => (
+                  <React.Fragment key={i}>
+                    <div className={`flow-node ${pulse === i % 3 ? 'pulse' : ''}`}>
+                      <div className="flow-node-l">{n.l}</div>
+                      <div className="flow-node-s">{n.s}</div>
+                    </div>
+                    {i < 3 && (
+                      <div className="flow-arrow" aria-hidden="true">
+                        <svg viewBox="0 0 24 8" width="24" height="8">
+                          <path d="M0 4h20M16 1l4 3-4 3" fill="none" stroke="rgba(46,168,255,0.6)" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </div>
+                    )}
+                  </React.Fragment>
+                ))}
+              </div>
+            </div>
+
+            <div className="panel alerts">
+              <div className="panel-head">
+                <span className="panel-title">Exceptions</span>
+                <span className="mono" style={{ fontSize: 11, color: 'var(--ink-400)' }}>last 4h</span>
+              </div>
+              <ul className="alert-list">
+                <li>
+                  <span className="alert-tag warn">QC</span>
+                  <span className="alert-text">Plant 2 · viscosity drift detected</span>
+                  <span className="mono alert-time">02:14</span>
+                </li>
+                <li>
+                  <span className="alert-tag info">DSP</span>
+                  <span className="alert-text">12 invoices pending GST validation</span>
+                  <span className="mono alert-time">01:48</span>
+                </li>
+                <li>
+                  <span className="alert-tag ok">AI</span>
+                  <span className="alert-text">38 leads qualified by voice agent</span>
+                  <span className="mono alert-time">01:02</span>
+                </li>
+                <li>
+                  <span className="alert-tag warn">FIN</span>
+                  <span className="alert-text">Dealer ledger reconciled · 2 holds</span>
+                  <span className="mono alert-time">00:31</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <style>{`
+        .dash {
+          position: relative;
+          width: 100%;
+          max-width: 640px;
+          transform-style: preserve-3d;
+          transition: transform .25s var(--ease);
+          will-change: transform;
+        }
+        .dash-halo {
+          position: absolute;
+          inset: -40px;
+          background:
+            radial-gradient(60% 50% at 30% 30%, rgba(0,194,255,0.18), transparent 70%),
+            radial-gradient(50% 60% at 70% 70%, rgba(46,168,255,0.18), transparent 70%);
+          filter: blur(40px);
+          z-index: -1;
+          pointer-events: none;
+        }
+        .dash-frame {
+          background:
+            linear-gradient(180deg, rgba(27, 38, 59, 0.95), rgba(13, 27, 42, 0.98));
+          border: 1px solid rgba(255,255,255,0.10);
+          border-radius: 18px;
+          box-shadow:
+            0 1px 0 rgba(255,255,255,0.06) inset,
+            0 40px 80px -30px rgba(0,0,0,0.6),
+            0 0 0 1px rgba(46,168,255,0.08);
+          overflow: hidden;
+        }
+        .dash-header {
+          display: flex; align-items: center; gap: 16px;
+          padding: 12px 16px;
+          border-bottom: 1px solid var(--line);
+          background: rgba(255,255,255,0.02);
+        }
+        .dash-traffic { display: flex; gap: 6px; }
+        .dash-traffic span {
+          width: 9px; height: 9px; border-radius: 50%;
+          background: rgba(255,255,255,0.12);
+        }
+        .dash-tabs { display: flex; gap: 4px; margin-left: 6px; }
+        .tab {
+          padding: 4px 10px;
+          font-size: 12px;
+          color: var(--ink-400);
+          border-radius: 6px;
+        }
+        .tab.active {
+          background: rgba(46,168,255,0.12);
+          color: var(--blue-400);
+        }
+        .dash-status { display: inline-flex; align-items: center; gap: 8px; margin-left: auto; }
+        .status-dot {
+          width: 7px; height: 7px; border-radius: 50%;
+          background: #34D399;
+          box-shadow: 0 0 10px #34D399;
+          animation: blink 1.6s ease-in-out infinite;
+        }
+        @keyframes blink {
+          0%, 100% { opacity: 1; } 50% { opacity: 0.4; }
+        }
+
+        .dash-body { padding: 16px; display: grid; gap: 14px; }
+        .kpi-row { display: grid; grid-template-columns: 1.3fr 1fr 1fr; gap: 12px; }
+        .kpi {
+          background: rgba(255,255,255,0.025);
+          border: 1px solid var(--line);
+          border-radius: 12px;
+          padding: 12px 14px;
+          min-height: 110px;
+          display: flex; flex-direction: column; gap: 8px;
+          position: relative;
+          overflow: hidden;
+        }
+        .kpi-label {
+          font-size: 11px;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          color: var(--ink-400);
+        }
+        .kpi-value {
+          font-size: 22px;
+          font-weight: 600;
+          letter-spacing: -0.015em;
+          font-variant-numeric: tabular-nums;
+          display: inline-flex; align-items: baseline; gap: 8px;
+        }
+        .kpi-delta {
+          font-size: 11px;
+          font-weight: 500;
+          padding: 2px 6px;
+          border-radius: 4px;
+        }
+        .kpi-delta.up {
+          color: #34D399;
+          background: rgba(52, 211, 153, 0.12);
+        }
+        .kpi-spark { width: 100%; height: 40px; margin-top: auto; }
+        .kpi-bars {
+          display: flex; align-items: flex-end; gap: 4px;
+          height: 40px;
+          margin-top: auto;
+        }
+        .kpi-bars span {
+          flex: 1; min-height: 4px;
+          background: linear-gradient(180deg, #2EA8FF, #1E8FE0);
+          border-radius: 2px;
+          opacity: 0.85;
+        }
+        .kpi-ring { margin-top: auto; align-self: flex-end; }
+
+        .dash-split { display: grid; grid-template-columns: 1.5fr 1fr; gap: 12px; }
+        .panel {
+          background: rgba(255,255,255,0.025);
+          border: 1px solid var(--line);
+          border-radius: 12px;
+          padding: 12px;
+        }
+        .panel-head {
+          display: flex; align-items: center; justify-content: space-between;
+          margin-bottom: 10px;
+        }
+        .panel-title {
+          font-size: 12px;
+          font-weight: 500;
+          color: var(--ink-200);
+          letter-spacing: -0.005em;
+        }
+        .chip.mini {
+          font-size: 10.5px;
+          padding: 3px 8px;
+        }
+
+        .flow-grid {
+          display: grid;
+          grid-template-columns: 1fr auto 1fr;
+          grid-template-rows: auto auto;
+          gap: 6px 6px;
+          align-items: center;
+        }
+        .flow-node {
+          background: linear-gradient(180deg, rgba(46,168,255,0.07), rgba(46,168,255,0.02));
+          border: 1px solid rgba(46,168,255,0.18);
+          border-radius: 8px;
+          padding: 8px 10px;
+          transition: box-shadow .35s var(--ease), border-color .35s var(--ease);
+        }
+        .flow-node.pulse {
+          border-color: rgba(0,194,255,0.55);
+          box-shadow: 0 0 0 1px rgba(0,194,255,0.4), 0 0 20px -2px rgba(0,194,255,0.45);
+        }
+        .flow-node-l {
+          font-size: 10px;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          color: var(--blue-400);
+        }
+        .flow-node-s {
+          font-size: 11.5px;
+          color: var(--ink-200);
+          margin-top: 2px;
+        }
+        .flow-arrow { display: grid; place-items: center; }
+
+        .alert-list {
+          list-style: none; padding: 0; margin: 0;
+          display: grid; gap: 6px;
+        }
+        .alert-list li {
+          display: grid;
+          grid-template-columns: auto 1fr auto;
+          gap: 8px;
+          align-items: center;
+          font-size: 11.5px;
+          color: var(--ink-200);
+          padding: 6px 4px;
+          border-top: 1px dashed var(--line);
+        }
+        .alert-list li:first-child { border-top: 0; }
+        .alert-tag {
+          font-size: 9.5px;
+          font-weight: 600;
+          letter-spacing: 0.08em;
+          padding: 2px 5px;
+          border-radius: 3px;
+        }
+        .alert-tag.warn { color: #FBBF24; background: rgba(251,191,36,0.12); }
+        .alert-tag.info { color: var(--blue-400); background: rgba(0,194,255,0.12); }
+        .alert-tag.ok   { color: #34D399; background: rgba(52,211,153,0.12); }
+        .alert-text { color: var(--ink-200); }
+        .alert-time { color: var(--ink-500); font-size: 10.5px; }
+
+        @media (max-width: 720px) {
+          .kpi-row { grid-template-columns: 1fr 1fr; }
+          .kpi:nth-child(3) { display: none; }
+          .dash-split { grid-template-columns: 1fr; }
+          .dash-tabs { display: none; }
+        }
+      `}</style>
+    </div>
+  );
+}
+
+window.DashboardMock = DashboardMock;
+
+</script>
+
+<!-- hero.jsx -->
+<script type="text/babel">
+/* Hero — split layout, mouse parallax, animated background */
+
+function Hero() {
+  const [parallaxRef, p] = useMouseParallax();
+
+  return (
+    <section className="hero section" id="top" ref={parallaxRef}>
+      {/* parallax background layers */}
+      <div className="hero-bg" aria-hidden="true">
+        <div className="grid-bg" />
+        <div
+          className="hero-orb hero-orb-1"
+          style={{ transform: `translate(${p.x * -30}px, ${p.y * -20}px)` }}
+        />
+        <div
+          className="hero-orb hero-orb-2"
+          style={{ transform: `translate(${p.x * 20}px, ${p.y * 15}px)` }}
+        />
+        <div
+          className="hero-streak"
+          style={{ transform: `translate(${p.x * 10}px, ${p.y * 6}px)` }}
+        />
+      </div>
+
+      <div className="container hero-grid">
+        <div className="hero-copy">
+          <span className="eyebrow">AI-Powered Operational Intelligence</span>
+          <h1 className="h-display hero-h">
+            Your ERP isn't broken. <br />
+            <span className="hero-h-em">It's just asleep.</span>
+          </h1>
+          <p className="body-lg hero-lede">
+            We wake it up. With AI automation, real-time dashboards, and intelligent
+            workflows that turn your existing systems into a decision-making machine.
+            <br />
+            <span style={{ color: 'var(--ink-300)' }}>
+              No rip-and-replace. No 18-month implementation. Just operations that finally run themselves.
+            </span>
+          </p>
+
+          <div className="hero-ctas">
+            <Magnetic strength={6}>
+              <a href="#book" className="btn btn-primary">
+                Book a free operations audit <Icon.Arrow className="arrow" />
+              </a>
+            </Magnetic>
+            <Magnetic strength={4}>
+              <a href="#solution" className="btn btn-ghost">
+                See how it works
+              </a>
+            </Magnetic>
+          </div>
+
+          <div className="hero-trust">
+            <div className="trust-line">
+              <span className="trust-num"><Counter to={14} suffix="+" /> yrs</span>
+              <span className="trust-label">across ERP &amp; ops systems</span>
+            </div>
+            <div className="trust-divider" />
+            <div className="trust-line">
+              <span className="trust-num"><Counter to={6} /></span>
+              <span className="trust-label">industries: auto · chemical · packaging · agri · distribution · franchise</span>
+            </div>
+            <div className="trust-divider" />
+            <div className="trust-line">
+              <span className="trust-num"><Counter to={30} /> days</span>
+              <span className="trust-label">to live dashboards. or less.</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="hero-mock">
+          <DashboardMock tilt={p} />
+        </div>
+      </div>
+
+      <style>{`
+        .hero {
+          padding-top: 160px;
+          padding-bottom: 80px;
+          overflow: hidden;
+        }
+        .hero-bg {
+          position: absolute; inset: 0;
+          pointer-events: none;
+          z-index: 0;
+        }
+        .hero-orb {
+          position: absolute;
+          border-radius: 50%;
+          filter: blur(60px);
+          will-change: transform;
+          transition: transform .4s var(--ease);
+        }
+        .hero-orb-1 {
+          top: -120px; right: -120px;
+          width: 520px; height: 520px;
+          background: radial-gradient(circle, rgba(0,194,255,0.30), transparent 65%);
+        }
+        .hero-orb-2 {
+          bottom: -200px; left: -150px;
+          width: 600px; height: 600px;
+          background: radial-gradient(circle, rgba(46,168,255,0.22), transparent 65%);
+        }
+        .hero-streak {
+          position: absolute;
+          top: 30%; left: 40%;
+          width: 600px; height: 1px;
+          background: linear-gradient(90deg, transparent, rgba(0,194,255,0.4), transparent);
+          transform-origin: center;
+          rotate: -8deg;
+          will-change: transform;
+          transition: transform .4s var(--ease);
+        }
+        .hero-grid {
+          display: grid;
+          grid-template-columns: 1.05fr 1fr;
+          gap: 60px;
+          align-items: center;
+          z-index: 1;
+        }
+        .hero-copy { display: grid; gap: 24px; }
+        .hero-h { margin: 0; }
+        .hero-h-em {
+          background: linear-gradient(90deg, #2EA8FF 0%, #00C2FF 60%, #7BDDFF 100%);
+          -webkit-background-clip: text;
+          background-clip: text;
+          -webkit-text-fill-color: transparent;
+        }
+        .hero-lede {
+          margin: 0;
+          max-width: 580px;
+        }
+        .hero-ctas {
+          display: flex; flex-wrap: wrap; gap: 12px;
+          margin-top: 8px;
+        }
+        .hero-trust {
+          display: flex; flex-wrap: wrap; align-items: stretch;
+          gap: 18px;
+          margin-top: 18px;
+          padding-top: 28px;
+          border-top: 1px solid var(--line);
+        }
+        .trust-line {
+          display: grid; gap: 4px;
+          max-width: 280px;
+        }
+        .trust-num {
+          font-size: 22px;
+          font-weight: 600;
+          letter-spacing: -0.02em;
+          color: var(--ink-100);
+          font-variant-numeric: tabular-nums;
+        }
+        .trust-label {
+          font-size: 12.5px;
+          line-height: 1.4;
+          color: var(--ink-400);
+        }
+        .trust-divider {
+          width: 1px;
+          background: var(--line);
+          margin: 4px 0;
+        }
+        .hero-mock {
+          display: flex; justify-content: flex-end;
+        }
+
+        @media (max-width: 960px) {
+          .hero-grid {
+            grid-template-columns: 1fr;
+            gap: 70px;
+          }
+          .hero-mock { justify-content: center; }
+          .trust-divider { display: none; }
+        }
+        @media (max-width: 600px) {
+          .hero { padding-top: 130px; }
+          .hero-trust { flex-direction: column; gap: 12px; }
+        }
+      `}</style>
+    </section>
+  );
+}
+
+window.Hero = Hero;
+
+</script>
+
+<!-- problem-solution.jsx -->
+<script type="text/babel">
+/* Section 2 — Problem; Section 3 — Solution (6 capability cards) */
+
+function Problem() {
+  const ref = useReveal();
+  const pains = [
+    'Pull reports manually every Monday morning',
+    'Chase approvals over phone calls and emails',
+    'Discover production issues after the customer complains',
+    'Make decisions on data that’s already 3 days old',
+    'Reconcile dealer, dispatch, and finance numbers by hand',
+  ];
+  return (
+    <section className="section problem" id="problem" ref={ref}>
+      <div className="container">
+        <div className="problem-wrap">
+          <div className="problem-head reveal">
+            <span className="eyebrow">The gap</span>
+            <h2 className="h-section problem-h">
+              If your business runs on <em>Excel sheets</em>, <em>WhatsApp updates</em>, and <em>"let me check with the team,"</em><br />
+              you're losing money every single day.
+            </h2>
+          </div>
+
+          <div className="problem-grid">
+            <div className="reveal reveal-delay-1">
+              <p className="body-lg" style={{ marginTop: 0 }}>
+                You invested lakhs (or crores) in an ERP. But your team still:
+              </p>
+              <ul className="pain-list">
+                {pains.map((p, i) => (
+                  <li key={i} className="pain-item">
+                    <span className="pain-x" aria-hidden="true">
+                      <Icon.X />
+                    </span>
+                    <span>{p}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="erp-card reveal reveal-delay-2">
+              <div className="erp-stack">
+                <div className="erp-tile">
+                  <span className="erp-label">Your ERP</span>
+                  <span className="erp-stat">stores data</span>
+                </div>
+                <div className="erp-tile muted">
+                  <span className="erp-label">Your ERP</span>
+                  <span className="erp-stat strike">thinks</span>
+                </div>
+                <div className="erp-tile muted">
+                  <span className="erp-label">Your ERP</span>
+                  <span className="erp-stat strike">alerts</span>
+                </div>
+                <div className="erp-tile muted">
+                  <span className="erp-label">Your ERP</span>
+                  <span className="erp-stat strike">decides</span>
+                </div>
+              </div>
+              <p className="erp-caption">
+                That gap is what <strong>KYVERIQX</strong> was built to close.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <style>{`
+        .problem-h em {
+          font-style: normal;
+          background: linear-gradient(90deg, #2EA8FF, #00C2FF);
+          -webkit-background-clip: text;
+          background-clip: text;
+          -webkit-text-fill-color: transparent;
+          font-weight: 600;
+        }
+        .problem-head { display: grid; gap: 14px; margin-bottom: 56px; max-width: 980px; }
+        .problem-grid {
+          display: grid;
+          grid-template-columns: 1.2fr 1fr;
+          gap: 60px;
+          align-items: start;
+        }
+        .pain-list {
+          list-style: none; padding: 0; margin: 24px 0 0 0;
+          display: grid; gap: 14px;
+        }
+        .pain-item {
+          display: grid;
+          grid-template-columns: 24px 1fr;
+          gap: 14px;
+          align-items: center;
+          font-size: 16.5px;
+          line-height: 1.5;
+          color: var(--ink-200);
+          padding: 14px 0;
+          border-top: 1px solid var(--line);
+        }
+        .pain-item:first-child { border-top: 1px solid var(--line); }
+        .pain-x {
+          width: 24px; height: 24px;
+          display: grid; place-items: center;
+          border-radius: 6px;
+          background: rgba(255,90,90,0.10);
+          color: #FF8B8B;
+        }
+
+        .erp-card {
+          background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01));
+          border: 1px solid var(--line);
+          border-radius: 22px;
+          padding: 28px;
+        }
+        .erp-stack { display: grid; gap: 10px; }
+        .erp-tile {
+          display: flex; align-items: center; justify-content: space-between;
+          padding: 14px 18px;
+          background: rgba(46,168,255,0.06);
+          border: 1px solid rgba(46,168,255,0.18);
+          border-radius: 12px;
+        }
+        .erp-tile.muted {
+          background: rgba(255,255,255,0.02);
+          border-color: var(--line);
+        }
+        .erp-label {
+          font-size: 11.5px;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+          color: var(--ink-400);
+        }
+        .erp-stat {
+          font-size: 17px;
+          font-weight: 600;
+          color: var(--blue-400);
+          letter-spacing: -0.01em;
+        }
+        .erp-stat.strike {
+          color: var(--ink-500);
+          text-decoration: line-through;
+          text-decoration-color: rgba(255,90,90,0.4);
+          text-decoration-thickness: 1.5px;
+        }
+        .erp-caption {
+          font-size: 15px;
+          color: var(--ink-200);
+          margin: 22px 0 0 0;
+          padding-top: 22px;
+          border-top: 1px dashed var(--line);
+        }
+        .erp-caption strong {
+          color: var(--ink-100);
+          letter-spacing: 0.02em;
+        }
+
+        @media (max-width: 880px) {
+          .problem-grid { grid-template-columns: 1fr; gap: 40px; }
+        }
+      `}</style>
+    </section>
+  );
+}
+
+function Solution() {
+  const ref = useReveal();
+  const caps = [
+    {
+      icon: <Icon.Refresh />,
+      title: 'AI Workflow Automation',
+      body: 'Approvals, follow-ups, reports, escalations — all automated. Your team stops doing robot work and starts doing thinking work.',
+      tag: '01',
+    },
+    {
+      icon: <Icon.Chart />,
+      title: 'Executive & MIS Dashboards',
+      body: 'One screen. Live numbers. Sales, production, dispatch, collections, margins — all updating in real time. Built for CEOs who hate surprises.',
+      tag: '02',
+    },
+    {
+      icon: <Icon.Plug />,
+      title: 'ERP Intelligence Layer',
+      body: 'Integrates with Microsoft Business Central, SAP, Oracle, Tally, Zoho, or your custom ERP — then adds the analytics, alerts, and automations it was missing.',
+      tag: '03',
+      systems: ['Business Central', 'SAP', 'Oracle', 'Tally', 'Zoho', 'Custom'],
+    },
+    {
+      icon: <Icon.Factory />,
+      title: 'Manufacturing Intelligence',
+      body: 'Live production tracking, QC dashboards, machine monitoring, exception alerts. Catch problems on the shop floor, not in the monthly review.',
+      tag: '04',
+    },
+    {
+      icon: <Icon.Truck />,
+      title: 'Logistics & Distribution',
+      body: 'Transport bidding platforms, dealer portals, shipment tracking, vendor management. Every link in the chain, visible and controllable.',
+      tag: '05',
+    },
+    {
+      icon: <Icon.Bot />,
+      title: 'AI Sales & Outreach Agents',
+      body: 'Voice agents that call, qualify, and follow up 24/7. Personalized cold email at scale. CRM automation that tells your team exactly who to call today.',
+      tag: '06',
+    },
+  ];
+
+  return (
+    <section className="section solution" id="solution" ref={ref}>
+      <div className="container">
+        <div className="section-head reveal">
+          <span className="eyebrow">The solution</span>
+          <h2 className="h-section">
+            We don't replace your ERP. <br />
+            <span style={{ color: 'var(--ink-300)' }}>We make it intelligent.</span>
+          </h2>
+          <p className="body-lg" style={{ maxWidth: 760 }}>
+            KYVERIQX layers AI automation, real-time intelligence, and connected workflows
+            <em style={{ fontStyle: 'normal', color: 'var(--blue-400)' }}> on top </em>
+            of the systems you already use. So every department finally talks to every other department —
+            and every decision has live data behind it.
+          </p>
+        </div>
+
+        <div className="cap-grid">
+          {caps.map((c, i) => (
+            <div className={`cap card card-hover reveal reveal-delay-${(i % 3) + 1}`} key={c.tag}>
+              <div className="cap-head">
+                <span className="cap-icon">{c.icon}</span>
+                <span className="cap-tag mono">{c.tag}</span>
+              </div>
+              <h3 className="h-card cap-title">{c.title}</h3>
+              <p className="body-md cap-body">{c.body}</p>
+              {c.systems && (
+                <div className="cap-systems">
+                  {c.systems.map((s) => (
+                    <span key={s} className="chip">{s}</span>
+                  ))}
+                </div>
+              )}
+              <div className="cap-glow" aria-hidden="true" />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <style>{`
+        .cap-grid {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 16px;
+        }
+        .cap {
+          padding: 28px 26px 26px;
+          display: flex; flex-direction: column; gap: 14px;
+          min-height: 270px;
+        }
+        .cap-head {
+          display: flex; align-items: center; justify-content: space-between;
+        }
+        .cap-icon {
+          width: 40px; height: 40px;
+          display: grid; place-items: center;
+          border-radius: 10px;
+          background: linear-gradient(135deg, rgba(46,168,255,0.15), rgba(0,194,255,0.06));
+          border: 1px solid rgba(46,168,255,0.22);
+          color: var(--blue-400);
+        }
+        .cap-tag {
+          font-size: 12px;
+          color: var(--ink-500);
+          letter-spacing: 0.05em;
+        }
+        .cap-title {
+          margin: 6px 0 0 0;
+          color: var(--ink-100);
+        }
+        .cap-body { margin: 0; }
+        .cap-systems {
+          display: flex; flex-wrap: wrap; gap: 6px;
+          margin-top: auto;
+        }
+        .cap-systems .chip {
+          font-size: 11.5px;
+          padding: 4px 10px;
+        }
+        .cap-glow {
+          position: absolute;
+          inset: auto -30% -60% auto;
+          width: 240px; height: 240px;
+          background: radial-gradient(circle, rgba(0,194,255,0.10), transparent 70%);
+          filter: blur(20px);
+          opacity: 0;
+          transition: opacity .4s var(--ease);
+          pointer-events: none;
+        }
+        .cap:hover .cap-glow { opacity: 1; }
+
+        @media (max-width: 980px) {
+          .cap-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (max-width: 620px) {
+          .cap-grid { grid-template-columns: 1fr; }
+        }
+      `}</style>
+    </section>
+  );
+}
+
+window.Problem = Problem;
+window.Solution = Solution;
+
+</script>
+
+<!-- projects.jsx -->
+<script type="text/babel">
+/* Projects — horizontal scroll carousel with 6 case-study cards */
+
+function Projects() {
+  const ref = useReveal();
+  const scrollerRef = React.useRef(null);
+  const [progress, setProgress] = React.useState(0);
+
+  React.useEffect(() => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    const onScroll = () => {
+      const max = el.scrollWidth - el.clientWidth;
+      setProgress(max > 0 ? el.scrollLeft / max : 0);
+    };
+    onScroll();
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => el.removeEventListener('scroll', onScroll);
+  }, []);
+
+  const scrollBy = (dir) => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    el.scrollBy({ left: dir * (el.clientWidth * 0.7), behavior: 'smooth' });
+  };
+
+  const projects = [
+    {
+      n: '01',
+      icon: <Icon.Factory />,
+      title: 'Production Intelligence Platform',
+      industry: 'Chemical Manufacturing',
+      scale: '400+ Cr revenue client',
+      blurb: 'Real-time production tracking & QC dashboard for a multi-plant manufacturer. Replaced 14 daily Excel reports with a single live MIS.',
+      stats: [
+        { v: 38, suffix: '%', label: 'less reporting time' },
+        { v: 14, suffix: '→1', label: 'Excel reports collapsed' },
+      ],
+      accent: 'Live MIS',
+    },
+    {
+      n: '02',
+      icon: <Icon.Truck />,
+      title: 'AI Transport Bidding Agent',
+      industry: 'Automobile Supply Chain',
+      scale: 'Pan-India operations',
+      blurb: 'AI agent runs the entire freight bidding cycle — RFQs to 200+ verified transporters, negotiation, bid lock — without a single phone call.',
+      stats: [
+        { v: 22, suffix: '%', label: 'lower freight costs' },
+        { v: 5, suffix: '→0', label: 'people in the loop' },
+      ],
+      accent: 'AI Agent',
+    },
+    {
+      n: '03',
+      icon: <Icon.Chart />,
+      title: 'CEO Command-Center Dashboard',
+      industry: 'Plastic Packaging',
+      scale: 'Multi-plant operations',
+      blurb: 'Unified sales, production, dispatch, collections, and inventory into one executive dashboard with AI-powered insights and anomaly alerts.',
+      stats: [
+        { v: 4, suffix: 'h→25m', label: 'monthly review time' },
+        { v: 1, suffix: '', label: 'screen for the CEO' },
+      ],
+      accent: 'Executive',
+    },
+    {
+      n: '04',
+      icon: <Icon.Plug />,
+      title: 'Dealer · Customer · Vendor Portal',
+      industry: 'Packaging Industry',
+      scale: '800+ channel partners',
+      blurb: 'Unified self-service portal — orders, shipments, invoices, ledger statements, claims. Finance team finally stopped chasing PDFs.',
+      stats: [
+        { v: 60, suffix: '%', label: 'fewer support calls' },
+        { v: 3, suffix: '×', label: 'faster order processing' },
+      ],
+      accent: 'Self-Serve',
+    },
+    {
+      n: '05',
+      icon: <Icon.Bot />,
+      title: 'AI Voice Calling Agent',
+      industry: 'B2B Services',
+      scale: 'Inbound + outbound funnel',
+      blurb: 'Voice agent calls inbound leads in under 60 seconds, qualifies them in natural conversation, books meetings, logs to CRM.',
+      stats: [
+        { v: 4, suffix: '×', label: 'faster lead response' },
+        { v: 2.4, suffix: '×', label: 'qualified meetings booked', decimals: 1 },
+      ],
+      accent: 'Voice AI',
+    },
+    {
+      n: '06',
+      icon: <Icon.Bolt />,
+      title: 'AI Cold Email Outreach Engine',
+      industry: 'Agriculture',
+      scale: 'B2B outbound sales',
+      blurb: 'Researches each prospect, writes personalized first-touches, runs multi-step sequences, routes warm replies straight to sales.',
+      stats: [
+        { v: 18, suffix: '%', label: 'cold reply rate' },
+        { v: 40, suffix: '+', label: 'qualified convos / mo' },
+      ],
+      accent: 'Outbound',
+    },
+  ];
+
+  return (
+    <section className="section projects" id="projects" ref={ref}>
+      <div className="container projects-head-wrap">
+        <div className="section-head reveal">
+          <span className="eyebrow">Selected work</span>
+          <h2 className="h-section">
+            Real systems. Real businesses. <br />
+            <span style={{ color: 'var(--ink-300)' }}>Real numbers.</span>
+          </h2>
+        </div>
+
+        <div className="projects-controls reveal reveal-delay-1">
+          <div className="scroll-bar">
+            <div className="scroll-fill" style={{ width: `${Math.max(8, progress * 100)}%` }} />
+          </div>
+          <div className="scroll-btns">
+            <button className="round-btn" aria-label="Previous" onClick={() => scrollBy(-1)}>
+              <Icon.ArrowSm style={{ transform: 'rotate(180deg)' }} />
+            </button>
+            <button className="round-btn" aria-label="Next" onClick={() => scrollBy(1)}>
+              <Icon.ArrowSm />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="projects-track-wrap reveal reveal-delay-2">
+        <div className="projects-track" ref={scrollerRef}>
+          <div className="track-pad-left" />
+          {projects.map((p) => (
+            <article className="project-card" key={p.n}>
+              <header className="proj-head">
+                <span className="proj-icon">{p.icon}</span>
+                <span className="proj-n mono">PROJECT {p.n}</span>
+                <span className="proj-accent">{p.accent}</span>
+              </header>
+
+              <div className="proj-meta">
+                <span className="proj-industry">{p.industry}</span>
+                <span className="proj-dot">·</span>
+                <span className="proj-scale">{p.scale}</span>
+              </div>
+
+              <h3 className="proj-title">{p.title}</h3>
+              <p className="proj-blurb body-md">{p.blurb}</p>
+
+              <div className="proj-stats">
+                {p.stats.map((s, i) => (
+                  <div className="proj-stat" key={i}>
+                    <div className="proj-stat-v">
+                      {typeof s.v === 'number' && !s.suffix.includes('→') ? (
+                        <Counter to={s.v} suffix={s.suffix} decimals={s.decimals || 0} />
+                      ) : (
+                        <span className="numeral">{s.v}{s.suffix}</span>
+                      )}
+                    </div>
+                    <div className="proj-stat-l">{s.label}</div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="proj-corner" aria-hidden="true" />
+            </article>
+          ))}
+          <div className="track-pad-right" />
+        </div>
+        <div className="track-edge track-edge-left" aria-hidden="true" />
+        <div className="track-edge track-edge-right" aria-hidden="true" />
+      </div>
+
+      <div className="container projects-cta reveal">
+        <Magnetic strength={6}>
+          <a href="#book" className="btn btn-primary">
+            Want results like these for your business? Let's talk <Icon.Arrow className="arrow" />
+          </a>
+        </Magnetic>
+      </div>
+
+      <style>{`
+        .projects-head-wrap {
+          display: flex; align-items: flex-end; justify-content: space-between;
+          gap: 40px; margin-bottom: 40px;
+        }
+        .projects-head-wrap .section-head { margin-bottom: 0; }
+        .projects-controls {
+          display: flex; align-items: center; gap: 18px;
+          min-width: 280px;
+        }
+        .scroll-bar {
+          flex: 1;
+          height: 2px;
+          background: var(--line);
+          border-radius: 999px;
+          overflow: hidden;
+        }
+        .scroll-fill {
+          height: 100%;
+          background: linear-gradient(90deg, var(--blue-500), var(--blue-400));
+          transition: width .15s linear;
+        }
+        .scroll-btns { display: flex; gap: 8px; }
+        .round-btn {
+          width: 40px; height: 40px;
+          display: grid; place-items: center;
+          border-radius: 999px;
+          background: rgba(255,255,255,0.04);
+          border: 1px solid var(--line);
+          color: var(--ink-200);
+          transition: background .25s var(--ease), border-color .25s var(--ease), transform .2s var(--ease);
+        }
+        .round-btn:hover {
+          background: rgba(46,168,255,0.12);
+          border-color: rgba(46,168,255,0.32);
+          color: var(--blue-400);
+        }
+        .round-btn:active { transform: scale(0.95); }
+
+        .projects-track-wrap { position: relative; }
+        .projects-track {
+          display: flex;
+          gap: 20px;
+          overflow-x: auto;
+          overflow-y: hidden;
+          padding: 8px 0 30px;
+          scroll-snap-type: x mandatory;
+          scrollbar-width: thin;
+        }
+        .track-pad-left, .track-pad-right { flex: 0 0 calc((100vw - var(--content-w)) / 2 + 24px); min-width: 24px; }
+        .track-edge {
+          position: absolute; top: 0; bottom: 0;
+          width: 80px;
+          pointer-events: none;
+          z-index: 2;
+        }
+        .track-edge-left  { left: 0;  background: linear-gradient(90deg, var(--navy-900), transparent); }
+        .track-edge-right { right: 0; background: linear-gradient(-90deg, var(--navy-900), transparent); }
+
+        .project-card {
+          flex: 0 0 420px;
+          min-height: 360px;
+          padding: 28px;
+          background:
+            linear-gradient(180deg, rgba(46,168,255,0.04), rgba(255,255,255,0.01));
+          border: 1px solid var(--line);
+          border-radius: 20px;
+          display: flex; flex-direction: column; gap: 14px;
+          scroll-snap-align: start;
+          transition: transform .35s var(--ease), border-color .35s var(--ease), box-shadow .35s var(--ease);
+          position: relative;
+          overflow: hidden;
+        }
+        .project-card:hover {
+          transform: translateY(-6px);
+          border-color: rgba(46,168,255,0.30);
+          box-shadow: 0 30px 70px -30px rgba(0,194,255,0.30);
+        }
+        .proj-head {
+          display: flex; align-items: center; gap: 12px;
+        }
+        .proj-icon {
+          width: 36px; height: 36px;
+          display: grid; place-items: center;
+          border-radius: 9px;
+          background: rgba(46,168,255,0.12);
+          color: var(--blue-400);
+          border: 1px solid rgba(46,168,255,0.20);
+        }
+        .proj-n {
+          font-size: 11px;
+          color: var(--ink-500);
+          letter-spacing: 0.12em;
+        }
+        .proj-accent {
+          margin-left: auto;
+          font-size: 11px;
+          font-weight: 500;
+          letter-spacing: 0.05em;
+          padding: 4px 10px;
+          border-radius: 999px;
+          color: var(--blue-400);
+          background: rgba(0,194,255,0.10);
+          border: 1px solid rgba(0,194,255,0.25);
+        }
+        .proj-meta {
+          display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+          font-size: 12.5px;
+          color: var(--ink-400);
+        }
+        .proj-dot { opacity: 0.5; }
+        .proj-title {
+          margin: 4px 0 0 0;
+          font-size: 23px;
+          line-height: 1.2;
+          letter-spacing: -0.015em;
+          font-weight: 600;
+          color: var(--ink-100);
+          text-wrap: balance;
+        }
+        .proj-blurb { margin: 0; }
+        .proj-stats {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 12px;
+          margin-top: auto;
+          padding-top: 18px;
+          border-top: 1px dashed var(--line);
+        }
+        .proj-stat {
+          display: grid; gap: 4px;
+        }
+        .proj-stat-v {
+          font-size: 28px;
+          font-weight: 600;
+          letter-spacing: -0.025em;
+          background: linear-gradient(90deg, #2EA8FF, #00C2FF);
+          -webkit-background-clip: text;
+          background-clip: text;
+          -webkit-text-fill-color: transparent;
+          font-variant-numeric: tabular-nums;
+        }
+        .proj-stat-l {
+          font-size: 12px;
+          color: var(--ink-400);
+          line-height: 1.35;
+        }
+        .proj-corner {
+          position: absolute;
+          right: -60px; bottom: -60px;
+          width: 200px; height: 200px;
+          background: radial-gradient(circle, rgba(0,194,255,0.10), transparent 65%);
+          pointer-events: none;
+        }
+
+        .projects-cta {
+          display: flex; justify-content: center;
+          margin-top: 30px;
+        }
+
+        @media (max-width: 720px) {
+          .projects-head-wrap { flex-direction: column; align-items: flex-start; gap: 24px; }
+          .project-card { flex-basis: 320px; }
+          .track-edge { width: 30px; }
+        }
+      `}</style>
+    </section>
+  );
+}
+
+window.Projects = Projects;
+
+</script>
+
+<!-- why.jsx -->
+<script type="text/babel">
+/* Why KYVERIQX — side-by-side comparison cards */
+
+function WhyUs() {
+  const ref = useReveal();
+  const rows = [
+    ['Generic AI consultants',           'Deep ERP + operations expertise'],
+    ['Tools that don’t talk to each other', 'Integration-first architecture'],
+    ['Pretty dashboards with stale data', 'Real-time operational visibility'],
+    ['12-month implementations',          'Working systems in weeks'],
+    ['“AI strategy” PowerPoints',         'Measurable ROI on every project'],
+    ['Software that replaces your team',  'Intelligence that empowers them'],
+  ];
+  return (
+    <section className="section why" id="why" ref={ref}>
+      <div className="container">
+        <div className="section-head reveal">
+          <span className="eyebrow">Why KYVERIQX</span>
+          <h2 className="h-section">
+            Most AI agencies build demos. <br />
+            <span style={{ color: 'var(--blue-400)' }}>We build systems that run your business on Monday morning.</span>
+          </h2>
+        </div>
+
+        <div className="compare-grid">
+          <div className="compare-col col-them reveal reveal-delay-1">
+            <div className="compare-head">
+              <span className="compare-tag tag-them">Usually</span>
+              <span className="compare-title">What you get elsewhere</span>
+            </div>
+            <ul className="compare-list">
+              {rows.map(([them], i) => (
+                <li key={i} className="compare-row them">
+                  <span className="compare-icon"><Icon.X /></span>
+                  <span>{them}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="vs reveal" aria-hidden="true">
+            <span className="mono">VS</span>
+          </div>
+
+          <div className="compare-col col-us reveal reveal-delay-2">
+            <div className="compare-head">
+              <span className="compare-tag tag-us">KYVERIQX</span>
+              <span className="compare-title us">What you get with us</span>
+            </div>
+            <ul className="compare-list">
+              {rows.map(([, us], i) => (
+                <li key={i} className="compare-row us">
+                  <span className="compare-icon ok"><Icon.Check /></span>
+                  <span>{us}</span>
+                </li>
+              ))}
+            </ul>
+            <div className="col-us-glow" aria-hidden="true" />
+          </div>
+        </div>
+
+        <div className="why-footer reveal">
+          <p className="body-lg" style={{ maxWidth: 880, margin: '0 auto', textAlign: 'center' }}>
+            We sit at the intersection of{' '}
+            <span className="why-tag">ERP systems</span>{' '}·{' '}
+            <span className="why-tag">business operations</span>{' '}·{' '}
+            <span className="why-tag">AI automation</span>{' '}·{' '}
+            <span className="why-tag">data intelligence</span>.
+            <br />
+            <span style={{ color: 'var(--ink-400)' }}>
+              A combination almost no one offers. It's why our clients stop shopping around once they see a demo.
+            </span>
+          </p>
+        </div>
+      </div>
+
+      <style>{`
+        .compare-grid {
+          display: grid;
+          grid-template-columns: 1fr auto 1fr;
+          gap: 20px;
+          align-items: stretch;
+        }
+        .compare-col {
+          padding: 28px;
+          border-radius: 22px;
+          border: 1px solid var(--line);
+          position: relative;
+        }
+        .col-them {
+          background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.005));
+          color: var(--ink-400);
+        }
+        .col-us {
+          background:
+            linear-gradient(180deg, rgba(46,168,255,0.10), rgba(0,194,255,0.03));
+          border-color: rgba(46,168,255,0.30);
+          box-shadow: 0 20px 60px -30px rgba(0,194,255,0.30);
+          overflow: hidden;
+        }
+        .col-us-glow {
+          position: absolute; inset: -30% -30% auto auto;
+          width: 320px; height: 320px;
+          background: radial-gradient(circle, rgba(0,194,255,0.18), transparent 70%);
+          pointer-events: none;
+          filter: blur(20px);
+        }
+        .compare-head {
+          display: flex; align-items: center; gap: 12px;
+          margin-bottom: 20px;
+        }
+        .compare-tag {
+          font-size: 11px;
+          font-weight: 600;
+          letter-spacing: 0.12em;
+          padding: 4px 10px;
+          border-radius: 999px;
+          text-transform: uppercase;
+        }
+        .tag-them { background: rgba(255,255,255,0.04); color: var(--ink-400); border: 1px solid var(--line); }
+        .tag-us {
+          background: linear-gradient(90deg, #2EA8FF, #00C2FF);
+          color: #07111F;
+        }
+        .compare-title {
+          font-size: 16px;
+          font-weight: 500;
+          color: var(--ink-300);
+        }
+        .compare-title.us { color: var(--ink-100); }
+        .compare-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 4px; }
+        .compare-row {
+          display: grid; grid-template-columns: 22px 1fr; align-items: center;
+          gap: 14px;
+          font-size: 16px;
+          padding: 14px 0;
+          border-top: 1px solid var(--line);
+        }
+        .compare-row.them { color: var(--ink-400); }
+        .compare-row.us { color: var(--ink-100); font-weight: 500; }
+        .compare-icon {
+          width: 22px; height: 22px;
+          display: grid; place-items: center;
+          border-radius: 6px;
+          background: rgba(255,255,255,0.04);
+          color: var(--ink-500);
+        }
+        .compare-icon.ok {
+          background: rgba(46,168,255,0.15);
+          color: var(--blue-400);
+        }
+
+        .vs {
+          align-self: center;
+          display: grid; place-items: center;
+          width: 56px; height: 56px;
+          border-radius: 50%;
+          background: var(--navy-700);
+          border: 1px solid var(--line-strong);
+          color: var(--ink-400);
+          font-size: 13px;
+          letter-spacing: 0.1em;
+          box-shadow: 0 10px 30px -15px rgba(0,0,0,0.5);
+        }
+
+        .why-footer { margin-top: 50px; }
+        .why-tag {
+          font-weight: 500;
+          color: var(--ink-100);
+        }
+
+        @media (max-width: 880px) {
+          .compare-grid { grid-template-columns: 1fr; }
+          .vs { justify-self: center; margin: -10px 0; }
+        }
+      `}</style>
+    </section>
+  );
+}
+
+window.WhyUs = WhyUs;
+
+</script>
+
+<!-- founder.jsx -->
+
+
+<script type="text/babel">
+/* Founder section */
+
+function Founder() {
+  const ref = useReveal();
+  return (
+    <section className="section founder" id="founder" ref={ref}>
+      <div className="container">
+        <div className="founder-grid">
+          <div className="founder-portrait reveal">
+            <div className="portrait-frame">
+              <img
+                className="portrait-img"
+                src="data:image/webp;base64,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"
+                alt="K. Kanth Chandra, founder of KYVERIQX"
+              />
+              <div className="portrait-grid" aria-hidden="true" />
+              <div className="portrait-tint" aria-hidden="true" />
+              <div className="portrait-badge">
+                <span className="dot" />
+                <span className="mono">FOUNDER · KYVERIQX</span>
+              </div>
+            </div>
+
+            <div className="portrait-card">
+              <div className="portrait-card-row">
+                <span className="portrait-card-l">Founder &amp; CEO</span>
+                <span className="portrait-card-v">K. Kanth Chandra</span>
+              </div>
+              <div className="portrait-card-row">
+                <span className="portrait-card-l">Years in ERP &amp; ops</span>
+                <span className="portrait-card-v"><Counter to={14} suffix="+" /></span>
+              </div>
+              <div className="portrait-card-row">
+                <span className="portrait-card-l">Industries</span>
+                <span className="portrait-card-v">auto · chemical · packaging · agri · distribution · franchise</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="founder-copy reveal reveal-delay-1">
+            <span className="eyebrow">The founder</span>
+            <h2 className="h-section founder-h">
+              14 years inside ERPs taught me one thing: <br />
+              <span style={{ color: 'var(--ink-300)' }}>
+                the software isn't the problem.
+              </span>{' '}
+              <span className="hero-h-em">The gap around it is.</span>
+            </h2>
+
+            <div className="founder-quote">
+              <p className="body-lg" style={{ margin: 0 }}>
+                I'm <strong>K. Kanth Chandra</strong>, founder of KYVERIQX. For 14+ years
+                I've worked across <em>automobile, chemical, packaging, agriculture, distribution,
+                and franchise network</em> businesses — different industries, different ERP systems,
+                different scales. The same operational gaps showed up every time.
+              </p>
+              <p className="body-md" style={{ marginTop: 18 }}>
+                I started KYVERIQX to close those gaps. Not by replacing the systems you've
+                invested in — but by adding the AI, automation, and intelligence layer that
+                finally makes them work the way you thought they would when you bought them.
+              </p>
+              <p className="body-md" style={{ marginTop: 18, color: 'var(--ink-200)' }}>
+                If that sounds like the kind of partner you've been looking for, let's talk.
+              </p>
+            </div>
+
+            <div className="founder-links">
+              <a href="#" className="founder-link">
+                <Icon.LinkedIn /> <span>LinkedIn</span>
+              </a>
+              <a href="mailto:hello@kyveriqx.com" className="founder-link">
+                <Icon.Mail /> <span>hello@kyveriqx.com</span>
+              </a>
+              <a href="#book" className="founder-link link-accent">
+                <Icon.Arrow /> <span>Book a call</span>
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <style>{`
+        .founder-grid {
+          display: grid;
+          grid-template-columns: 300px 1fr;
+          gap: 60px;
+          align-items: start;
+        }
+        .founder-portrait { display: grid; gap: 14px; position: sticky; top: 120px; max-width: 300px; }
+        .portrait-frame {
+          aspect-ratio: 1 / 1.15;
+          background:
+            linear-gradient(135deg, rgba(46,168,255,0.10), rgba(13,27,42,0.6));
+          border: 1px solid rgba(46,168,255,0.25);
+          border-radius: 16px;
+          position: relative;
+          overflow: hidden;
+          box-shadow:
+            0 30px 80px -40px rgba(0,0,0,0.7),
+            0 0 0 1px rgba(46,168,255,0.10) inset;
+        }
+        .portrait-img {
+          position: absolute; inset: 0;
+          width: 100%; height: 100%;
+          object-fit: cover;
+          object-position: center 22%;
+          filter: saturate(0.95) contrast(1.02);
+        }
+        .portrait-tint {
+          position: absolute; inset: 0;
+          background:
+            radial-gradient(120% 80% at 50% 110%, rgba(0,194,255,0.25), transparent 55%),
+            linear-gradient(180deg, rgba(13,27,42,0) 50%, rgba(13,27,42,0.55) 100%);
+          pointer-events: none;
+          mix-blend-mode: screen;
+        }
+        .portrait-grid {
+          position: absolute; inset: 0;
+          background-image:
+            linear-gradient(rgba(0,194,255,0.07) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(0,194,255,0.07) 1px, transparent 1px);
+          background-size: 36px 36px;
+          mask-image: linear-gradient(180deg, rgba(0,0,0,0.7), transparent 60%);
+          -webkit-mask-image: linear-gradient(180deg, rgba(0,0,0,0.7), transparent 60%);
+          pointer-events: none;
+          mix-blend-mode: screen;
+          opacity: 0.6;
+        }
+        .portrait-badge {
+          position: absolute;
+          left: 12px; bottom: 12px;
+          display: inline-flex; align-items: center; gap: 7px;
+          padding: 5px 10px;
+          background: rgba(13, 27, 42, 0.7);
+          backdrop-filter: blur(8px);
+          -webkit-backdrop-filter: blur(8px);
+          border: 1px solid rgba(255,255,255,0.10);
+          border-radius: 999px;
+          font-size: 9.5px;
+          letter-spacing: 0.12em;
+          color: var(--ink-200);
+        }
+
+        .portrait-card {
+          padding: 14px 16px;
+          background: rgba(255,255,255,0.025);
+          border: 1px solid var(--line);
+          border-radius: 12px;
+          display: grid; gap: 8px;
+        }
+        .portrait-card-row {
+          display: grid;
+          grid-template-columns: 1fr;
+          gap: 4px;
+          font-size: 13px;
+        }
+        .portrait-card-row + .portrait-card-row { padding-top: 8px; border-top: 1px dashed var(--line); }
+        .portrait-card-l {
+          color: var(--ink-500);
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          font-size: 10px;
+        }
+        .portrait-card-v {
+          color: var(--ink-100);
+          font-weight: 500;
+          font-size: 13px;
+          line-height: 1.35;
+        }
+
+        .founder-copy { display: grid; gap: 22px; }
+        .founder-h { margin: 0; }
+        .founder-h .hero-h-em {
+          background: linear-gradient(90deg, #2EA8FF, #00C2FF);
+          -webkit-background-clip: text; background-clip: text;
+          -webkit-text-fill-color: transparent;
+        }
+        .founder-quote {
+          padding: 24px 26px;
+          background: linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0.005));
+          border-left: 2px solid var(--blue-500);
+          border-radius: 4px 14px 14px 4px;
+        }
+        .founder-quote em {
+          color: var(--blue-400);
+          font-style: normal;
+          font-weight: 500;
+        }
+        .founder-quote strong { color: var(--ink-100); }
+        .founder-links {
+          display: flex; flex-wrap: wrap; gap: 8px;
+        }
+        .founder-link {
+          display: inline-flex; align-items: center; gap: 8px;
+          padding: 10px 16px;
+          font-size: 13.5px;
+          color: var(--ink-200);
+          background: rgba(255,255,255,0.04);
+          border: 1px solid var(--line);
+          border-radius: 999px;
+          transition: all .25s var(--ease);
+        }
+        .founder-link:hover {
+          color: var(--ink-100);
+          border-color: var(--line-strong);
+          background: rgba(255,255,255,0.07);
+        }
+        .founder-link.link-accent {
+          color: var(--blue-400);
+          border-color: rgba(46,168,255,0.30);
+          background: rgba(46,168,255,0.08);
+        }
+        .founder-link.link-accent:hover {
+          background: rgba(46,168,255,0.15);
+        }
+
+        @media (max-width: 960px) {
+          .founder-grid { grid-template-columns: 1fr; gap: 40px; }
+          .founder-portrait { position: static; max-width: 100%; grid-template-columns: 220px 1fr; display: grid; align-items: center; gap: 20px; }
+          .portrait-frame { max-width: 220px; }
+        }
+        @media (max-width: 560px) {
+          .founder-portrait { grid-template-columns: 1fr; max-width: 220px; }
+        }
+      `}</style>
+    </section>
+  );
+}
+
+window.Founder = Founder;
+
+</script>
+
+<!-- book.jsx -->
+<script type="text/babel">
+/* Book a call + Calendar placeholder */
+
+function BookCall() {
+  const ref = useReveal();
+
+  React.useEffect(() => {
+    (function (C, A, L) {
+      let p = function (a, ar) { a.q.push(ar); };
+      let d = C.document;
+      C.Cal = C.Cal || function () {
+        let cal = C.Cal; let ar = arguments;
+        if (!cal.loaded) { cal.ns = {}; cal.q = cal.q || []; d.head.appendChild(d.createElement("script")).src = A; cal.loaded = true; }
+        if (ar[0] === L) { const api = function () { p(api, arguments); }; const namespace = ar[1]; api.q = api.q || []; if(typeof namespace === "string"){cal.ns[namespace] = cal.ns[namespace] || api; p(cal.ns[namespace], ar); p(cal, ["initNamespace", namespace]);} else p(cal, ar); return; }
+        p(cal, ar);
+      };
+    })(window, "https://app.cal.com/embed/embed.js", "init");
+
+    Cal("init", "30min", { origin: "https://app.cal.com" });
+    Cal.ns["30min"]("inline", {
+      elementOrSelector: "#my-cal-inline-30min",
+      config: { layout: "month_view", useSlotsViewOnSmallScreen: "true" },
+      calLink: "kyveriqx-cwdfy1/30min",
+    });
+    Cal.ns["30min"]("ui", { hideEventTypeDetails: false, layout: "month_view", theme: "light" });
+  }, []);
+
+  return (
+    <section className="section book" id="book" ref={ref}>
+      <div className="container">
+        <div className="book-grid">
+          <div className="book-copy reveal">
+            <span className="eyebrow">Let's talk</span>
+            <h2 className="h-section book-h">
+              Let's see if we're a fit. <br />
+              <span style={{ color: 'var(--ink-300)' }}>30 minutes. No pitch deck.</span>
+            </h2>
+
+            <ul className="book-checklist">
+              <li>
+                <span className="book-check"><Icon.Check /></span>
+                <span>Map your current operational gaps in plain language</span>
+              </li>
+              <li>
+                <span className="book-check"><Icon.Check /></span>
+                <span>Show you 2–3 specific automation opportunities in your business</span>
+              </li>
+              <li>
+                <span className="book-check"><Icon.Check /></span>
+                <span>Give you a realistic ROI estimate — even if you never work with us</span>
+              </li>
+            </ul>
+
+            <div className="book-fit">
+              <div className="fit-block fit-yes">
+                <span className="fit-label">Best for</span>
+                <p className="body-md" style={{ margin: 0, color: 'var(--ink-200)' }}>
+                  Founders, COOs, CEOs, and Ops Heads of manufacturing, distribution, FMCG, pharma, logistics,
+                  or trading companies running on ERP systems.
+                </p>
+              </div>
+              <div className="fit-block fit-no">
+                <span className="fit-label">Not for</span>
+                <p className="body-md" style={{ margin: 0, color: 'var(--ink-400)' }}>
+                  Pre-revenue startups, agencies, or businesses looking for "AI strategy consulting."
+                  <br />
+                  <em style={{ color: 'var(--ink-300)', fontStyle: 'normal' }}>We build, we don't advise.</em>
+                </p>
+              </div>
+            </div>
+
+            <div className="book-email">
+              <Icon.Mail />
+              <span>Or email directly: </span>
+              <a href="mailto:hello@kyveriqx.com">hello@kyveriqx.com</a>
+            </div>
+          </div>
+
+          <div className="book-embed reveal reveal-delay-2">
+            <div className="cal-wrap">
+              <div id="my-cal-inline-30min" style={{ width: '100%' }} />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <style>{`
+        .book-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 60px;
+          align-items: start;
+        }
+        .book-copy { display: grid; gap: 24px; }
+        .book-h { margin: 0; }
+        .book-checklist {
+          list-style: none; padding: 0; margin: 0;
+          display: grid; gap: 12px;
+        }
+        .book-checklist li {
+          display: grid; grid-template-columns: 26px 1fr; gap: 14px;
+          align-items: center;
+          font-size: 16px;
+          color: var(--ink-200);
+        }
+        .book-check {
+          width: 26px; height: 26px;
+          display: grid; place-items: center;
+          border-radius: 7px;
+          background: rgba(46,168,255,0.14);
+          color: var(--blue-400);
+          border: 1px solid rgba(46,168,255,0.25);
+        }
+        .book-fit {
+          display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+        }
+        .fit-block {
+          padding: 18px 20px;
+          border-radius: 14px;
+          border: 1px solid var(--line);
+          display: grid; gap: 8px;
+        }
+        .fit-yes { border-color: rgba(46,168,255,0.22); background: rgba(46,168,255,0.04); }
+        .fit-no  { background: rgba(255,255,255,0.02); }
+        .fit-label {
+          font-size: 11px;
+          letter-spacing: 0.12em;
+          text-transform: uppercase;
+          color: var(--blue-400);
+        }
+        .fit-no .fit-label { color: var(--ink-500); }
+        .book-email {
+          display: inline-flex; align-items: center; gap: 8px;
+          padding: 12px 16px;
+          background: rgba(255,255,255,0.025);
+          border: 1px solid var(--line);
+          border-radius: 10px;
+          color: var(--ink-300);
+          font-size: 14px;
+          width: fit-content;
+        }
+        .book-email a { color: var(--blue-400); }
+        .book-email a:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+        .book-embed { display: flex; justify-content: stretch; align-items: flex-start; }
+        .cal-wrap {
+          width: 100%;
+          border: 1px solid rgba(180, 195, 215, 0.55);
+          border-radius: 20px;
+          overflow: hidden;
+          box-shadow: 0 20px 50px -20px rgba(0,0,0,0.25);
+          background: #edf1f7;
+        }
+
+        @media (max-width: 880px) {
+          .book-grid { grid-template-columns: 1fr; gap: 40px; }
+          .book-fit { grid-template-columns: 1fr; }
+        }
+      `}</style>
+    </section>
+  );
+}
+
+window.BookCall = BookCall;
+
+</script>
+
+<!-- faqs.jsx -->
+<script type="text/babel">
+/* FAQs accordion */
+
+function FAQs() {
+  const ref = useReveal();
+  const [open, setOpen] = React.useState(0);
+
+  const faqs = [
+    {
+      q: 'Will you replace our existing ERP?',
+      a: `No. That's the whole point. We layer intelligence, automation, and dashboards on top of your existing Microsoft Business Central, SAP, Oracle, Tally, Zoho, or custom ERP. Your ERP keeps doing what it does. We make it 10× more useful.`,
+    },
+    {
+      q: 'How long does a typical project take?',
+      a: `Most dashboards and automation modules go live in 3–6 weeks. Larger systems (full portals, multi-department platforms) take 8–14 weeks. We deliver in working sprints, not 18-month waterfalls.`,
+    },
+    {
+      q: 'What size of business is this for?',
+      a: `We work best with mid-size and enterprise companies (₹50 Cr – ₹5,000 Cr revenue range) that already have an ERP, real operational complexity, and a team that's stuck doing manual work the system should be handling.`,
+    },
+    {
+      q: `We don't have a clean data setup. Is that a problem?`,
+      a: `No. Almost no one does. Part of what we do in the first phase is clean, structure, and connect your data sources. That's prerequisite work, not a blocker.`,
+    },
+    {
+      q: `How is this different from hiring an AI consultant or BI agency?`,
+      a: `Consultants give you strategy. BI agencies give you dashboards. We give you systems that operate your business — combining AI automation, real-time intelligence, and ERP integration into one working ecosystem. One vendor, one accountability line, one outcome.`,
+    },
+    {
+      q: 'What does it cost?',
+      a: `Project-based pricing, depending on scope. Smaller automation modules start around ₹X lakhs; full executive dashboards or portal builds range higher. You'll get a fixed quote on the discovery call. No hourly billing surprises.`,
+    },
+    {
+      q: 'Do you offer ongoing support after launch?',
+      a: `Yes. Every system we build comes with 90 days of post-launch support included, plus optional retainers for continuous improvement, new automation modules, and dashboard expansion.`,
+    },
+    {
+      q: 'Our industry is unusual. Will this work for us?',
+      a: `Probably. We've built systems across automobile, chemical, packaging, agriculture, distribution, and franchise network businesses. The underlying problems — manual work, data silos, slow decisions — look almost identical across industries. The discovery call is where we'll know for sure.`,
+    },
+  ];
+
+  return (
+    <section className="section faqs" id="faqs" ref={ref}>
+      <div className="container">
+        <div className="section-head reveal">
+          <span className="eyebrow">FAQs</span>
+          <h2 className="h-section">
+            Questions smart operators ask <br />
+            <span style={{ color: 'var(--ink-300)' }}>before they book a call.</span>
+          </h2>
+        </div>
+
+        <div className="faq-list reveal reveal-delay-1">
+          {faqs.map((f, i) => (
+            <div className={`faq ${open === i ? 'open' : ''}`} key={i}>
+              <button
+                className="faq-q"
+                onClick={() => setOpen(open === i ? -1 : i)}
+                aria-expanded={open === i}
+              >
+                <span className="faq-n mono">{String(i + 1).padStart(2, '0')}</span>
+                <span className="faq-q-text">{f.q}</span>
+                <span className="faq-toggle">
+                  {open === i ? <Icon.Minus /> : <Icon.Plus />}
+                </span>
+              </button>
+              <div className="faq-a-wrap">
+                <p className="faq-a body-md">{f.a}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <style>{`
+        .faq-list {
+          max-width: 920px;
+          margin: 0 auto;
+          display: grid;
+        }
+        .faq {
+          border-top: 1px solid var(--line);
+        }
+        .faq:last-child { border-bottom: 1px solid var(--line); }
+        .faq-q {
+          width: 100%;
+          display: grid;
+          grid-template-columns: 44px 1fr 28px;
+          gap: 16px;
+          align-items: center;
+          padding: 22px 4px;
+          text-align: left;
+          color: var(--ink-100);
+          transition: color .25s var(--ease);
+        }
+        .faq-q:hover { color: var(--blue-400); }
+        .faq-n {
+          color: var(--ink-500);
+          font-size: 12px;
+          letter-spacing: 0.08em;
+        }
+        .faq-q-text {
+          font-size: 18px;
+          font-weight: 500;
+          letter-spacing: -0.01em;
+        }
+        .faq-toggle {
+          width: 28px; height: 28px;
+          display: grid; place-items: center;
+          border-radius: 999px;
+          border: 1px solid var(--line);
+          color: var(--ink-300);
+          transition: all .25s var(--ease);
+        }
+        .faq.open .faq-toggle {
+          color: var(--blue-400);
+          border-color: rgba(46,168,255,0.30);
+          background: rgba(46,168,255,0.08);
+        }
+        .faq-a-wrap {
+          display: grid;
+          grid-template-rows: 0fr;
+          transition: grid-template-rows .35s var(--ease);
+        }
+        .faq.open .faq-a-wrap { grid-template-rows: 1fr; }
+        .faq-a-wrap > .faq-a {
+          overflow: hidden;
+          margin: 0;
+          padding-left: 60px;
+          padding-right: 60px;
+          padding-bottom: 0;
+          color: var(--ink-300);
+        }
+        .faq.open .faq-a-wrap > .faq-a {
+          padding-bottom: 22px;
+        }
+
+        @media (max-width: 600px) {
+          .faq-q-text { font-size: 16px; }
+          .faq-a-wrap > .faq-a { padding-left: 0; padding-right: 0; }
+          .faq-q { grid-template-columns: 28px 1fr 28px; gap: 12px; }
+        }
+      `}</style>
+    </section>
+  );
+}
+
+window.FAQs = FAQs;
+
+</script>
+
+<!-- footer.jsx -->
+<script type="text/babel">
+/* Footer CTA + full site footer */
+
+function Footer() {
+  const ref = useReveal();
+  return (
+    <footer className="site-footer" ref={ref}>
+      <section className="section foot-cta" id="cta">
+        <div className="container">
+          <div className="cta-card reveal">
+            <div className="cta-grid">
+              <div className="cta-copy">
+                <span className="eyebrow">Final word</span>
+                <h2 className="h-section cta-h">
+                  Your competitors are automating <em>right now</em>.
+                </h2>
+                <p className="body-lg" style={{ maxWidth: 580, color: 'var(--ink-300)' }}>
+                  Every week you wait, they get faster, sharper, and harder to catch.
+                </p>
+              </div>
+              <div className="cta-actions">
+                <Magnetic strength={8}>
+                  <a href="#book" className="btn btn-primary btn-xl">
+                    Book your free operations audit <Icon.Arrow className="arrow" />
+                  </a>
+                </Magnetic>
+                <a href="mailto:hello@kyveriqx.com" className="cta-mail">
+                  <Icon.Mail /> hello@kyveriqx.com
+                </a>
+              </div>
+            </div>
+            <div className="cta-bg" aria-hidden="true" />
+            <div className="cta-bg-grid" aria-hidden="true" />
+          </div>
+        </div>
+      </section>
+
+      <div className="container foot-main">
+        <div className="foot-grid">
+          <div className="foot-brand">
+            <div className="foot-mark">
+              <span className="nav-mark" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M5 19V5M5 12l8-7M5 12l8 7M13 5h6M13 19h6" />
+                </svg>
+              </span>
+              <span className="foot-wordmark">KYVERIQX</span>
+            </div>
+            <p className="foot-tag body-md">
+              AI-Powered Operational Intelligence for businesses that already run on ERPs and refuse to wait 18 months for results.
+            </p>
+            <div className="foot-status">
+              <span className="dot" />
+              <span className="mono">Now booking — Q3 sprints</span>
+            </div>
+          </div>
+
+          <div className="foot-col">
+            <h4 className="foot-h">Solution</h4>
+            <ul>
+              <li><a href="#solution">AI Workflow Automation</a></li>
+              <li><a href="#solution">Executive Dashboards</a></li>
+              <li><a href="#solution">ERP Intelligence Layer</a></li>
+              <li><a href="#solution">Manufacturing Intelligence</a></li>
+              <li><a href="#solution">Logistics &amp; Distribution</a></li>
+              <li><a href="#solution">AI Sales Agents</a></li>
+            </ul>
+          </div>
+
+          <div className="foot-col">
+            <h4 className="foot-h">Company</h4>
+            <ul>
+              <li><a href="#projects">Projects</a></li>
+              <li><a href="#why">Why KYVERIQX</a></li>
+              <li><a href="#founder">Founder</a></li>
+              <li><a href="#faqs">FAQs</a></li>
+              <li><a href="#book">Book a call</a></li>
+            </ul>
+          </div>
+
+          <div className="foot-col">
+            <h4 className="foot-h">Contact</h4>
+            <ul>
+              <li><a href="mailto:hello@kyveriqx.com">hello@kyveriqx.com</a></li>
+              <li><a href="#">LinkedIn — K. Kanth Chandra</a></li>
+              <li><a href="#">YouTube — K Kant</a></li>
+            </ul>
+          </div>
+        </div>
+
+        <hr className="hr" style={{ margin: '40px 0 24px' }} />
+
+        <div className="foot-bottom">
+          <span className="mono">&copy; {new Date().getFullYear()} KYVERIQX. Built in India.</span>
+          <div className="foot-legal">
+            <a href="#">Privacy</a>
+            <a href="#">Terms</a>
+            <a href="#">Security</a>
+          </div>
+        </div>
+      </div>
+
+      <style>{`
+        .site-footer { position: relative; }
+
+        .foot-cta { padding-top: 60px; padding-bottom: 60px; }
+        .cta-card {
+          position: relative;
+          overflow: hidden;
+          padding: 70px 60px;
+          border-radius: 28px;
+          background:
+            linear-gradient(135deg, rgba(46,168,255,0.18) 0%, rgba(0,194,255,0.06) 60%, rgba(13,27,42,0.6) 100%);
+          border: 1px solid rgba(46,168,255,0.30);
+          box-shadow: 0 40px 100px -40px rgba(0,194,255,0.40);
+        }
+        .cta-bg {
+          position: absolute;
+          inset: auto -120px -200px auto;
+          width: 600px; height: 600px;
+          background: radial-gradient(circle, rgba(0,194,255,0.35), transparent 60%);
+          filter: blur(40px);
+          z-index: 0;
+          pointer-events: none;
+        }
+        .cta-bg-grid {
+          position: absolute; inset: 0;
+          background-image:
+            linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px);
+          background-size: 56px 56px;
+          mask-image: radial-gradient(ellipse at left, black 30%, transparent 80%);
+          -webkit-mask-image: radial-gradient(ellipse at left, black 30%, transparent 80%);
+          pointer-events: none;
+        }
+        .cta-grid {
+          position: relative; z-index: 1;
+          display: grid;
+          grid-template-columns: 1fr auto;
+          gap: 40px;
+          align-items: center;
+        }
+        .cta-h { margin: 6px 0 18px 0; }
+        .cta-h em {
+          font-style: normal;
+          background: linear-gradient(90deg, #2EA8FF, #00C2FF);
+          -webkit-background-clip: text;
+          background-clip: text;
+          -webkit-text-fill-color: transparent;
+        }
+        .cta-actions {
+          display: grid; gap: 16px;
+          justify-items: end;
+        }
+        .btn-xl { padding: 18px 28px; font-size: 16px; }
+        .cta-mail {
+          display: inline-flex; align-items: center; gap: 8px;
+          color: var(--ink-300);
+          font-size: 14px;
+        }
+        .cta-mail:hover { color: var(--blue-400); }
+
+        .foot-main {
+          padding: 60px 24px 40px;
+          max-width: var(--content-w);
+        }
+        .foot-grid {
+          display: grid;
+          grid-template-columns: 1.5fr 1fr 1fr 1fr;
+          gap: 40px;
+        }
+        .foot-mark { display: inline-flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+        .foot-wordmark {
+          font-size: 16px;
+          font-weight: 600;
+          letter-spacing: 0.04em;
+        }
+        .foot-tag {
+          margin: 0 0 18px 0;
+          max-width: 360px;
+        }
+        .foot-status {
+          display: inline-flex; align-items: center; gap: 8px;
+          font-size: 12px;
+          color: var(--ink-300);
+        }
+
+        .foot-col h4 {
+          font-size: 12px;
+          font-weight: 600;
+          letter-spacing: 0.12em;
+          text-transform: uppercase;
+          color: var(--blue-400);
+          margin: 0 0 16px 0;
+        }
+        .foot-col ul {
+          list-style: none; padding: 0; margin: 0;
+          display: grid; gap: 10px;
+        }
+        .foot-col a {
+          color: var(--ink-300);
+          font-size: 14px;
+          transition: color .2s var(--ease);
+        }
+        .foot-col a:hover { color: var(--ink-100); }
+
+        .foot-bottom {
+          display: flex; align-items: center; justify-content: space-between;
+          font-size: 12px;
+          color: var(--ink-500);
+          flex-wrap: wrap; gap: 16px;
+        }
+        .foot-legal { display: flex; gap: 18px; }
+        .foot-legal a { color: var(--ink-400); }
+        .foot-legal a:hover { color: var(--ink-100); }
+
+        @media (max-width: 960px) {
+          .cta-card { padding: 50px 32px; }
+          .cta-grid { grid-template-columns: 1fr; }
+          .cta-actions { justify-items: start; }
+          .foot-grid { grid-template-columns: 1fr 1fr; }
+        }
+        @media (max-width: 540px) {
+          .foot-grid { grid-template-columns: 1fr; }
+        }
+      `}</style>
+    </footer>
+  );
+}
+
+window.Footer = Footer;
+
+</script>
+
+<!-- app.jsx -->
+<script type="text/babel">
+/* App entrypoint — composes all sections */
+
+function App() {
+  // Soft loading effect — fade body in
+  React.useEffect(() => {
+    /* page visible immediately, no fade-in needed */
+  }, []);
+
+  return (
+    <React.Fragment>
+      <Nav />
+      <main>
+        <Hero />
+        <Problem />
+        <Solution />
+        <Projects />
+        <WhyUs />
+        <Founder />
+        <BookCall />
+        <FAQs />
+      </main>
+      <Footer />
+    </React.Fragment>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById('kyveriqx-root'));
+root.render(<App />);
+
+</script>
