@@ -5,10 +5,16 @@ import Link from "next/link";
 import { supabaseServer } from "../lib/supabase-server";
 
 export async function Nav() {
-  const supabase = supabaseServer();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  let user: { email?: string | null } | null = null;
+  try {
+    const supabase = supabaseServer();
+    const res = await supabase.auth.getUser();
+    user = res.data.user;
+  } catch (err) {
+    // Fail open: render the page with a Login link if we can't resolve the
+    // session (e.g. env vars missing on a freshly deployed environment).
+    console.error("Nav: failed to resolve session", err);
+  }
 
   return (
     <header
