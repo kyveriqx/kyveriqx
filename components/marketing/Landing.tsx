@@ -251,7 +251,7 @@ function Nav() {
     { label: 'Projects', href: '#projects' },
     { label: 'Store',    href: '/store' },
     { label: 'Why us',   href: '#why' },
-    { label: 'Founder',  href: '#founder' },
+    { label: 'Founder',  href: '#book' },     // Founder section hidden — link redirects to Book a Call
     { label: 'FAQs',     href: '#faqs' },
   ];
 
@@ -2567,7 +2567,9 @@ export function Landing() {
         <Solution />
         <Projects />
         <WhyUs />
-        <Founder />
+        {/* Founder section temporarily hidden — the "Founder" nav link
+            redirects to #book until this is re-enabled. */}
+        {/* <Founder /> */}
         <BookCall />
         <FAQs />
       </main>
