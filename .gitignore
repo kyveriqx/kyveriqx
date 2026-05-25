@@ -40,3 +40,6 @@ Thumbs.db
 
 # trigger.dev
 .trigger
+
+# scratch
+.commit-msg.tmp

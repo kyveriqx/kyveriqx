@@ -1,4 +1,0 @@
-Re-add /debug/env to verify Trigger.dev env vars in production
-
-Temporary; removed in the next commit once TRIGGER_SECRET_KEY and
-TRIGGER_PROJECT_REF are confirmed present in the Vercel production runtime.
