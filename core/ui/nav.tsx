@@ -3,6 +3,7 @@
 
 import Link from "next/link";
 import { supabaseServer } from "../lib/supabase-server";
+import { mainSiteUrl } from "../lib/subdomain";
 
 export async function Nav() {
   let user: { email?: string | null } | null = null;
@@ -37,29 +38,31 @@ export async function Nav() {
           gap: 18,
         }}
       >
-        <Link
-          href="/"
+        <a
+          href={mainSiteUrl("/")}
           style={{
             fontWeight: 600,
             letterSpacing: "0.04em",
             fontSize: 14,
             color: "var(--ink-100)",
+            textDecoration: "none",
           }}
         >
           KYVERIQX
-        </Link>
+        </a>
         <nav style={{ display: "flex", gap: 4, marginLeft: "auto", alignItems: "center" }}>
-          <Link
-            href="/store"
+          <a
+            href={mainSiteUrl("/store")}
             style={{
               padding: "8px 14px",
               fontSize: 14,
               color: "var(--ink-300)",
               borderRadius: 999,
+              textDecoration: "none",
             }}
           >
             Store
-          </Link>
+          </a>
           {user ? (
             <>
               <span
