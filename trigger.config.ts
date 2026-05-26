@@ -4,6 +4,45 @@
 
 import { defineConfig } from "@trigger.dev/sdk";
 import { pythonExtension } from "@trigger.dev/python/extension";
+import { syncEnvVars } from "@trigger.dev/build/extensions/core";
+import { readFileSync } from "node:fs";
+
+/** Read `.env.local` at deploy time and return the keys our tasks actually
+ *  need on the worker. Vercel and Trigger.dev have separate env namespaces;
+ *  without this the orgmis-generate-report task fails immediately with
+ *  "supabaseUrl is required" because it tries to createClient() with
+ *  undefined env vars. Same .env.local parser used by scripts/. */
+const WORKER_ENV_KEYS = [
+  "NEXT_PUBLIC_SUPABASE_URL",
+  "SUPABASE_SERVICE_ROLE_KEY",
+];
+
+function readDotEnvLocal(): Record<string, string> {
+  try {
+    return Object.fromEntries(
+      readFileSync(".env.local", "utf8")
+        .split(/\r?\n/)
+        .map((l) => l.trim())
+        .filter((l) => l && !l.startsWith("#"))
+        .map((l) => {
+          const eq = l.indexOf("=");
+          if (eq === -1) return null;
+          const k = l.slice(0, eq).trim();
+          let v = l.slice(eq + 1).trim();
+          if (
+            (v.startsWith('"') && v.endsWith('"')) ||
+            (v.startsWith("'") && v.endsWith("'"))
+          ) {
+            v = v.slice(1, -1);
+          }
+          return [k, v] as const;
+        })
+        .filter((e): e is readonly [string, string] => e !== null),
+    );
+  } catch {
+    return {};
+  }
+}
 
 export default defineConfig({
   project: "proj_tqwxkaebnfuzapnsaqlq",
@@ -34,6 +73,14 @@ export default defineConfig({
         // Keep requirements.txt around for local dev / IDE hints.
         requirements: ["openpyxl==3.1.5", "python-pptx==1.0.2"],
         devPythonBinaryPath: "python",
+      }),
+      syncEnvVars(async () => {
+        const env = readDotEnvLocal();
+        const out: Record<string, string> = {};
+        for (const key of WORKER_ENV_KEYS) {
+          if (env[key]) out[key] = env[key];
+        }
+        return out;
       }),
     ],
   },
