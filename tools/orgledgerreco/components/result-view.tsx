@@ -37,7 +37,7 @@ type ReconcileResultJson = {
   sourceFiles?: { company: string; partner: string };
 };
 
-type Job = {
+export type Job = {
   id: string;
   status: JobStatusValue;
   result: ReconcileResultJson | null;
@@ -53,12 +53,26 @@ const inr = (n: number) =>
 
 const dateStr = (d: string | null | undefined) => (d ? d.slice(0, 10) : "");
 
-export function ReconcileResultView({ jobId }: { jobId: string }) {
-  const [job, setJob] = useState<Job | null>(null);
+export function ReconcileResultView({
+  jobId,
+  initialJob,
+}: {
+  jobId: string;
+  initialJob?: Job;
+}) {
+  const [job, setJob] = useState<Job | null>(initialJob ?? null);
   const [pollErr, setPollErr] = useState<string | null>(null);
   const cancelled = useRef(false);
 
   useEffect(() => {
+    // Inline pipeline: the page seeds initialJob with a terminal state, so
+    // there's nothing to poll for. Skip the effect entirely. Other tools
+    // (queued via Trigger.dev) still come through without initialJob and
+    // hit the poll loop below.
+    if (initialJob && TERMINAL.includes(initialJob.status)) {
+      return;
+    }
+
     cancelled.current = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
 
@@ -81,7 +95,7 @@ export function ReconcileResultView({ jobId }: { jobId: string }) {
       cancelled.current = true;
       if (timer) clearTimeout(timer);
     };
-  }, [jobId]);
+  }, [jobId, initialJob]);
 
   if (pollErr) {
     return (
