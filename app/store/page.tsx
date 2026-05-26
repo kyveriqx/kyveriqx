@@ -3,6 +3,7 @@
 
 import { Nav } from "../../core/ui/nav";
 import { Card } from "../../core/ui/card";
+import { SubscribeButton } from "../../core/ui/subscribe-button";
 import { supabaseServer } from "../../core/lib/supabase-server";
 
 type Tool = {
@@ -18,6 +19,9 @@ export const dynamic = "force-dynamic";
 
 export default async function Store() {
   const supabase = supabaseServer();
+
+  const { data: { user } } = await supabase.auth.getUser();
+
   const { data: tools, error } = await supabase
     .from("tools")
     .select("id, slug, subdomain, name, description, price")
@@ -55,19 +59,38 @@ export default async function Store() {
         <style
           dangerouslySetInnerHTML={{
             __html: `
-              .store-tool-link {
-                display: block;
-                text-decoration: none;
-                color: inherit;
-                transition: transform .25s var(--ease), box-shadow .25s var(--ease);
+              .store-tool-card {
+                display: flex;
+                flex-direction: column;
+                transition: transform .25s var(--ease), box-shadow .25s var(--ease), border-color .25s var(--ease);
               }
-              .store-tool-link:hover {
+              .store-tool-card:hover {
                 transform: translateY(-4px);
-              }
-              .store-tool-link:hover .store-tool-card {
                 border-color: rgba(46, 168, 255, 0.32);
                 box-shadow: 0 20px 60px -20px rgba(46, 168, 255, 0.35);
               }
+              .store-tool-link-region {
+                display: block;
+                text-decoration: none;
+                color: inherit;
+                flex: 1;
+              }
+              .store-tool-footer {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 12px;
+                margin-top: 16px;
+                padding-top: 16px;
+                border-top: 1px solid var(--line);
+              }
+              .store-tool-signin {
+                font-size: 13px;
+                color: var(--blue-400);
+                text-decoration: none;
+                white-space: nowrap;
+              }
+              .store-tool-signin:hover { text-decoration: underline; }
             `,
           }}
         />
@@ -80,15 +103,11 @@ export default async function Store() {
           }}
         >
           {(tools as Tool[] | null)?.map((tool) => (
-            <a
-              key={tool.id}
-              href={`https://${tool.subdomain}.kyveriqx.com`}
-              className="store-tool-link"
-              aria-label={`Open ${tool.name}`}
-            >
-              <Card
-                className="store-tool-card"
-                style={{ padding: 20, height: "100%" }}
+            <Card key={tool.id} className="store-tool-card" style={{ padding: 20 }}>
+              <a
+                href={`https://${tool.subdomain}.kyveriqx.com`}
+                className="store-tool-link-region"
+                aria-label={`Open ${tool.name}`}
               >
                 <span
                   style={{
@@ -121,13 +140,10 @@ export default async function Store() {
                 >
                   {tool.description ?? ""}
                 </p>
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "baseline",
-                    gap: 6,
-                  }}
-                >
+              </a>
+
+              <div className="store-tool-footer">
+                <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
                   <span
                     style={{
                       fontSize: 20,
@@ -139,8 +155,23 @@ export default async function Store() {
                   </span>
                   <span style={{ color: "var(--ink-400)", fontSize: 13 }}>/ month</span>
                 </div>
-              </Card>
-            </a>
+
+                {user ? (
+                  <SubscribeButton
+                    toolSlug={tool.slug}
+                    userEmail={user.email ?? undefined}
+                    label="Get yours now"
+                  />
+                ) : (
+                  <a
+                    href="/auth/login?next=/store"
+                    className="store-tool-signin"
+                  >
+                    Sign in to subscribe →
+                  </a>
+                )}
+              </div>
+            </Card>
           ))}
         </div>
       </main>
