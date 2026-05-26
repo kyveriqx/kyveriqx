@@ -10,7 +10,7 @@ insert into public.tools (slug, subdomain, name, description, price) values
     'orgmis',
     'orgmis',
     'Management / BOD MIS Generator',
-    'Upload your ERP exports (GL, Sales, Purchase, Inventory, Aging, Budget) and download a branded board-ready Excel MIS workbook, PowerPoint deck, and PDF — all in your company''s colours and logo.',
+    'Branded board MIS, deck, and PDF.',
     499
   )
 on conflict (slug) do nothing;
