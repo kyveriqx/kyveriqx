@@ -1,13 +1,12 @@
-/* One-off provisioning script — creates the Supabase Storage bucket used by
-   the Org Ledger Reconciliation tool.
+/* One-off provisioning script — creates Supabase Storage buckets used by
+   each tool. Idempotent: running again on existing buckets is a no-op.
 
    Run once per environment:  node scripts/provision-storage.mjs
 
-   Uses the service-role key from .env.local. Idempotent: re-running on an
-   existing bucket reports OK and exits 0. Because uploads now go through
-   the server-side /api/uploads route (using the service role, bypassing
-   RLS), we only need the bucket to exist — no RLS policies required on
-   storage.objects. */
+   Buckets:
+     ledger-uploads   — orgledgerreco (50 MB cap)
+     orgmis-uploads   — Management/BOD MIS Generator inputs (20 MB cap)
+     orgmis-outputs   — BOD MIS generated reports (50 MB cap) */
 
 import { readFileSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
@@ -42,22 +41,27 @@ if (!url || !serviceKey) {
 
 const supa = createClient(url, serviceKey, { auth: { persistSession: false } });
 
-const BUCKET = "ledger-uploads";
+const BUCKETS = [
+  { id: "ledger-uploads", fileSizeLimit: 50 * 1024 * 1024 },
+  { id: "orgmis-uploads", fileSizeLimit: 20 * 1024 * 1024 },
+  { id: "orgmis-outputs", fileSizeLimit: 50 * 1024 * 1024 },
+];
 
-const { error: createErr } = await supa.storage.createBucket(BUCKET, {
-  public: false,
-  fileSizeLimit: 50 * 1024 * 1024, // 50 MB — match the upload-form cap
-});
-
-if (createErr) {
-  if (/already exists|duplicate/i.test(createErr.message)) {
-    console.log(`OK — bucket "${BUCKET}" already exists.`);
+for (const { id, fileSizeLimit } of BUCKETS) {
+  const { error: createErr } = await supa.storage.createBucket(id, {
+    public: false,
+    fileSizeLimit,
+  });
+  if (createErr) {
+    if (/already exists|duplicate/i.test(createErr.message)) {
+      console.log(`OK — bucket "${id}" already exists.`);
+    } else {
+      console.error(`Failed to create bucket "${id}":`, createErr.message);
+      process.exit(1);
+    }
   } else {
-    console.error("Failed to create bucket:", createErr.message);
-    process.exit(1);
+    console.log(`Created bucket "${id}" (private, ${fileSizeLimit / 1024 / 1024} MB file limit).`);
   }
-} else {
-  console.log(`Created bucket "${BUCKET}" (private, 50 MB file limit).`);
 }
 
 const { data: buckets, error: listErr } = await supa.storage.listBuckets();

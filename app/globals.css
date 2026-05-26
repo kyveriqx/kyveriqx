@@ -2,6 +2,17 @@
 
 @import "../core/styles/tokens.css";
 
+/* Tailwind layers — scoped via tailwind.config.ts `content` to /tools/orgmis only.
+   Preflight is disabled there so existing pages keep their look. */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Shared utility class used by the OrgMIS UI (Header logo + Hero icons). */
+.gradient-brand {
+  background: linear-gradient(135deg, #2E5597 0%, #1F3864 100%);
+}
+
 * {
   box-sizing: border-box;
 }
