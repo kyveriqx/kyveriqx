@@ -41,7 +41,20 @@ export default function GeneratePage() {
   const [status, setStatus] = useState<RunStatus>("idle");
   const [outputs, setOutputs] = useState<RunResponse["outputs"]>(undefined);
   const [progress, setProgress] = useState(0);
+  const [elapsed, setElapsed] = useState(0);
   const [error, setError] = useState<string | null>(null);
+
+  // The backend doesn't emit real progress, so we ramp on a log curve that
+  // matches typical generation time (~60s, asymptotic to 99%) and label the
+  // current step by elapsed time. Never freezes at a flat % the way the
+  // previous "+5 every 2s capped at 90%" did.
+  function stageFor(secs: number): string {
+    if (secs < 4) return "Queued — waiting for worker…";
+    if (secs < 10) return "Downloading your files…";
+    if (secs < 30) return "Analyzing financials & building reports…";
+    if (secs < 55) return "Generating PDF…";
+    return "Uploading & finalizing…";
+  }
 
   useEffect(() => {
     if (!files.glOrTrialBalance) router.replace("/tools/orgmis/upload");
@@ -51,7 +64,8 @@ export default function GeneratePage() {
     setStatus("queued");
     setError(null);
     setOutputs(undefined);
-    setProgress(5);
+    setProgress(2);
+    setElapsed(0);
     try {
       const res = await fetch("/api/orgmis/generate", {
         method: "POST",
@@ -62,12 +76,15 @@ export default function GeneratePage() {
       const data = (await res.json()) as { jobId: string };
       setLastRunId(data.jobId);
       setStatus("running");
-      // Kyveriqx jobs don't emit real progress; fake a slow ramp for UX.
-      let fake = 10;
+      // Log-curve ramp toward 99% (asymptotic, never freezes). The constant
+      // 35 puts ~60s at ~82% and ~90s at ~92% — feels honest for the typical
+      // 30-90s pipeline. Snaps to 100% in pollStatus on success.
+      const t0 = Date.now();
       const tick = setInterval(() => {
-        fake = Math.min(fake + 5, 90);
-        setProgress(fake);
-      }, 2000);
+        const secs = (Date.now() - t0) / 1000;
+        setElapsed(Math.round(secs));
+        setProgress(Math.min(99, Math.round((1 - Math.exp(-secs / 35)) * 100)));
+      }, 500);
       pollStatus(data.jobId).finally(() => clearInterval(tick));
     } catch (e: any) {
       setStatus("failed");
@@ -247,7 +264,9 @@ export default function GeneratePage() {
                     <h3 className="font-semibold text-slate-900">
                       {status === "queued" ? "Queued…" : "Generating your reports…"}
                     </h3>
-                    <p className="text-sm text-slate-500 mt-1">Please don't close this tab.</p>
+                    <p className="text-sm text-slate-600 mt-2 min-h-[20px]">
+                      {stageFor(elapsed)}
+                    </p>
                   </div>
                   <div className="bg-slate-100 rounded-full h-2 overflow-hidden">
                     <div
@@ -255,7 +274,13 @@ export default function GeneratePage() {
                       style={{ width: `${progress}%` }}
                     />
                   </div>
-                  <div className="text-center text-xs text-slate-500 mt-2">{progress}%</div>
+                  <div className="flex items-center justify-between text-xs text-slate-500 mt-2">
+                    <span>{progress}%</span>
+                    <span>{elapsed}s elapsed</span>
+                  </div>
+                  <p className="text-xs text-slate-400 mt-3 text-center">
+                    Typically 30-90 seconds. Don't close this tab.
+                  </p>
                 </>
               )}
 

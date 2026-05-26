@@ -156,39 +156,53 @@ export const orgmisGenerateReport = task({
         throw new Error(`pipeline failed: ${pipelineRes.stderr}`);
       }
 
-      // 4) Locate outputs + best-effort PDF conversion.
+      // 4) Locate outputs.
       const xlsxPath = path.join(workdir, "MIS.xlsx");
       const pptxPath = path.join(workdir, "BOD_Presentation.pptx");
       const pdfPath = path.join(workdir, "BOD_Presentation.pdf");
 
-      try {
-        const conv = await python.runScript(
-          path.join(scriptDir, "convert_pdf.py"),
-          [pptxPath, pdfPath],
-          { env: { BOD_MIS_WORKDIR: workdir } },
-        );
-        if (conv.exitCode !== 0) {
-          logger.warn("PDF conversion failed, continuing without PDF", {
-            stderr: conv.stderr,
-          });
-        }
-      } catch (e) {
-        logger.warn("PDF conversion threw, continuing without PDF", { err: String(e) });
-      }
-
-      // 5) Upload outputs to Supabase Storage + collect signed URLs.
+      // 5) Run PDF conversion concurrently with the xlsx + pptx uploads —
+      //    they're independent (uploads only need the xlsx/pptx that already
+      //    exist on disk; PDF only needs the pptx, which it reads via path).
+      //    Saves min(pdf_time, upload_time) of wall clock vs the old serial
+      //    "convert PDF, then upload all three" flow.
       const safeCompany = (branding.companyName || "report")
         .replace(/[^a-zA-Z0-9]/g, "_")
         .slice(0, 40);
       const stamp = new Date().toISOString().slice(0, 10);
       const prefix = `${p.userId}/${stamp}/${safeCompany}-${runId.slice(0, 8)}`;
 
-      const [pptxUrl, xlsxUrl, pdfUrl] = await Promise.all([
+      const pdfReadyPromise = python
+        .runScript(
+          path.join(scriptDir, "convert_pdf.py"),
+          [pptxPath, pdfPath],
+          { env: { BOD_MIS_WORKDIR: workdir } },
+        )
+        .then((conv) => {
+          if (conv.exitCode !== 0) {
+            logger.warn("PDF conversion failed, continuing without PDF", {
+              stderr: conv.stderr,
+            });
+            return false;
+          }
+          return true;
+        })
+        .catch((e) => {
+          logger.warn("PDF conversion threw, continuing without PDF", {
+            err: String(e),
+          });
+          return false;
+        });
+
+      const [pptxUrl, xlsxUrl, pdfOk] = await Promise.all([
         uploadOutput(pptxPath, `${prefix}.pptx`),
         uploadOutput(xlsxPath, `${prefix}.xlsx`),
-        // PDF may not exist if convert_pdf failed — uploadOutput catches.
-        uploadOutput(pdfPath, `${prefix}.pdf`),
+        pdfReadyPromise,
       ]);
+
+      const pdfUrl = pdfOk
+        ? await uploadOutput(pdfPath, `${prefix}.pdf`)
+        : undefined;
 
       logger.info("BOD report generation complete", {
         pptx: !!pptxUrl, xlsx: !!xlsxUrl, pdf: !!pdfUrl,
