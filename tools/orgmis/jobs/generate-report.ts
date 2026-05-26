@@ -142,32 +142,18 @@ export const orgmisGenerateReport = task({
         JSON.stringify({ branding, outlook, files: inputs }, null, 2),
       );
 
-      // 3) Run Python pipeline (analyzer → MIS workbook → BOD deck → PDF).
+      // 3) Run Python pipeline (analyzer + MIS workbook + BOD deck in one
+      //    Python process — xlsx + deck builders run concurrently inside).
+      //    See tools/orgmis/python/pipeline.py for the orchestration logic.
       const scriptDir = path.join(process.cwd(), "tools", "orgmis", "python");
       const env = { BOD_MIS_CONFIG: configPath, BOD_MIS_WORKDIR: workdir };
 
-      logger.info("running analyzer");
-      const analyzeRes = await python.runScript(
-        path.join(scriptDir, "analyze_financials.py"), [], { env },
+      logger.info("running pipeline (analyze → xlsx + pptx)");
+      const pipelineRes = await python.runScript(
+        path.join(scriptDir, "pipeline.py"), [], { env },
       );
-      if (analyzeRes.exitCode !== 0) {
-        throw new Error(`analyzer failed: ${analyzeRes.stderr}`);
-      }
-
-      logger.info("building MIS workbook");
-      const xlsxRes = await python.runScript(
-        path.join(scriptDir, "build_mis_excel.py"), [], { env },
-      );
-      if (xlsxRes.exitCode !== 0) {
-        throw new Error(`MIS build failed: ${xlsxRes.stderr}`);
-      }
-
-      logger.info("building PowerPoint deck");
-      const pptRes = await python.runScript(
-        path.join(scriptDir, "build_bod_deck.py"), [], { env },
-      );
-      if (pptRes.exitCode !== 0) {
-        throw new Error(`PPT build failed: ${pptRes.stderr}`);
+      if (pipelineRes.exitCode !== 0) {
+        throw new Error(`pipeline failed: ${pipelineRes.stderr}`);
       }
 
       // 4) Locate outputs + best-effort PDF conversion.
