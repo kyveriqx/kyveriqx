@@ -186,8 +186,9 @@ function Tile({ heading, value, sub }: { heading: string; value: string; sub: st
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
     <h2 style={{
-      fontSize: 18, fontWeight: 600, margin: "0 0 12px",
+      fontSize: 18, fontWeight: 600, margin: "0 0 14px",
       letterSpacing: "-0.01em",
+      color: "var(--ink-200)",
     }}>{children}</h2>
   );
 }
@@ -370,17 +371,17 @@ function ActionPlan({ res }: { res: ReconcileResultJson }) {
             display: "grid",
             gridTemplateColumns: "auto auto 1fr",
             gap: 12,
-            padding: 14,
-            border: "1px solid var(--line)",
+            padding: 16,
+            border: "1px solid var(--line-strong)",
             borderRadius: 10,
-            background: "rgba(255,255,255,0.02)",
+            background: "var(--bg-elev)",
             alignItems: "start",
           }}>
             <Pill kind={a.pri === "URGENT" ? "warn" : a.pri === "MEDIUM" ? "amber" : "ok"}>{a.pri}</Pill>
             <Pill kind="neutral">{a.who}</Pill>
             <div>
-              <div style={{ fontWeight: 600, fontSize: 14 }}>{a.action}</div>
-              <div style={{ marginTop: 6, fontSize: 13, color: "var(--ink-300)", lineHeight: 1.5 }}>{a.detail}</div>
+              <div style={{ fontWeight: 700, fontSize: 14.5, color: "var(--ink-100)" }}>{a.action}</div>
+              <div style={{ marginTop: 6, fontSize: 13, color: "var(--ink-100)", opacity: 0.85, lineHeight: 1.55 }}>{a.detail}</div>
             </div>
           </div>
         ))}
@@ -393,8 +394,10 @@ function DownloadBar({ jobId }: { jobId: string }) {
   return (
     <Card style={{ padding: 24, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
       <div>
-        <div style={{ fontSize: 14, fontWeight: 600 }}>Need to share this with finance / your partner?</div>
-        <div style={{ fontSize: 12.5, color: "var(--ink-400)", marginTop: 4 }}>
+        <div style={{ fontSize: 15, fontWeight: 700, color: "var(--ink-200)" }}>
+          Need to share this with finance / your partner?
+        </div>
+        <div style={{ fontSize: 13, color: "var(--ink-100)", opacity: 0.75, marginTop: 4 }}>
           Get the same result as a formatted 4-sheet Excel report (Summary · Matched · Gaps · Action Plan).
         </div>
       </div>
@@ -416,8 +419,9 @@ function Table({ headers, children }: { headers: string[]; children: React.React
             <th key={h} style={{
               textAlign: "left", padding: "10px 12px",
               borderBottom: "1px solid var(--line-strong)",
-              color: "var(--ink-300)", fontWeight: 600,
-              fontSize: 12, letterSpacing: "0.02em",
+              color: "var(--ink-200)", fontWeight: 700,
+              fontSize: 12, letterSpacing: "0.04em",
+              textTransform: "uppercase",
             }}>{h}</th>
           ))}
         </tr>
@@ -434,7 +438,7 @@ function Td({ children, align = "left" }: { children: React.ReactNode; align?: "
       borderBottom: "1px solid var(--line)",
       textAlign: align,
       verticalAlign: "top",
-      color: "var(--ink-200)",
+      color: "var(--ink-100)",
     }}>{children}</td>
   );
 }
