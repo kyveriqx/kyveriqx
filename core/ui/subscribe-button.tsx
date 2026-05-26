@@ -32,9 +32,10 @@ type Props = {
   toolSlug: string;
   label?: string;
   userEmail?: string;
+  size?: "md" | "sm";
 };
 
-export function SubscribeButton({ toolSlug, label = "Subscribe", userEmail }: Props) {
+export function SubscribeButton({ toolSlug, label = "Subscribe", userEmail, size }: Props) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -87,7 +88,7 @@ export function SubscribeButton({ toolSlug, label = "Subscribe", userEmail }: Pr
 
   return (
     <div style={{ display: "grid", gap: 8 }}>
-      <Button onClick={onClick} disabled={busy} type="button">
+      <Button onClick={onClick} disabled={busy} type="button" size={size}>
         {busy ? "Opening Razorpay…" : label}
       </Button>
       {error && (

@@ -161,6 +161,7 @@ export default async function Store() {
                     toolSlug={tool.slug}
                     userEmail={user.email ?? undefined}
                     label="Get yours now"
+                    size="sm"
                   />
                 ) : (
                   <a
