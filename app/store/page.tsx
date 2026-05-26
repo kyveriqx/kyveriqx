@@ -52,6 +52,26 @@ export default async function Store() {
           </Card>
         )}
 
+        <style
+          dangerouslySetInnerHTML={{
+            __html: `
+              .store-tool-link {
+                display: block;
+                text-decoration: none;
+                color: inherit;
+                transition: transform .25s var(--ease), box-shadow .25s var(--ease);
+              }
+              .store-tool-link:hover {
+                transform: translateY(-4px);
+              }
+              .store-tool-link:hover .store-tool-card {
+                border-color: rgba(46, 168, 255, 0.32);
+                box-shadow: 0 20px 60px -20px rgba(46, 168, 255, 0.35);
+              }
+            `,
+          }}
+        />
+
         <div
           style={{
             display: "grid",
@@ -60,57 +80,67 @@ export default async function Store() {
           }}
         >
           {(tools as Tool[] | null)?.map((tool) => (
-            <Card key={tool.id} style={{ padding: 20 }}>
-              <span
-                style={{
-                  fontFamily: "var(--font-mono)",
-                  fontSize: 11,
-                  letterSpacing: "0.06em",
-                  color: "var(--ink-400)",
-                }}
-              >
-                {tool.subdomain}.kyveriqx.com
-              </span>
-              <h2
-                style={{
-                  fontSize: 20,
-                  fontWeight: 600,
-                  margin: "6px 0 8px",
-                  color: "var(--ink-100)",
-                }}
-              >
-                {tool.name}
-              </h2>
-              <p
-                style={{
-                  fontSize: 14,
-                  color: "var(--ink-300)",
-                  lineHeight: 1.5,
-                  margin: "0 0 16px",
-                  minHeight: 42,
-                }}
-              >
-                {tool.description ?? ""}
-              </p>
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "baseline",
-                  gap: 6,
-                }}
+            <a
+              key={tool.id}
+              href={`https://${tool.subdomain}.kyveriqx.com`}
+              className="store-tool-link"
+              aria-label={`Open ${tool.name}`}
+            >
+              <Card
+                className="store-tool-card"
+                style={{ padding: 20, height: "100%" }}
               >
                 <span
                   style={{
-                    fontSize: 20,
-                    fontWeight: 600,
-                    color: "var(--blue-400)",
+                    fontFamily: "var(--font-mono)",
+                    fontSize: 11,
+                    letterSpacing: "0.06em",
+                    color: "var(--ink-400)",
                   }}
                 >
-                  ₹{Number(tool.price).toFixed(0)}
+                  {tool.subdomain}.kyveriqx.com
                 </span>
-                <span style={{ color: "var(--ink-400)", fontSize: 13 }}>/ month</span>
-              </div>
-            </Card>
+                <h2
+                  style={{
+                    fontSize: 20,
+                    fontWeight: 600,
+                    margin: "6px 0 8px",
+                    color: "var(--ink-100)",
+                  }}
+                >
+                  {tool.name}
+                </h2>
+                <p
+                  style={{
+                    fontSize: 14,
+                    color: "var(--ink-300)",
+                    lineHeight: 1.5,
+                    margin: "0 0 16px",
+                    minHeight: 42,
+                  }}
+                >
+                  {tool.description ?? ""}
+                </p>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "baseline",
+                    gap: 6,
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: 20,
+                      fontWeight: 600,
+                      color: "var(--blue-400)",
+                    }}
+                  >
+                    ₹{Number(tool.price).toFixed(0)}
+                  </span>
+                  <span style={{ color: "var(--ink-400)", fontSize: 13 }}>/ month</span>
+                </div>
+              </Card>
+            </a>
           ))}
         </div>
       </main>
