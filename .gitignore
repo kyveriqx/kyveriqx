@@ -43,3 +43,6 @@ Thumbs.db
 
 # scratch
 .commit-msg.tmp
+
+# scratchpad sample data — never commit customer files
+scratch/**/sample-data/
