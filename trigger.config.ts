@@ -28,7 +28,11 @@ export default defineConfig({
       // (openpyxl + python-pptx). The extension installs Python + the deps
       // into the Trigger.dev worker image so the JS task can shell to them.
       pythonExtension({
-        requirementsFile: "./tools/orgmis/python/requirements.txt",
+        // Inline list instead of requirementsFile — the latter has a path
+        // bug in @trigger.dev/python 4.4.6: it COPYs the file to WORKDIR
+        // but then `pip install -r` uses the original (now-missing) path.
+        // Keep requirements.txt around for local dev / IDE hints.
+        requirements: ["openpyxl==3.1.5", "python-pptx==1.0.2"],
         devPythonBinaryPath: "python",
       }),
     ],

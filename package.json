@@ -16,7 +16,7 @@
   "dependencies": {
     "@supabase/ssr": "0.5.1",
     "@supabase/supabase-js": "2.45.4",
-    "@trigger.dev/python": "^4.4.6",
+    "@trigger.dev/python": "4.4.6",
     "@trigger.dev/sdk": "4.4.6",
     "clsx": "^2.1.1",
     "exceljs": "^4.4.0",
