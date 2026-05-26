@@ -19,13 +19,14 @@ export async function Nav() {
 
   return (
     <header
+      data-theme="dark"
       style={{
         position: "sticky",
         top: 0,
         zIndex: 50,
-        background: "rgba(10, 20, 34, 0.78)",
-        backdropFilter: "saturate(150%) blur(14px)",
-        borderBottom: "1px solid var(--line)",
+        background: "#1A2F55",
+        borderBottom: "1px solid rgba(255, 255, 255, 0.10)",
+        color: "var(--ink-100)",
       }}
     >
       <div

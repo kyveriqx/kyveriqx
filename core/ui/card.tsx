@@ -9,7 +9,7 @@ export function Card({ children, style, ...rest }: Props) {
     <div
       {...rest}
       style={{
-        background: "linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.015))",
+        background: "var(--bg-card)",
         border: "1px solid var(--line)",
         borderRadius: "var(--radius-lg)",
         boxShadow: "var(--shadow-card)",

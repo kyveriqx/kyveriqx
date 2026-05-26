@@ -53,7 +53,7 @@ export function JobStatus({ jobId }: { jobId: string }) {
 
   if (pollErr) {
     return (
-      <div style={{ color: "#FFB3B3", padding: 16, border: "1px solid rgba(255,100,100,0.4)", borderRadius: 10 }}>
+      <div style={{ color: "var(--error-fg)", padding: 16, border: "1px solid var(--error-border)", borderRadius: 10 }}>
         Polling error: {pollErr}
       </div>
     );
@@ -73,7 +73,7 @@ export function JobStatus({ jobId }: { jobId: string }) {
 
   const color =
     job.status === "succeeded" ? "var(--blue-400)" :
-    job.status === "failed" ? "#FFB3B3" :
+    job.status === "failed" ? "var(--error-fg)" :
     "var(--ink-200)";
 
   return (
@@ -82,7 +82,8 @@ export function JobStatus({ jobId }: { jobId: string }) {
         padding: 20,
         border: "1px solid var(--line)",
         borderRadius: 14,
-        background: "linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.015))",
+        background: "var(--bg-card)",
+        boxShadow: "var(--shadow-card)",
       }}
     >
       <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--ink-400)" }}>
@@ -94,10 +95,11 @@ export function JobStatus({ jobId }: { jobId: string }) {
       {job.error && (
         <pre
           style={{
-            color: "#FFB3B3",
+            color: "var(--error-fg)",
             marginTop: 12,
             fontSize: 13,
-            background: "rgba(255,80,80,0.06)",
+            background: "var(--error-bg)",
+            border: "1px solid var(--error-border)",
             padding: 10,
             borderRadius: 8,
             whiteSpace: "pre-wrap",
@@ -111,7 +113,8 @@ export function JobStatus({ jobId }: { jobId: string }) {
           style={{
             marginTop: 12,
             fontSize: 12.5,
-            background: "rgba(255,255,255,0.04)",
+            background: "var(--bg-elev)",
+            border: "1px solid var(--line)",
             padding: 12,
             borderRadius: 8,
             overflow: "auto",

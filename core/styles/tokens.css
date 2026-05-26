@@ -1,6 +1,15 @@
 /* Kyveriqx design tokens — pulled verbatim from the HTML reference.
    Visual style only: colors, radii, font stacks, glow values.
-   Do not add structural or component CSS here. */
+   Do not add structural or component CSS here.
+
+   Two layers:
+     1. Brand tokens (--blue-*, --navy-*, --ink-*, --line, etc.) — defaults are dark
+     2. Semantic tokens (--bg-base, --text-primary, --success-fg, etc.)
+        used by all components so a single attribute can flip the theme.
+
+   To opt a subtree into the light theme, set `data-theme="light"` on any
+   ancestor element (used by app/tools/layout.tsx so the workspace flips
+   light while marketing/auth/store stay dark). */
 
 :root {
   /* Brand blues */
@@ -18,14 +27,14 @@
   --navy-600: #2C3545;
   --navy-500: #3A4459;
 
-  /* Ink / text */
+  /* Ink / text (dark-theme defaults; flipped in [data-theme="light"]) */
   --ink-100: #F1F5F9;
   --ink-200: #D7DEE9;
   --ink-300: #A8B3C4;
   --ink-400: #7A879B;
   --ink-500: #57647A;
 
-  /* Lines */
+  /* Lines (dark-theme defaults; flipped in [data-theme="light"]) */
   --line: rgba(255, 255, 255, 0.07);
   --line-strong: rgba(255, 255, 255, 0.12);
 
@@ -51,4 +60,171 @@
   /* Fonts */
   --font-ui: "Inter", system-ui, -apple-system, Helvetica, Arial, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* ── Semantic tokens (dark-theme defaults) ──────────────────────────── */
+
+  /* Surfaces */
+  --bg-base: var(--navy-900);
+  --bg-card: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.015));
+  --bg-elev: rgba(255, 255, 255, 0.04);
+  --bg-hover: rgba(255, 255, 255, 0.08);
+
+  /* The navy banner strip stays navy in BOTH themes (matches the Streamlit reference) */
+  --bg-banner-start: #1F3864;
+  --bg-banner-end: #1F3864;
+  --text-on-banner: #F1F5F9;
+  --text-on-banner-muted: #C6D2E5;
+
+  /* Badge radius — pills (999) in dark, soft squares (6) in the tool palette */
+  --radius-badge: 999px;
+
+  /* Text aliases for components that want to opt into semantic naming */
+  --text-primary: var(--ink-100);
+  --text-secondary: var(--ink-200);
+  --text-muted: var(--ink-400);
+
+  /* Primary CTA (brand blue — same in both themes) */
+  --accent: var(--blue-400);
+  --accent-fg: #07111F;
+  --accent-grad-start: #3FB3FF;
+  --accent-grad-end: #1E8FE0;
+  --accent-bg-soft: rgba(46, 168, 255, 0.08);
+  --accent-border-soft: rgba(46, 168, 255, 0.25);
+
+  /* Semantic status colors */
+  --success-fg: #7FD17F;
+  --success-bg: rgba(70, 160, 70, 0.18);
+  --success-border: rgba(70, 160, 70, 0.40);
+
+  --warn-fg: #FFB3B3;
+  --warn-bg: rgba(220, 70, 70, 0.18);
+  --warn-border: rgba(220, 70, 70, 0.40);
+
+  --amber-fg: #FFD17A;
+  --amber-bg: rgba(220, 170, 40, 0.18);
+  --amber-border: rgba(220, 170, 40, 0.40);
+
+  --error-fg: #FFB3B3;
+  --error-bg: rgba(255, 80, 80, 0.06);
+  --error-border: rgba(255, 100, 100, 0.40);
+
+  /* Info / neutral pill */
+  --neutral-fg: var(--ink-100);
+  --neutral-bg: rgba(255, 255, 255, 0.06);
+  --neutral-border: var(--line-strong);
+}
+
+/* ── Dark theme override ────────────────────────────────────────────────
+   Re-asserts the dark token values so `data-theme="dark"` on any descendant
+   (e.g. the Nav header sitting inside a light workspace) flips the cascade
+   back to dark. Without this, the closer `[data-theme="light"]` ancestor
+   would still win and dark text on dark bg would render unreadable. */
+
+[data-theme="dark"] {
+  --ink-100: #F1F5F9;
+  --ink-200: #D7DEE9;
+  --ink-300: #A8B3C4;
+  --ink-400: #7A879B;
+  --ink-500: #57647A;
+  --line: rgba(255, 255, 255, 0.07);
+  --line-strong: rgba(255, 255, 255, 0.12);
+  --bg-base: var(--navy-900);
+  --bg-card: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.015));
+  --bg-elev: rgba(255, 255, 255, 0.04);
+  --bg-hover: rgba(255, 255, 255, 0.08);
+  --shadow-card: 0 1px 0 rgba(255, 255, 255, 0.04) inset,
+    0 30px 60px -30px rgba(0, 0, 0, 0.5);
+  --accent: var(--blue-400);
+  --accent-grad-start: #3FB3FF;
+  --accent-grad-end: #1E8FE0;
+  --accent-fg: #07111F;
+  --accent-bg-soft: rgba(46, 168, 255, 0.08);
+  --accent-border-soft: rgba(46, 168, 255, 0.25);
+  --success-fg: #7FD17F;
+  --success-bg: rgba(70, 160, 70, 0.18);
+  --success-border: rgba(70, 160, 70, 0.40);
+  --warn-fg: #FFB3B3;
+  --warn-bg: rgba(220, 70, 70, 0.18);
+  --warn-border: rgba(220, 70, 70, 0.40);
+  --amber-fg: #FFD17A;
+  --amber-bg: rgba(220, 170, 40, 0.18);
+  --amber-border: rgba(220, 170, 40, 0.40);
+  --error-fg: #FFB3B3;
+  --error-bg: rgba(255, 80, 80, 0.06);
+  --error-border: rgba(255, 100, 100, 0.40);
+  --neutral-fg: var(--ink-100);
+  --neutral-bg: rgba(255, 255, 255, 0.06);
+  --neutral-border: var(--line-strong);
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-badge: 999px;
+  --font-ui: "Inter", system-ui, -apple-system, Helvetica, Arial, sans-serif;
+}
+
+/* ── Light theme override ───────────────────────────────────────────────
+   Re-declares brand AND semantic tokens with light-theme values. Activated
+   by `data-theme="light"` on any ancestor (see app/tools/layout.tsx).
+
+   Palette below mirrors the Python export_report.py C dict exactly so the
+   web tool and the downloaded Excel report look like the same product. */
+
+[data-theme="light"] {
+  /* Brand text/borders flipped so existing var(--ink-*) / var(--line) usages
+     just work without component rewrites. */
+  --ink-100: #000000;        /* text */
+  --ink-200: #1F3864;        /* navy — used for section titles, accents */
+  --ink-300: #555555;        /* muted */
+  --ink-400: #555555;        /* muted */
+  --ink-500: #777777;
+  --line: #D9D9D9;           /* dgray */
+  --line-strong: #D9D9D9;
+
+  /* Surfaces */
+  --bg-base: #F4F6F9;        /* bg */
+  --bg-card: #FFFFFF;        /* card */
+  --bg-elev: #F2F2F2;        /* gray */
+  --bg-hover: #ECEFF3;
+
+  /* Banner stays navy (--bg-banner-* unchanged — already #1F3864 in both themes) */
+
+  /* Card shadow per the spec */
+  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.08);
+
+  /* Tool palette uses Excel-blue #2E75B6 for primary accents — keep the
+     gradient subtle so the CTA still feels button-y. */
+  --accent: #2E75B6;
+  --accent-grad-start: #2E75B6;
+  --accent-grad-end: #1F3864;
+  --accent-fg: #FFFFFF;
+  --accent-bg-soft: rgba(46, 117, 182, 0.10);
+  --accent-border-soft: rgba(46, 117, 182, 0.30);
+
+  /* Status colors — direct port of the Excel palette */
+  --success-fg: #375623;     /* green */
+  --success-bg: #E2EFDA;     /* ltgrn */
+  --success-border: #B8D4A5;
+
+  --warn-fg: #C00000;        /* red */
+  --warn-bg: #FCE4D6;        /* ltred */
+  --warn-border: #F2B79A;
+
+  --amber-fg: #7F6000;       /* amber */
+  --amber-bg: #FFF2CC;       /* ltamb */
+  --amber-border: #F0DC9A;
+
+  --error-fg: #C00000;
+  --error-bg: #FCE4D6;
+  --error-border: #F2B79A;
+
+  --neutral-fg: #000000;
+  --neutral-bg: #F2F2F2;     /* gray */
+  --neutral-border: #D9D9D9;
+
+  /* Radii — Streamlit-style soft rectangles */
+  --radius-md: 10px;         /* buttons */
+  --radius-lg: 12px;         /* cards */
+  --radius-badge: 6px;       /* status pills become soft squares */
+
+  /* Font — Segoe UI for the workspace (Windows-native, falls back gracefully) */
+  --font-ui: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
 }
