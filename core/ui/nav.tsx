@@ -11,10 +11,10 @@ export async function Nav() {
     const supabase = supabaseServer();
     const res = await supabase.auth.getUser();
     user = res.data.user;
-  } catch (err) {
+  } catch {
     // Fail open: render the page with a Login link if we can't resolve the
-    // session (e.g. env vars missing on a freshly deployed environment).
-    console.error("Nav: failed to resolve session", err);
+    // session. Common during build-time static probes (no request context)
+    // and on freshly deployed environments — not actionable, so no log.
   }
 
   return (

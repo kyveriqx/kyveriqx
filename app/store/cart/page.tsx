@@ -1,5 +1,11 @@
 import { Nav } from "../../../core/ui/nav";
 
+// Nav reads the auth cookie via the Supabase server client, so this page
+// can never be statically prerendered. Declare it explicitly so Next.js
+// skips the static-render probe (which would emit a "Dynamic server
+// usage: cookies" warning during build).
+export const dynamic = "force-dynamic";
+
 export default function Cart() {
   return (
     <>
