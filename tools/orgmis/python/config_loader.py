@@ -14,8 +14,11 @@ import os
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 DEFAULT_BRANDING = {
-    "companyName": "[Company Name]",
-    "tagline": "[Tagline / Vision Statement]",
+    # Never shown in real runs (Step 1 of the wizard sets these) — keep
+    # neutral fallbacks instead of the bracketed placeholders that look
+    # like a half-finished template if they ever leak through.
+    "companyName": "Your Company",
+    "tagline": "Board Report",
     "vision": "",
     "logoDataUrl": None,
     "primaryColor": "#1F3864",

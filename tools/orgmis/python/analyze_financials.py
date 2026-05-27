@@ -200,10 +200,16 @@ def load_named_sheet(path, sheet, header_row=3):
         if not empty: rows.append(rec)
     return rows
 
-# Fuzzy column lookup — needed because users upload exports with different
-# column header conventions (Business Central, Tally, SAP, custom flat
-# registers, etc.). Tries an exact match first, then case-/punctuation-
-# insensitive, then a contains-match as a last resort.
+# Fuzzy column lookup — users upload exports with very different header
+# conventions (Business Central, Tally, Zoho, Busy, SAP, custom GST registers).
+# Matching strategy:
+#   1. exact key match
+#   2. case-/punctuation-insensitive exact match
+#   3. token-set match — every alphanumeric token in the candidate must appear
+#      as a whole token in the header. So "Customer" matches "Customer Name"
+#      but NOT "Customer GST No." (the GST/No tokens make it a strictly
+#      different concept). Among matches we pick the header whose token-set
+#      has the smallest extras count → most-specific wins.
 import re as _re_cols
 
 def _norm_col(k):
@@ -211,34 +217,75 @@ def _norm_col(k):
         return ""
     return _re_cols.sub(r"[^a-z0-9]+", "", str(k).lower())
 
+def _tokens(k):
+    if k is None:
+        return frozenset()
+    return frozenset(t for t in _re_cols.split(r"[^a-z0-9]+", str(k).lower()) if t)
+
 def find_value(row, candidates):
     if not row:
         return None
     for cand in candidates:
         if cand in row and row[cand] not in (None, ""):
             return row[cand]
-    norm_row = {_norm_col(k): v for k, v in row.items()}
+    norm_row = {_norm_col(k): (k, v) for k, v in row.items()}
     for cand in candidates:
         nk = _norm_col(cand)
-        if nk in norm_row and norm_row[nk] not in (None, ""):
-            return norm_row[nk]
+        if nk in norm_row and norm_row[nk][1] not in (None, ""):
+            return norm_row[nk][1]
+    # Token-set match: candidate tokens must be a subset of header tokens.
+    # Prefer the header with the fewest extra tokens (most specific).
+    tokenized_row = [(_tokens(k), v) for k, v in row.items() if v not in (None, "")]
+    best = None
+    best_extras = None
     for cand in candidates:
-        nc = _norm_col(cand)
-        for k, v in norm_row.items():
-            if nc and nc in k and v not in (None, ""):
-                return v
+        ct = _tokens(cand)
+        if not ct:
+            continue
+        for ht, v in tokenized_row:
+            if ct.issubset(ht):
+                extras = len(ht - ct)
+                if best_extras is None or extras < best_extras:
+                    best = v
+                    best_extras = extras
+        if best is not None:
+            return best
     return None
 
-# Column name candidates by field (most-specific first).
+def list_headers(rows, limit=2):
+    """Collect a representative set of column headers from a list of rows.
+       Used by diagnostic logging when top-customer / top-vendor extraction
+       produces empty results — the trace shows me exactly what columns the
+       user's file has so I can extend the candidate list next iteration."""
+    seen = []
+    for r in rows[:limit] if rows else []:
+        for k in (r.keys() if hasattr(r, "keys") else []):
+            if k not in seen:
+                seen.append(k)
+    return seen
+
+# Column name candidates by field (most-specific first). Expanded to cover
+# Tally, Zoho, Busy, BC, SAP, and common flat-register exports.
 DOC_NO_KEYS    = ['Document No.', 'Document No', 'Invoice No.', 'Invoice No',
-                  'No.', 'No', 'Doc No', 'Voucher No.', 'Bill No', 'Bill No.']
+                  'No.', 'No', 'Doc No', 'Voucher No.', 'Voucher No',
+                  'Voucher', 'Voucher Number', 'Bill No', 'Bill No.',
+                  'Bill Number', 'Reference No', 'Ref No', 'Transaction Id',
+                  'Transaction No']
 AMOUNT_KEYS    = ['Line Amount', 'Amount', 'Invoice Amount', 'Total Amount',
-                  'Net Amount', 'Amount (LCY)', 'Taxable Value', 'Value']
+                  'Net Amount', 'Amount (LCY)', 'Taxable Value', 'Value',
+                  'Net', 'Total', 'Net Value', 'Total Value', 'Bill Amount',
+                  'Sales Value', 'Net Sales', 'Total Sales', 'Grand Total',
+                  'Invoice Total', 'Sum', 'Value (INR)', 'Sales Amount',
+                  'Purchase Amount', 'Purchase Value']
 CUST_NAME_KEYS = ['Bill-to Name', 'Sell-to Customer Name', 'Customer Name',
-                  'Party Name', 'Customer', 'Bill To Name', 'Buyer Name',
-                  'Account Name']
+                  'Bill To Name', 'Bill To', 'Buyer Name', 'Buyer',
+                  'Customer', 'Client Name', 'Client', 'Sold To',
+                  'Sold-to', 'Sold-to Customer Name', 'Receiver',
+                  'Receiver Name', 'Trade Name', 'Firm Name', 'Account Holder',
+                  'Party Name', 'Account Name']
 COUNTRY_KEYS   = ['Ship-to Country/Region Code', 'Sell-to Country/Region Code',
                   'Country/Region Code', 'Country', 'Country Code',
+                  'Place of Supply', 'Customer State', 'State Name',
                   'State Code', 'State']
 CURRENCY_KEYS  = ['Currency Code', 'Currency']
 
@@ -268,7 +315,8 @@ for r in sales_hdr:
 
 # Top customers: derive name from the header row if the join works, otherwise
 # fall back to the line row itself (flat-register case where the line *is*
-# the header).
+# the header). Rows that resolve to neither a name nor a non-zero amount are
+# dropped so we don't end up with a "Unidentified : 0" entry on the deck.
 cust_rev = defaultdict(float)
 cust_count = defaultdict(int)
 country_rev = defaultdict(float)
@@ -277,16 +325,32 @@ for ln in sales_lines:
     doc = find_value(ln, DOC_NO_KEYS)
     amt = float(find_value(ln, AMOUNT_KEYS) or 0)
     h = hdr_by_doc.get(doc) or ln
-    name = find_value(h, CUST_NAME_KEYS) or 'Unknown'
+    raw_name = find_value(h, CUST_NAME_KEYS)
+    name = str(raw_name).strip() if raw_name else 'Unidentified'
+    if name == 'Unidentified' and amt == 0:
+        continue  # no signal — skip silently
     cust_rev[name] += amt
     cust_count[name] += 1
     country_rev[find_value(h, COUNTRY_KEYS) or 'IN'] += amt
     currency_rev[find_value(h, CURRENCY_KEYS) or 'INR'] += amt
 
+# Strip the all-zero "Unidentified" bucket if it slipped through.
+if cust_rev.get('Unidentified', 0) == 0:
+    cust_rev.pop('Unidentified', None)
+
 top_customers = sorted(cust_rev.items(), key=lambda x: -x[1])[:10]
 print(f"\nTop 10 customers by invoice line amount:")
 for n, a in top_customers:
     print(f"  {n[:40]:<40}: {a:>14,.0f}")
+
+# Diagnostic: if extraction produced nothing useful, dump column headers so
+# the next iteration can extend the candidate list to whatever the user's
+# file actually uses. Visible in the Trigger.dev run trace.
+if not top_customers or sum(a for _, a in top_customers) == 0:
+    print(f"[diag] top_customers empty — sales_lines headers seen: {list_headers(sales_lines)}")
+    print(f"[diag] top_customers empty — sales_hdr  headers seen: {list_headers(sales_hdr)}")
+
+unique_customer_count = len(cust_rev)
 
 # Items — uploaded by the user as "inventory" (Item Ledger Entry export).
 # Optional: if no inventory file was provided, top_items just stays empty
@@ -312,8 +376,10 @@ top_items = sorted(items_sold.items(), key=lambda x: -x[1]['qty'])[:10]
 # purchase data, NOT vendor aging (aging is used downstream for DPO / cash
 # flow only).
 VEND_NAME_KEYS = ['Pay-to Name', 'Buy-from Vendor Name', 'Vendor Name',
-                  'Supplier Name', 'Party Name', 'Vendor', 'Supplier',
-                  'Buy-from Vendor No.', 'Account Name']
+                  'Supplier Name', 'Vendor', 'Supplier', 'Seller',
+                  'Seller Name', 'Bill From', 'From', 'Vendor Code',
+                  'Supplier Code', 'Buy-from Vendor No.', 'Trade Name',
+                  'Firm Name', 'Party Name', 'Account Name']
 
 pur_hdr = []
 pur_lines = []
@@ -341,13 +407,25 @@ for ln in pur_lines:
     doc = find_value(ln, DOC_NO_KEYS)
     amt = float(find_value(ln, AMOUNT_KEYS) or 0)
     h = phdr_by_doc.get(doc) or ln
-    name = find_value(h, VEND_NAME_KEYS) or 'Unknown'
+    raw_name = find_value(h, VEND_NAME_KEYS)
+    name = str(raw_name).strip() if raw_name else 'Unidentified Vendor'
+    if name == 'Unidentified Vendor' and amt == 0:
+        continue
     vend_pur[name] += amt
+
+if vend_pur.get('Unidentified Vendor', 0) == 0:
+    vend_pur.pop('Unidentified Vendor', None)
 
 top_vendors = sorted(vend_pur.items(), key=lambda x: -x[1])[:10]
 print(f"\nTop 10 vendors by purchase line amount:")
 for n, a in top_vendors:
     print(f"  {n[:40]:<40}: {a:>14,.0f}")
+
+if not top_vendors or sum(a for _, a in top_vendors) == 0:
+    print(f"[diag] top_vendors empty — pur_lines headers seen: {list_headers(pur_lines)}")
+    print(f"[diag] top_vendors empty — pur_hdr   headers seen: {list_headers(pur_hdr)}")
+
+unique_vendor_count = len(vend_pur)
 
 # AR / AP - sourced from GL closing balances (account ranges)
 # AR = 2310 (Trade Debtors) + 2320 (other receivables)
@@ -1103,6 +1181,8 @@ summary = {
     'top_customers': top_customers,
     'top_items': [(k, v) for k,v in top_items],
     'top_vendors': top_vendors,
+    'unique_customer_count': unique_customer_count,
+    'unique_vendor_count': unique_vendor_count,
     'monthly_revenue': monthly_rev,
     'total_ar_open': total_ar,
     'total_ap_open': total_ap,

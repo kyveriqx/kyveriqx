@@ -194,7 +194,7 @@ add_footer(slide, 2)
 
 agenda = [
     ("01", "Company Snapshot", "Who we are, what we do"),
-    ("02", "Financial Highlights — FY 2024-25", "Headline P&L and margins"),
+    ("02", f"Financial Highlights — {REPORTING_PERIOD}", "Headline P&L and margins"),
     ("03", "Profit & Loss Statement", "Detailed line-by-line walkthrough"),
     ("04", "Revenue Trend & Momentum", "Monthly trajectory and seasonality"),
     ("05", "Customer & Vendor Concentration", "Where the money comes from and goes"),
@@ -225,17 +225,34 @@ add_footer(slide, 3)
 add_rect(slide, Inches(0.5), Inches(1.4), Inches(6), Inches(5.5), BG_LIGHT)
 add_text(slide, Inches(0.7), Inches(1.55), Inches(5.6), Inches(0.4),
          "About Us", size=18, bold=True, color=NAVY)
-about = [
-    "• Multi-product manufacturer & distributor",
-    "• Furniture portfolio: Chairs, Desks, Tables",
-    "• Headquartered in India, exporting globally",
-    "• 14+ countries served across EU, Nordic, US, UK",
-    "• GST-compliant with e-invoicing (IRN/QR enabled)",
-    "• Multi-channel: B2B distribution + Shopify direct",
-    "• ERP backbone: Microsoft Dynamics 365 BC",
-]
+# Bullets are computed from the user's data + branding — no hardcoded
+# sample text. Bullets with no real signal are skipped so the box doesn't
+# show "Top customer contributes 0%".
+_about_lines = []
+if VISION:
+    _about_lines.append(f"• {VISION}")
+if TAGLINE and TAGLINE != VISION:
+    _about_lines.append(f"• {TAGLINE}")
+_about_lines.append(f"• Reporting period: {REPORTING_PERIOD}")
+_about_lines.append(f"• Prepared for: {PREPARED_FOR}")
+_top_c_pre = s.get('top_customers') or []
+if _top_c_pre and _top_c_pre[0][1] > 0:
+    _rev_sum = sum(a for _, a in _top_c_pre[:10]) or 1
+    _share = _top_c_pre[0][1] / _rev_sum * 100
+    _about_lines.append(
+        f"• Top customer: {str(_top_c_pre[0][0])[:36]} "
+        f"({_share:.1f}% of top-10 sales)"
+    )
+_top_v_pre = s.get('top_vendors') or []
+if _top_v_pre and _top_v_pre[0][1] > 0:
+    _pur_sum = sum(a for _, a in _top_v_pre[:10]) or 1
+    _share = _top_v_pre[0][1] / _pur_sum * 100
+    _about_lines.append(
+        f"• Top vendor: {str(_top_v_pre[0][0])[:36]} "
+        f"({_share:.1f}% of top-10 purchases)"
+    )
 add_text(slide, Inches(0.7), Inches(2.0), Inches(5.6), Inches(4.8),
-         about, size=13, color=BLACK)
+         _about_lines, size=13, color=BLACK)
 
 # Right column - Stats tiles
 def stat_tile(x, y, w, h, value, label, color=NAVY):
@@ -254,26 +271,60 @@ stat_tile(tx,                     ty,                     tw, th, f"₹{to_cr(pl
 stat_tile(tx + tw + gap,          ty,                     tw, th, f"{pl['Gross Margin %']:.1f}%",    "Gross Margin", GREEN)
 stat_tile(tx + 2*(tw + gap),      ty,                     tw, th, f"{pl['EBITDA Margin %']:.1f}%",   "EBITDA Margin", NAVY)
 
-stat_tile(tx,                     ty + th + gap,          tw, th, "16+", "Active Vendors", NAVY)
-stat_tile(tx + tw + gap,          ty + th + gap,          tw, th, "18+", "Active Customers", NAVY)
-stat_tile(tx + 2*(tw + gap),      ty + th + gap,          tw, th, "14",  "Countries", GOLD)
+# Stat tiles computed from the actual JSON — no hardcoded sample numbers.
+# When a count is zero we show "—" (em dash) rather than "0+" which reads
+# like an unfilled template.
+def _count_label(n):
+    return "—" if not n else str(int(n))
 
-# Locations/footprint
+_n_vendors   = s.get('unique_vendor_count')   or len(s.get('top_vendors') or [])
+_n_customers = s.get('unique_customer_count') or len(s.get('top_customers') or [])
+_n_countries = len(s.get('country_rev') or {})
+
+stat_tile(tx,                ty + th + gap, tw, th, _count_label(_n_vendors),   "Active Vendors",   NAVY)
+stat_tile(tx + tw + gap,     ty + th + gap, tw, th, _count_label(_n_customers), "Active Customers", NAVY)
+stat_tile(tx + 2*(tw + gap), ty + th + gap, tw, th, _count_label(_n_countries), "Countries",        GOLD)
+
+# Operating Footprint computed from actual data — no hardcoded warehouse
+# colors / product categories / departments. We show whatever the GL,
+# sales and purchase exports actually tell us.
 add_text(slide, Inches(6.8), Inches(4.4), Inches(6.3), Inches(0.4),
          "Operating Footprint", size=18, bold=True, color=NAVY)
 add_rect(slide, Inches(6.8), Inches(4.9), Inches(6.3), Inches(2), BG_LIGHT)
+
+_footprint = []
+_countries = sorted(
+    [c for c in (s.get('country_rev') or {}).keys() if c],
+    key=lambda c: -(s.get('country_rev') or {}).get(c, 0),
+)
+if _countries:
+    shown = ", ".join(_countries[:6])
+    more = "" if len(_countries) <= 6 else f" + {len(_countries) - 6} more"
+    _footprint.append(f"• Geographic reach: {shown}{more}")
+
+_currencies = sorted(
+    [c for c in (s.get('currency_rev') or {}).keys() if c],
+    key=lambda c: -(s.get('currency_rev') or {}).get(c, 0),
+)
+if _currencies:
+    _footprint.append(f"• Currencies billed in: {', '.join(_currencies[:8])}")
+
+if _n_vendors:
+    _footprint.append(f"• Active vendor relationships: {_n_vendors}")
+if _n_customers:
+    _footprint.append(f"• Active customer accounts: {_n_customers}")
+
+if not _footprint:
+    _footprint = ["• Operational data unavailable for this period."]
+
 add_text(slide, Inches(6.95), Inches(5.0), Inches(6.1), Inches(1.9),
-         ["• 7 warehouse locations across India (BLUE / GREEN / RED / YELLOW / WHITE + Own & Outsourced Logistics)",
-          "• 4 product categories: CHAIR, DESK, TABLE, MISC",
-          "• Departments: Production (PROD), Sales (SALES), Administration (ADM)",
-          "• Multi-currency operations: INR, EUR, GBP, USD, SEK, NOK, CZK, ISK"],
-         size=12, color=BLACK)
+         _footprint, size=12, color=BLACK)
 
 # =====================================================
 # SLIDE 4 - FINANCIAL HIGHLIGHTS (KPI grid)
 # =====================================================
 slide = blank_slide()
-add_title_bar(slide, "Financial Highlights — FY 2024-25",
+add_title_bar(slide, f"Financial Highlights — {REPORTING_PERIOD}",
               "Headline metrics  |  11-month actuals & annualized run-rate")
 add_footer(slide, 4)
 
@@ -324,7 +375,7 @@ add_text(slide, Inches(0.5), Inches(5.9), Inches(12.3), Inches(0.5),
 # =====================================================
 slide = blank_slide()
 add_title_bar(slide, "Profit & Loss Statement",
-              f"FY 2024-25  |  Figures in ₹ Crores  |  {s['period']}")
+              f"{REPORTING_PERIOD}  |  Figures in ₹ Crores  |  {s['period']}")
 add_footer(slide, 5)
 
 # P&L table
@@ -406,7 +457,7 @@ for lbl, val, col in margins:
 # =====================================================
 slide = blank_slide()
 add_title_bar(slide, "Revenue Trend & Momentum",
-              "Monthly revenue trajectory — FY 2024-25")
+              f"Monthly revenue trajectory — {REPORTING_PERIOD}")
 add_footer(slide, 6)
 
 month_labels = {'2024-04':"Apr-24",'2024-05':"May-24",'2024-06':"Jun-24",'2024-07':"Jul-24",
@@ -471,7 +522,7 @@ slide = blank_slide()
 add_title_bar(slide, "Top Customers", "Customer concentration based on recent invoice sample")
 add_footer(slide, 7)
 
-top_c = s['top_customers'][:8]
+top_c = [(n, a) for n, a in (s.get('top_customers') or [])[:8] if a]
 total_c = sum(a for _, a in top_c) or 1
 
 # Left: table
@@ -485,38 +536,45 @@ add_text(slide, tx + Inches(5), ty, Inches(1.7), Inches(0.4), "Value", size=11, 
 add_rect(slide, tx + Inches(6.7), ty, Inches(1), Inches(0.4), NAVY)
 add_text(slide, tx + Inches(6.7), ty, Inches(1), Inches(0.4), "Share", size=11, bold=True, color=WHITE, align=PP_ALIGN.RIGHT, anchor=MSO_ANCHOR.MIDDLE)
 
-y = ty + Inches(0.4)
-for i, (name, amt) in enumerate(top_c, 1):
-    bg = WHITE if i % 2 else BG_LIGHT
-    add_rect(slide, tx, y, Inches(7.7), Inches(0.42), bg, line=GRAY_L)
-    add_text(slide, tx, y, Inches(0.5), Inches(0.42), str(i), size=11, bold=True, color=NAVY,
-             align=PP_ALIGN.CENTER, anchor=MSO_ANCHOR.MIDDLE)
-    add_text(slide, tx + Inches(0.55), y, Inches(4.45), Inches(0.42),
-             name[:40], size=11, color=BLACK, anchor=MSO_ANCHOR.MIDDLE)
-    add_text(slide, tx + Inches(5), y, Inches(1.65), Inches(0.42),
-             f"{amt:,.0f}", size=11, bold=True, color=BLACK, align=PP_ALIGN.RIGHT, anchor=MSO_ANCHOR.MIDDLE)
-    pct = amt/total_c*100
-    add_text(slide, tx + Inches(6.7), y, Inches(0.95), Inches(0.42),
-             f"{pct:.1f}%", size=11, color=GOLD, bold=True, align=PP_ALIGN.RIGHT, anchor=MSO_ANCHOR.MIDDLE)
-    y += Inches(0.42)
+if top_c:
+    y = ty + Inches(0.4)
+    for i, (name, amt) in enumerate(top_c, 1):
+        bg = WHITE if i % 2 else BG_LIGHT
+        add_rect(slide, tx, y, Inches(7.7), Inches(0.42), bg, line=GRAY_L)
+        add_text(slide, tx, y, Inches(0.5), Inches(0.42), str(i), size=11, bold=True, color=NAVY,
+                 align=PP_ALIGN.CENTER, anchor=MSO_ANCHOR.MIDDLE)
+        add_text(slide, tx + Inches(0.55), y, Inches(4.45), Inches(0.42),
+                 str(name)[:40], size=11, color=BLACK, anchor=MSO_ANCHOR.MIDDLE)
+        add_text(slide, tx + Inches(5), y, Inches(1.65), Inches(0.42),
+                 f"{amt:,.0f}", size=11, bold=True, color=BLACK, align=PP_ALIGN.RIGHT, anchor=MSO_ANCHOR.MIDDLE)
+        pct = amt/total_c*100
+        add_text(slide, tx + Inches(6.7), y, Inches(0.95), Inches(0.42),
+                 f"{pct:.1f}%", size=11, color=GOLD, bold=True, align=PP_ALIGN.RIGHT, anchor=MSO_ANCHOR.MIDDLE)
+        y += Inches(0.42)
 
-# Right: pie chart
-cdata = CategoryChartData()
-cdata.categories = [n[:25] for n,_ in top_c]
-cdata.add_series('Customers', [a for _,a in top_c])
-chart_shape = slide.shapes.add_chart(
-    XL_CHART_TYPE.DOUGHNUT, Inches(8.5), Inches(1.4), Inches(4.8), Inches(4.6), cdata
-)
-chart = chart_shape.chart
-chart.has_title = True
-chart.chart_title.text_frame.text = "Customer Mix"
-chart.chart_title.text_frame.paragraphs[0].font.size = Pt(14)
-chart.chart_title.text_frame.paragraphs[0].font.bold = True
-chart.chart_title.text_frame.paragraphs[0].font.color.rgb = NAVY
-chart.has_legend = True
-chart.legend.position = XL_LEGEND_POSITION.BOTTOM
-chart.legend.include_in_layout = False
-chart.legend.font.size = Pt(8)
+    # Right: pie chart (only when we have real categories to plot).
+    cdata = CategoryChartData()
+    cdata.categories = [str(n)[:25] for n, _ in top_c]
+    cdata.add_series('Customers', [a for _, a in top_c])
+    chart_shape = slide.shapes.add_chart(
+        XL_CHART_TYPE.DOUGHNUT, Inches(8.5), Inches(1.4), Inches(4.8), Inches(4.6), cdata
+    )
+    chart = chart_shape.chart
+    chart.has_title = True
+    chart.chart_title.text_frame.text = "Customer Mix"
+    chart.chart_title.text_frame.paragraphs[0].font.size = Pt(14)
+    chart.chart_title.text_frame.paragraphs[0].font.bold = True
+    chart.chart_title.text_frame.paragraphs[0].font.color.rgb = NAVY
+    chart.has_legend = True
+    chart.legend.position = XL_LEGEND_POSITION.BOTTOM
+    chart.legend.include_in_layout = False
+    chart.legend.font.size = Pt(8)
+else:
+    add_rect(slide, tx, ty + Inches(0.4), Inches(12.3), Inches(1.2), BG_LIGHT, line=GRAY_L)
+    add_text(slide, tx + Inches(0.3), ty + Inches(0.7), Inches(12.0), Inches(0.6),
+             "Insufficient sales data to compute top customers — re-upload your "
+             "sales register with customer name + amount columns.",
+             size=13, italic=True, color=GRAY, anchor=MSO_ANCHOR.MIDDLE)
 
 add_text(slide, Inches(0.5), Inches(6.4), Inches(12.3), Inches(0.4),
          "Note: Based on invoice line totals from sample period (Nov 2024 - Feb 2025). Currencies are as billed.",
@@ -529,7 +587,7 @@ slide = blank_slide()
 add_title_bar(slide, "Top Vendors / Suppliers", "Procurement concentration analysis")
 add_footer(slide, 8)
 
-top_v = s['top_vendors'][:8]
+top_v = [(n, a) for n, a in (s.get('top_vendors') or [])[:8] if a]
 total_v = sum(a for _, a in top_v) or 1
 
 tx = Inches(0.5); ty = Inches(1.4)
@@ -542,15 +600,22 @@ add_text(slide, tx + Inches(5), ty, Inches(1.7), Inches(0.4), "Purchase Value", 
 add_rect(slide, tx + Inches(6.7), ty, Inches(1), Inches(0.4), NAVY)
 add_text(slide, tx + Inches(6.7), ty, Inches(1), Inches(0.4), "Share", size=11, bold=True, color=WHITE, align=PP_ALIGN.RIGHT, anchor=MSO_ANCHOR.MIDDLE)
 
-y = ty + Inches(0.4)
-for i, (name, amt) in enumerate(top_v, 1):
-    bg = WHITE if i % 2 else BG_LIGHT
-    add_rect(slide, tx, y, Inches(7.7), Inches(0.42), bg, line=GRAY_L)
-    add_text(slide, tx, y, Inches(0.5), Inches(0.42), str(i), size=11, bold=True, color=NAVY, align=PP_ALIGN.CENTER, anchor=MSO_ANCHOR.MIDDLE)
-    add_text(slide, tx + Inches(0.55), y, Inches(4.45), Inches(0.42), name[:40], size=11, color=BLACK, anchor=MSO_ANCHOR.MIDDLE)
-    add_text(slide, tx + Inches(5), y, Inches(1.65), Inches(0.42), f"{amt:,.0f}", size=11, bold=True, color=BLACK, align=PP_ALIGN.RIGHT, anchor=MSO_ANCHOR.MIDDLE)
-    add_text(slide, tx + Inches(6.7), y, Inches(0.95), Inches(0.42), f"{amt/total_v*100:.1f}%", size=11, color=GOLD, bold=True, align=PP_ALIGN.RIGHT, anchor=MSO_ANCHOR.MIDDLE)
-    y += Inches(0.42)
+if top_v:
+    y = ty + Inches(0.4)
+    for i, (name, amt) in enumerate(top_v, 1):
+        bg = WHITE if i % 2 else BG_LIGHT
+        add_rect(slide, tx, y, Inches(7.7), Inches(0.42), bg, line=GRAY_L)
+        add_text(slide, tx, y, Inches(0.5), Inches(0.42), str(i), size=11, bold=True, color=NAVY, align=PP_ALIGN.CENTER, anchor=MSO_ANCHOR.MIDDLE)
+        add_text(slide, tx + Inches(0.55), y, Inches(4.45), Inches(0.42), str(name)[:40], size=11, color=BLACK, anchor=MSO_ANCHOR.MIDDLE)
+        add_text(slide, tx + Inches(5), y, Inches(1.65), Inches(0.42), f"{amt:,.0f}", size=11, bold=True, color=BLACK, align=PP_ALIGN.RIGHT, anchor=MSO_ANCHOR.MIDDLE)
+        add_text(slide, tx + Inches(6.7), y, Inches(0.95), Inches(0.42), f"{amt/total_v*100:.1f}%", size=11, color=GOLD, bold=True, align=PP_ALIGN.RIGHT, anchor=MSO_ANCHOR.MIDDLE)
+        y += Inches(0.42)
+else:
+    add_rect(slide, tx, ty + Inches(0.4), Inches(12.3), Inches(1.2), BG_LIGHT, line=GRAY_L)
+    add_text(slide, tx + Inches(0.3), ty + Inches(0.7), Inches(12.0), Inches(0.6),
+             "Insufficient purchase data to compute top vendors — re-upload your "
+             "purchase register with vendor name + amount columns.",
+             size=13, italic=True, color=GRAY, anchor=MSO_ANCHOR.MIDDLE)
 
 # Bar chart
 cdata = CategoryChartData()
@@ -571,7 +636,7 @@ for series in chart.series:
     series.format.fill.fore_color.rgb = GOLD
 
 add_text(slide, Inches(0.5), Inches(6.4), Inches(12.3), Inches(0.4),
-         "Note: Based on purchase invoice line totals (FY 2024-25).",
+         f"Note: Based on purchase invoice line totals ({REPORTING_PERIOD}).",
          size=10, italic=True, color=GRAY)
 
 # =====================================================

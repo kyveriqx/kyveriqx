@@ -321,7 +321,7 @@ export default async function OrgMisLanding() {
               color: "var(--ink-100)",
             }}
           >
-            14 board-ready slides + 10-sheet MIS workbook + locked PDF.
+            Up to 15 data-driven slides + 10-sheet MIS workbook + locked PDF.
           </h2>
         </div>
 

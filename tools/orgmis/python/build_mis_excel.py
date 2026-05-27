@@ -81,9 +81,11 @@ for c in range(1, 11):
     ws.cell(2, c).fill = PatternFill('solid', fgColor=NAVY)
 ws.row_dimensions[2].height = 6
 
-ws.cell(4, 2).value = BRANDING.get('companyName', '[COMPANY NAME]')
+PERIOD = BRANDING.get('reportingPeriod', 'FY 2024-25')
+
+ws.cell(4, 2).value = BRANDING.get('companyName', 'Your Company')
 ws.cell(4, 2).font = Font(name='Calibri', size=28, bold=True, color=NAVY)
-ws.cell(6, 2).value = BRANDING.get('tagline', '[Tagline / Vision Statement]')
+ws.cell(6, 2).value = BRANDING.get('tagline', 'Board Report')
 ws.cell(6, 2).font = Font(name='Calibri', size=14, italic=True, color='595959')
 
 ws.cell(10, 2).value = "MANAGEMENT INFORMATION SYSTEM (MIS)"
@@ -98,7 +100,7 @@ ws.cell(17, 2).value = "Contents"
 ws.cell(17, 2).font = Font(name='Calibri', size=14, bold=True, color=NAVY)
 toc = [
     ("1. Executive Summary", "Executive Summary"),
-    ("2. Profit & Loss Statement (FY24-25)", "P&L Statement"),
+    (f"2. Profit & Loss Statement ({PERIOD})", "P&L Statement"),
     ("3. Monthly Revenue & EBITDA Trend", "Monthly Trend"),
     ("4. Top Customers", "Top Customers"),
     ("5. Top Vendors", "Top Vendors"),
@@ -125,7 +127,7 @@ ws.column_dimensions['C'].width = 18
 ws.column_dimensions['D'].width = 18
 ws.column_dimensions['E'].width = 18
 
-title_style(ws.cell(2, 2), "Executive Summary — FY 2024-25", size=18)
+title_style(ws.cell(2, 2), f"Executive Summary — {PERIOD}", size=18)
 ws.cell(3, 2).value = s['period']
 ws.cell(3, 2).font = Font(size=10, italic=True, color='595959')
 
@@ -192,7 +194,7 @@ ws.column_dimensions['C'].width = 20
 ws.column_dimensions['D'].width = 20
 ws.column_dimensions['E'].width = 14
 
-title_style(ws.cell(2, 2), 'Profit & Loss Statement — FY 2024-25', size=18)
+title_style(ws.cell(2, 2), f'Profit & Loss Statement — {PERIOD}', size=18)
 ws.cell(3, 2).value = f"All figures in INR Crores. {s['period']}"
 ws.cell(3, 2).font = Font(size=10, italic=True, color='595959')
 
@@ -260,7 +262,7 @@ ws.column_dimensions['A'].width = 3
 for c in range(2, 8):
     ws.column_dimensions[get_column_letter(c)].width = 16
 
-title_style(ws.cell(2, 2), 'Monthly Revenue Trend — FY 2024-25', size=18)
+title_style(ws.cell(2, 2), f'Monthly Revenue Trend — {PERIOD}', size=18)
 
 r = 5
 header_style(ws.cell(r, 2), 'Month')
@@ -315,23 +317,33 @@ header_style(ws.cell(r, 3), 'Customer')
 header_style(ws.cell(r, 4), 'Invoice Value')
 ws.row_dimensions[r].height = 28
 r += 1
-for i, (name, amt) in enumerate(s['top_customers'][:10], 1):
-    value_cell(ws.cell(r, 2), i, fmt='0')
-    label_cell(ws.cell(r, 3), name)
-    value_cell(ws.cell(r, 4), amt, fmt='#,##0')
-    r += 1
 
-# Pie chart for customer concentration
-total = sum(a for _,a in s['top_customers'][:10])
-chart = PieChart()
-chart.title = "Top 10 Customer Concentration"
-labels = Reference(ws, min_col=3, min_row=6, max_row=5+min(10,len(s['top_customers'])))
-data = Reference(ws, min_col=4, min_row=5, max_row=5+min(10,len(s['top_customers'])))
-chart.add_data(data, titles_from_data=True)
-chart.set_categories(labels)
-chart.height = 10
-chart.width = 16
-ws.add_chart(chart, "F5")
+_top_cust = [(n, a) for n, a in s.get('top_customers') or [] if a]
+if _top_cust:
+    for i, (name, amt) in enumerate(_top_cust[:10], 1):
+        value_cell(ws.cell(r, 2), i, fmt='0')
+        label_cell(ws.cell(r, 3), name)
+        value_cell(ws.cell(r, 4), amt, fmt='#,##0')
+        r += 1
+    # Pie chart for customer concentration (only if we have real data).
+    chart = PieChart()
+    chart.title = "Top 10 Customer Concentration"
+    labels = Reference(ws, min_col=3, min_row=6, max_row=5+len(_top_cust[:10]))
+    data = Reference(ws, min_col=4, min_row=5, max_row=5+len(_top_cust[:10]))
+    chart.add_data(data, titles_from_data=True)
+    chart.set_categories(labels)
+    chart.height = 10
+    chart.width = 16
+    ws.add_chart(chart, "F5")
+else:
+    ws.merge_cells(start_row=r, start_column=2, end_row=r, end_column=4)
+    label_cell(
+        ws.cell(r, 2),
+        "Insufficient sales data to compute top customers — re-upload "
+        "with customer name + amount columns.",
+        italic=True, color='595959',
+    )
+    ws.row_dimensions[r].height = 36
 
 # ====== Sheet 6: Top Vendors ======
 ws = wb.create_sheet('Top Vendors')
@@ -351,11 +363,23 @@ header_style(ws.cell(r, 3), 'Vendor')
 header_style(ws.cell(r, 4), 'Purchase Value')
 ws.row_dimensions[r].height = 28
 r += 1
-for i, (name, amt) in enumerate(s['top_vendors'][:10], 1):
-    value_cell(ws.cell(r, 2), i, fmt='0')
-    label_cell(ws.cell(r, 3), name)
-    value_cell(ws.cell(r, 4), amt, fmt='#,##0')
-    r += 1
+
+_top_vend = [(n, a) for n, a in s.get('top_vendors') or [] if a]
+if _top_vend:
+    for i, (name, amt) in enumerate(_top_vend[:10], 1):
+        value_cell(ws.cell(r, 2), i, fmt='0')
+        label_cell(ws.cell(r, 3), name)
+        value_cell(ws.cell(r, 4), amt, fmt='#,##0')
+        r += 1
+else:
+    ws.merge_cells(start_row=r, start_column=2, end_row=r, end_column=4)
+    label_cell(
+        ws.cell(r, 2),
+        "Insufficient purchase data to compute top vendors — re-upload "
+        "with vendor name + amount columns.",
+        italic=True, color='595959',
+    )
+    ws.row_dimensions[r].height = 36
 
 # ====== Sheet 7: Geography ======
 ws = wb.create_sheet('Geography')
@@ -374,7 +398,7 @@ r += 1
 country_sorted = sorted(s['country_rev'].items(), key=lambda x: -x[1])
 r_start = r
 for code, amt in country_sorted:
-    label_cell(ws.cell(r, 2), code or '(blank)')
+    label_cell(ws.cell(r, 2), code or 'Unspecified')
     value_cell(ws.cell(r, 3), amt, fmt='#,##0')
     r += 1
 
