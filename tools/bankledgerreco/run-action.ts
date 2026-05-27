@@ -1,36 +1,43 @@
 "use server";
 
 /* Server action — start a bank reconciliation run.
-   Architecture §1, §8.5: the app inserts an RLS-scoped job row and hands
-   the heavy work to a Trigger.dev task; the browser polls Supabase for
-   status. The client uploads the files first (POST /api/uploads) and passes
-   the resulting upload ids here. */
+   Architecture §1, §8.5: the app inserts an RLS-scoped job row and hands the
+   heavy work to a Trigger.dev task; the browser polls Supabase for status.
+   The client uploads the files first (POST /api/uploads) and submits the
+   resulting upload ids here, mirroring the orgledgerreco flow (FormData in,
+   redirect to ?jobId out). */
 
+import { redirect } from "next/navigation";
 import { tasks } from "@trigger.dev/sdk";
 import { supabaseServer } from "../../core/lib/supabase-server";
 import { getToolId } from "../../core/lib/tools";
-import type { ReconcileOptions } from "./lib/types";
+import { loginHrefWithReturn } from "../../core/lib/subdomain";
+import { DEFAULT_OPTIONS } from "./lib/types";
 import type { bankReconcile } from "./jobs/reconcile";
 
-export async function runBankReconcileAction(input: {
-  bankUploadId: string;
-  booksUploadId: string;
-  settlementUploadId?: string;
-  options?: Partial<ReconcileOptions>;
-}): Promise<{ jobId: string }> {
-  const bankUploadId = input.bankUploadId?.trim();
-  const booksUploadId = input.booksUploadId?.trim();
-  const settlementUploadId = input.settlementUploadId?.trim() || undefined;
+export async function runBankReconcileAction(formData: FormData) {
+  const bankUploadId = String(formData.get("bankUploadId") ?? "").trim();
+  const booksUploadId = String(formData.get("booksUploadId") ?? "").trim();
+  const settlementUploadId = String(formData.get("settlementUploadId") ?? "").trim() || undefined;
   if (!bankUploadId || !booksUploadId) {
     throw new Error("Both a bank statement and a books ledger are required.");
   }
 
+  const num = (k: string, fallback: number) => {
+    const v = Number(formData.get(k));
+    return Number.isFinite(v) && v >= 0 ? v : fallback;
+  };
+  const options = {
+    dateWindowDays: num("dateWindowDays", DEFAULT_OPTIONS.dateWindowDays),
+    feeCeilingPct: num("feeCeilingPct", DEFAULT_OPTIONS.feeCeilingPct),
+  };
+
   const supabase = supabaseServer();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("You must be signed in to run a reconciliation.");
+  if (!user) redirect(loginHrefWithReturn());
 
   const toolId = await getToolId(supabase, "bankledgerreco");
-  if (!toolId) throw new Error("tools lookup failed: no bankledgerreco row");
+  if (!toolId) throw new Error("tools lookup failed for slug=bankledgerreco");
 
   const { data: job, error: jobErr } = await supabase
     .from("jobs")
@@ -52,8 +59,8 @@ export async function runBankReconcileAction(input: {
     bankUploadId,
     booksUploadId,
     settlementUploadId,
-    options: input.options,
+    options,
   });
 
-  return { jobId: job.id };
+  redirect(`/tools/bankledgerreco?jobId=${job.id}`);
 }
