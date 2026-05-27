@@ -15,12 +15,22 @@ import { loginHrefWithReturn } from "../../core/lib/subdomain";
 import { DEFAULT_OPTIONS } from "./lib/types";
 import type { bankReconcile } from "./jobs/reconcile";
 
+/** Pull a repeated FormData field into a clean, de-duplicated id list. */
+function ids(formData: FormData, key: string): string[] {
+  const seen = new Set<string>();
+  for (const v of formData.getAll(key)) {
+    const id = String(v ?? "").trim();
+    if (id) seen.add(id);
+  }
+  return [...seen];
+}
+
 export async function runBankReconcileAction(formData: FormData) {
-  const bankUploadId = String(formData.get("bankUploadId") ?? "").trim();
-  const booksUploadId = String(formData.get("booksUploadId") ?? "").trim();
-  const settlementUploadId = String(formData.get("settlementUploadId") ?? "").trim() || undefined;
-  if (!bankUploadId || !booksUploadId) {
-    throw new Error("Both a bank statement and a books ledger are required.");
+  const bankUploadIds = ids(formData, "bankUploadId");
+  const booksUploadIds = ids(formData, "booksUploadId");
+  const settlementUploadIds = ids(formData, "settlementUploadId");
+  if (!bankUploadIds.length || !booksUploadIds.length) {
+    throw new Error("At least one bank statement and one books ledger are required.");
   }
 
   const num = (k: string, fallback: number) => {
@@ -56,9 +66,9 @@ export async function runBankReconcileAction(formData: FormData) {
     jobId: job.id,
     userId: user.id,
     toolId,
-    bankUploadId,
-    booksUploadId,
-    settlementUploadId,
+    bankUploadIds,
+    booksUploadIds,
+    settlementUploadIds: settlementUploadIds.length ? settlementUploadIds : undefined,
     options,
   });
 

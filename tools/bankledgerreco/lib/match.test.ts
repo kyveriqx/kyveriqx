@@ -6,10 +6,10 @@ import type { BankTxn, BooksTxn, SettlementRow } from "./types";
 const d = (s: string) => new Date(`${s}T00:00:00Z`);
 
 function bank(row: number, date: string | null, desc: string, debit: number, credit: number): BankTxn {
-  return { row, date: date ? d(date) : null, description: desc, debit, credit, signed: credit - debit, balance: null };
+  return { row, file: "bank.xlsx", fileRow: row, date: date ? d(date) : null, description: desc, debit, credit, signed: credit - debit, balance: null };
 }
 function book(row: number, date: string | null, desc: string, debit: number, credit: number): BooksTxn {
-  return { row, date: date ? d(date) : null, description: desc, debit, credit, signed: debit - credit, balance: null };
+  return { row, file: "books.xlsx", fileRow: row, date: date ? d(date) : null, description: desc, debit, credit, signed: debit - credit, balance: null };
 }
 
 describe("reconcile — tiered matching", () => {
@@ -61,7 +61,7 @@ describe("reconcile — tiered matching", () => {
 
   it("pass 0: Razorpay settlement report — exact fee + UTR", () => {
     const settlement: SettlementRow[] = [
-      { row: 1, utr: "UTR123", settledAt: d("2026-04-15"), amount: 9764, fee: 200, tax: 36 },
+      { row: 1, file: "settlement.xlsx", fileRow: 1, utr: "UTR123", settledAt: d("2026-04-15"), amount: 9764, fee: 200, tax: 36 },
     ];
     const r = reconcile(
       [bank(1, "2026-04-15", "RAZORPAY", 0, 9764)],

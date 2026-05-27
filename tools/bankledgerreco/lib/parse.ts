@@ -10,7 +10,7 @@
    header offsets and pick the one that finds the most candidate fields. */
 
 import * as XLSX from "xlsx";
-import type { BankTxn, BooksTxn } from "./types";
+import type { BankTxn, BooksTxn, FileSource } from "./types";
 
 // ── Column candidates ──────────────────────────────────────────────────
 
@@ -148,6 +148,22 @@ export function readMatrix(buffer: Buffer): SheetMatrix {
   return XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, defval: "" });
 }
 
+/** "%PDF-" magic bytes. */
+function isPdf(buf: Buffer): boolean {
+  return buf.length >= 5 &&
+    buf[0] === 0x25 && buf[1] === 0x50 && buf[2] === 0x44 && buf[3] === 0x46 && buf[4] === 0x2d;
+}
+
+/** Read XLSX/CSV (sync) or extract a matrix from a digital PDF (async). The
+ *  PDF extractor is dynamically imported so the XLSX/CSV path never loads it. */
+export async function readMatrixAny(buffer: Buffer): Promise<SheetMatrix> {
+  if (isPdf(buffer)) {
+    const { pdfToMatrix } = await import("./pdf");
+    return pdfToMatrix(buffer);
+  }
+  return readMatrix(buffer);
+}
+
 type ParsedFile = {
   rows: Record<string, unknown>[];
   headers: string[];
@@ -189,12 +205,12 @@ export function probeHeaders(
 
 // ── Public entry points ────────────────────────────────────────────────
 
-export function parseBankStatement(buffer: Buffer): {
+export async function parseBankStatement(buffer: Buffer): Promise<{
   txns: BankTxn[];
   columns: Record<string, string | null>;
   headers: string[];
-} {
-  const matrix = readMatrix(buffer);
+}> {
+  const matrix = await readMatrixAny(buffer);
   const { rows, headers } = probeHeaders(matrix, [
     DATE_KEYS, DEBIT_KEYS, CREDIT_KEYS, DESC_KEYS,
   ]);
@@ -220,7 +236,10 @@ export function parseBankStatement(buffer: Buffer): {
       else credit = amt;
     }
     return {
+      // Per-file row now; mergeTxns reassigns a global `row` and stamps `file`.
       row: i + 1,
+      file: "",
+      fileRow: i + 1,
       date,
       description,
       debit,
@@ -240,12 +259,12 @@ export function parseBankStatement(buffer: Buffer): {
   };
 }
 
-export function parseBooksLedger(buffer: Buffer): {
+export async function parseBooksLedger(buffer: Buffer): Promise<{
   txns: BooksTxn[];
   columns: Record<string, string | null>;
   headers: string[];
-} {
-  const matrix = readMatrix(buffer);
+}> {
+  const matrix = await readMatrixAny(buffer);
   const { rows, headers } = probeHeaders(matrix, [
     DATE_KEYS, DEBIT_KEYS, CREDIT_KEYS, DESC_KEYS,
   ]);
@@ -270,7 +289,10 @@ export function parseBooksLedger(buffer: Buffer): {
       else credit = amt;
     }
     return {
+      // Per-file row now; mergeTxns reassigns a global `row` and stamps `file`.
       row: i + 1,
+      file: "",
+      fileRow: i + 1,
       date,
       description,
       debit,
@@ -289,4 +311,73 @@ export function parseBooksLedger(buffer: Buffer): {
     },
     headers,
   };
+}
+
+// ── Multi-file merge ────────────────────────────────────────────────────
+
+type Mergeable = { row: number; file: string; fileRow: number };
+
+/** YYYY-MM-DD in UTC (dates are constructed UTC-based in toDate). */
+function fmtDay(d: Date): string {
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const da = String(d.getUTCDate()).padStart(2, "0");
+  return `${y}-${m}-${da}`;
+}
+
+/** Concatenate the parsed rows of several files into one side's dataset.
+ *
+ *  Rows are numbered globally in FILE ORDER (file 1 → rows 1..n1, file 2 →
+ *  n1+1.., …) so each file occupies a CONTIGUOUS global range — that keeps the
+ *  "files merged" legend accurate and any global row number traceable to a
+ *  file. The matcher is order-independent (it keys off `row` and sorts inside
+ *  each pass), so file order vs date order does not affect matching. Each row
+ *  keeps its source `file` and within-file `fileRow` for "see <file> row N".
+ *
+ *  Files whose date ranges overlap are flagged in `notes` (possible
+ *  double-counting) but never dropped — identical same-day rows can be real. */
+export function mergeTxns<T extends Mergeable>(
+  parts: Array<{ file: string; txns: T[] }>,
+  getDate: (t: T) => Date | null = () => null,
+): { merged: T[]; sources: FileSource[]; notes: string[] } {
+  const merged: T[] = [];
+  const sources: FileSource[] = [];
+  let g = 0;
+
+  for (const { file, txns } of parts) {
+    const rowStart = g + 1;
+    for (const t of txns) {
+      g += 1;
+      // fileRow already carries the per-file number from the parser.
+      merged.push({ ...t, file, row: g });
+    }
+    sources.push({ file, rows: txns.length, rowStart, rowEnd: g });
+  }
+
+  // Overlapping date ranges between files → warn (don't dedup).
+  const ranges = parts.map(({ file, txns }) => {
+    let min: Date | null = null, max: Date | null = null;
+    for (const t of txns) {
+      const d = getDate(t);
+      if (!d) continue;
+      if (!min || d < min) min = d;
+      if (!max || d > max) max = d;
+    }
+    return { file, min, max };
+  });
+  const notes: string[] = [];
+  for (let i = 0; i < ranges.length; i++) {
+    for (let j = i + 1; j < ranges.length; j++) {
+      const a = ranges[i], b = ranges[j];
+      if (a.min && a.max && b.min && b.max && a.min <= b.max && b.min <= a.max) {
+        const from = a.min > b.min ? a.min : b.min;
+        const to = a.max < b.max ? a.max : b.max;
+        notes.push(
+          `${a.file} and ${b.file} overlap ${fmtDay(from)}–${fmtDay(to)} — check for double-counted rows.`,
+        );
+      }
+    }
+  }
+
+  return { merged, sources, notes };
 }

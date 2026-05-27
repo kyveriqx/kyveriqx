@@ -21,8 +21,14 @@
    rows rather than 1:1 pairs. */
 
 export type BankTxn = {
-  /** 1-indexed row number in the uploaded file, used for "see row N" hints. */
+  /** Globally unique row number across all merged files on this side; the
+   *  matcher uses it as a stable key. Equals fileRow when a single file is
+   *  uploaded. */
   row: number;
+  /** Source filename this row came from (for "see <file> row N" hints). */
+  file: string;
+  /** 1-indexed row number within its own source file. */
+  fileRow: number;
   date: Date | null;
   description: string;
   /** Money out of the customer's account (bank's debit on customer ledger). */
@@ -35,7 +41,12 @@ export type BankTxn = {
 };
 
 export type BooksTxn = {
+  /** Globally unique row number across all merged files on this side. */
   row: number;
+  /** Source filename this row came from. */
+  file: string;
+  /** 1-indexed row number within its own source file. */
+  fileRow: number;
   date: Date | null;
   description: string;
   /** Dr in the books = money received into the bank account (books-side). */
@@ -49,7 +60,12 @@ export type BooksTxn = {
 
 /** A parsed Razorpay (or similar gateway) settlement line. gross = amount + fee + tax. */
 export type SettlementRow = {
+  /** Globally unique row number across all merged settlement files. */
   row: number;
+  /** Source filename this row came from. */
+  file: string;
+  /** 1-indexed row number within its own source file. */
+  fileRow: number;
   /** Bank UTR / settlement reference, surfaced in the matched group's note. */
   utr: string | null;
   settledAt: Date | null;
@@ -59,6 +75,17 @@ export type SettlementRow = {
   fee: number;
   /** GST charged on the fee. */
   tax: number;
+};
+
+/** One uploaded file's contribution to a merged side — drives the
+ *  "files merged" legend so a global row number stays traceable to a file. */
+export type FileSource = {
+  file: string;
+  /** Number of parsed rows this file contributed. */
+  rows: number;
+  /** Global row range [rowStart, rowEnd] occupied by this file's rows. */
+  rowStart: number;
+  rowEnd: number;
 };
 
 export type MatchMethod =
@@ -109,7 +136,12 @@ export type UnmatchedHint =
   | null;
 
 export type UnmatchedSide = {
+  /** Global row number (matches the side's merged numbering). */
   row: number;
+  /** Source filename this row came from. */
+  file: string;
+  /** 1-indexed row number within its own source file. */
+  fileRow: number;
   date: string | null;
   description: string;
   debit: number;
@@ -170,4 +202,11 @@ export type BankReconcileResult = {
   options: ReconcileOptions;
   /** Pipeline warnings (e.g. a day too large for subset search). */
   notes: string[];
+  /** Per-side breakdown of the files merged into each dataset, for the
+   *  "files merged" legend. Absent on results produced before multi-file. */
+  sources?: {
+    bank: FileSource[];
+    books: FileSource[];
+    settlement: FileSource[];
+  };
 };

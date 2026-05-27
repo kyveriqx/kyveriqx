@@ -326,12 +326,12 @@ export function reconcile(
 
   // ── Pass 6: classify the leftovers ─────────────────────────────────────
   const unmatchedBank: UnmatchedSide[] = freeBank().map((t) => ({
-    row: t.row, date: ymd(t.date), description: t.description,
+    row: t.row, file: t.file, fileRow: t.fileRow, date: ymd(t.date), description: t.description,
     debit: t.debit, credit: t.credit, signed: t.signed,
     hint: classifyUnmatched(t.description, t.debit, t.credit),
   }));
   const unmatchedBooks: UnmatchedSide[] = freeBooks().map((b) => ({
-    row: b.row, date: ymd(b.date), description: b.description,
+    row: b.row, file: b.file, fileRow: b.fileRow, date: ymd(b.date), description: b.description,
     debit: b.debit, credit: b.credit, signed: b.signed,
     hint: looksLikeReversal(b.description) ? "possible-reversal" : null,
   }));
