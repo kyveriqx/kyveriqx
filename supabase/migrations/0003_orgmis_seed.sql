@@ -11,7 +11,7 @@ insert into public.tools (slug, subdomain, name, description, price) values
     'orgmis',
     'Management / BOD MIS Generator',
     'Branded board MIS, deck, and PDF.',
-    499
+    99
   )
 on conflict (slug) do nothing;
 
