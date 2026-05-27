@@ -16,15 +16,16 @@ import { runBankReconcileAction } from "../run-action";
 
 type UploadStage = "idle" | "uploading" | "submitting";
 
-const ACCEPT = ".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv";
+const ACCEPT_DATA = ".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv";
+const ACCEPT_PDF = `${ACCEPT_DATA},.pdf,application/pdf`;
 const MAX_BYTES = 50 * 1024 * 1024; // 50 MB
 
 type Props = { userId: string; toolId: string };
 
 export function UploadForm(_props: Props) {
-  const [bankFile, setBankFile] = useState<File | null>(null);
-  const [booksFile, setBooksFile] = useState<File | null>(null);
-  const [settlementFile, setSettlementFile] = useState<File | null>(null);
+  const [bankFiles, setBankFiles] = useState<File[]>([]);
+  const [booksFiles, setBooksFiles] = useState<File[]>([]);
+  const [settlementFiles, setSettlementFiles] = useState<File[]>([]);
   const [dateWindowDays, setDateWindowDays] = useState(3);
   const [feeCeilingPct, setFeeCeilingPct] = useState(3);
   const [stage, setStage] = useState<UploadStage>("idle");
@@ -32,12 +33,12 @@ export function UploadForm(_props: Props) {
   const [progress, setProgress] = useState<string>("");
   const [, startTransition] = useTransition();
 
-  async function uploadOne(file: File, kind: "bank" | "books" | "settlement"): Promise<string> {
+  async function uploadOne(file: File, kind: "bank" | "books" | "settlement", idx: number, total: number): Promise<string> {
     if (file.size > MAX_BYTES) {
       throw new Error(`${file.name} is larger than 50 MB — please trim the file before uploading.`);
     }
     const label = kind === "bank" ? "bank statement" : kind === "books" ? "books ledger" : "settlement report";
-    setProgress(`Uploading ${label} (${(file.size / 1024 / 1024).toFixed(1)} MB)…`);
+    setProgress(`Uploading ${label} — file ${idx} of ${total} (${(file.size / 1024 / 1024).toFixed(1)} MB)…`);
 
     const fd = new FormData();
     fd.set("file", file);
@@ -57,24 +58,29 @@ export function UploadForm(_props: Props) {
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
-    if (!bankFile || !booksFile) {
-      setError("Please attach both your bank statement and your books ledger.");
+    if (!bankFiles.length || !booksFiles.length) {
+      setError("Please attach at least one bank statement and one books ledger.");
       return;
     }
     try {
       setStage("uploading");
-      const [bankUploadId, booksUploadId, settlementUploadId] = await Promise.all([
-        uploadOne(bankFile, "bank"),
-        uploadOne(booksFile, "books"),
-        settlementFile ? uploadOne(settlementFile, "settlement") : Promise.resolve(""),
-      ]);
+      const queue: { file: File; kind: "bank" | "books" | "settlement" }[] = [
+        ...bankFiles.map((file) => ({ file, kind: "bank" as const })),
+        ...booksFiles.map((file) => ({ file, kind: "books" as const })),
+        ...settlementFiles.map((file) => ({ file, kind: "settlement" as const })),
+      ];
+      const ids: Record<"bank" | "books" | "settlement", string[]> = { bank: [], books: [], settlement: [] };
+      for (let i = 0; i < queue.length; i++) {
+        const { file, kind } = queue[i];
+        ids[kind].push(await uploadOne(file, kind, i + 1, queue.length));
+      }
 
       setStage("submitting");
       setProgress("Starting reconciliation…");
       const fd = new FormData();
-      fd.set("bankUploadId", bankUploadId);
-      fd.set("booksUploadId", booksUploadId);
-      if (settlementUploadId) fd.set("settlementUploadId", settlementUploadId);
+      ids.bank.forEach((id) => fd.append("bankUploadId", id));
+      ids.books.forEach((id) => fd.append("booksUploadId", id));
+      ids.settlement.forEach((id) => fd.append("settlementUploadId", id));
       fd.set("dateWindowDays", String(dateWindowDays));
       fd.set("feeCeilingPct", String(feeCeilingPct));
 
@@ -93,7 +99,7 @@ export function UploadForm(_props: Props) {
   }
 
   const busy = stage !== "idle";
-  const ready = !!bankFile && !!booksFile && !busy;
+  const ready = bankFiles.length > 0 && booksFiles.length > 0 && !busy;
 
   return (
     <form onSubmit={onSubmit}>
@@ -135,20 +141,20 @@ export function UploadForm(_props: Props) {
           icon="🏦"
           title="Your Bank Statement"
           accent="var(--bg-banner-start)"
-          body="Export the account statement from your bank's portal. We auto-detect the date, narration, debit and credit columns. Excel and CSV supported."
+          body="Export the account statement from your bank's portal. We auto-detect the date, narration, debit and credit columns. Excel, CSV and PDF supported — add several files (e.g. one per month) and we merge them into one statement."
         />
         <DescCard
           icon="📒"
           title="Your Books Ledger"
           accent="var(--bg-banner-start)"
-          body="Upload the same bank account's ledger from your ERP (Business Central / Tally / Zoho). Excel or CSV."
+          body="Upload the same bank account's ledger from your ERP (Business Central / Tally / Zoho). Excel, CSV or PDF — multiple files are merged."
         />
       </div>
 
       {/* Dropzone row */}
       <div style={{ ...gridTwo, marginTop: 18 }}>
-        <Dropzone label="Upload Your Bank Statement" file={bankFile} onFile={setBankFile} disabled={busy} />
-        <Dropzone label="Upload Your Books Ledger" file={booksFile} onFile={setBooksFile} disabled={busy} />
+        <Dropzone label="Upload Your Bank Statement" hint="One or more files · 50 MB each · XLSX, CSV, PDF" accept={ACCEPT_PDF} files={bankFiles} onFiles={setBankFiles} disabled={busy} />
+        <Dropzone label="Upload Your Books Ledger" hint="One or more files · 50 MB each · XLSX, CSV, PDF" accept={ACCEPT_PDF} files={booksFiles} onFiles={setBooksFiles} disabled={busy} />
       </div>
 
       {/* Optional settlement — full width */}
@@ -160,7 +166,7 @@ export function UploadForm(_props: Props) {
           body="Add Razorpay's settlement export for exact gateway fee + GST reconciliation. Skip it and we'll infer the fee from the amounts."
         />
         <div style={{ marginTop: 14 }}>
-          <Dropzone label="Upload Razorpay Settlement Report — optional" file={settlementFile} onFile={setSettlementFile} disabled={busy} />
+          <Dropzone label="Upload Razorpay Settlement Report — optional" hint="One or more files · 50 MB each · XLSX, CSV" accept={ACCEPT_DATA} files={settlementFiles} onFiles={setSettlementFiles} disabled={busy} />
         </div>
       </div>
 
@@ -300,15 +306,24 @@ function SettingNum({ label, hint, value, min, max, step, onChange, disabled }: 
   );
 }
 
-function Dropzone({ label, file, onFile, disabled }: {
-  label: string; file: File | null; onFile: (f: File | null) => void; disabled: boolean;
+function Dropzone({ label, hint, accept, files, onFiles, disabled }: {
+  label: string; hint: string; accept: string; files: File[]; onFiles: (f: File[]) => void; disabled: boolean;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [hover, setHover] = useState(false);
 
-  function pick(f: File | null | undefined) { if (f) onFile(f); }
+  // Append new files, skipping ones already attached (same name + size).
+  function addFiles(list: FileList | null | undefined) {
+    if (!list || !list.length) return;
+    const next = [...files];
+    for (const f of Array.from(list)) {
+      if (!next.some((x) => x.name === f.name && x.size === f.size)) next.push(f);
+    }
+    onFiles(next);
+  }
+  function removeAt(idx: number) { onFiles(files.filter((_, i) => i !== idx)); }
   function onDrop(e: DragEvent<HTMLDivElement>) {
-    e.preventDefault(); setHover(false); if (disabled) return; pick(e.dataTransfer.files?.[0]);
+    e.preventDefault(); setHover(false); if (disabled) return; addFiles(e.dataTransfer.files);
   }
 
   return (
@@ -335,19 +350,15 @@ function Dropzone({ label, file, onFile, disabled }: {
       >
         <div style={{ fontSize: 26, color: "var(--accent)" }}>⬆</div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          {file ? (
-            <>
-              <div style={{ fontSize: 13.5, fontWeight: 600, color: "var(--ink-100)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                ✓ {file.name}
-              </div>
-              <div style={{ fontSize: 12, color: "var(--ink-400)", marginTop: 2 }}>
-                {(file.size / 1024 / 1024).toFixed(2)} MB · click to replace
-              </div>
-            </>
+          {files.length ? (
+            <div style={{ fontSize: 13.5, fontWeight: 600, color: "var(--ink-100)" }}>
+              ✓ {files.length} file{files.length > 1 ? "s" : ""} attached
+              <span style={{ fontWeight: 400, color: "var(--ink-400)" }}> · click to add more</span>
+            </div>
           ) : (
             <>
-              <div style={{ fontSize: 14, fontWeight: 600, color: "var(--ink-100)" }}>Drag and drop file here</div>
-              <div style={{ fontSize: 12, color: "var(--ink-400)", marginTop: 2 }}>Limit 50 MB · XLSX, CSV</div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: "var(--ink-100)" }}>Drag and drop file(s) here</div>
+              <div style={{ fontSize: 12, color: "var(--ink-400)", marginTop: 2 }}>{hint}</div>
             </>
           )}
         </div>
@@ -356,10 +367,41 @@ function Dropzone({ label, file, onFile, disabled }: {
           Browse files
         </Button>
         <input
-          ref={inputRef} type="file" accept={ACCEPT} disabled={disabled}
-          onChange={(e) => pick(e.target.files?.[0])} style={{ display: "none" }}
+          ref={inputRef} type="file" accept={accept} multiple disabled={disabled}
+          onChange={(e) => { addFiles(e.target.files); e.currentTarget.value = ""; }} style={{ display: "none" }}
         />
       </div>
+
+      {files.length > 0 && (
+        <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 6 }}>
+          {files.map((f, i) => (
+            <div key={`${f.name}-${f.size}-${i}`} style={{
+              display: "flex", alignItems: "center", gap: 10, padding: "7px 10px",
+              background: "var(--bg-elev)", border: "1px solid var(--line)", borderRadius: 8,
+              fontSize: 12.5, color: "var(--ink-100)",
+            }}>
+              <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {f.name}
+              </span>
+              <span style={{ color: "var(--ink-400)", fontSize: 11, fontFamily: "var(--font-mono)", flexShrink: 0 }}>
+                {(f.size / 1024 / 1024).toFixed(2)} MB
+              </span>
+              {!disabled && (
+                <button
+                  type="button" aria-label={`Remove ${f.name}`}
+                  onClick={(e) => { e.stopPropagation(); removeAt(i); }}
+                  style={{
+                    flexShrink: 0, width: 22, height: 22, lineHeight: "20px", textAlign: "center",
+                    borderRadius: 6, border: "1px solid var(--line-strong)", background: "transparent",
+                    color: "var(--ink-300)", cursor: "pointer", fontSize: 15,
+                  }}>
+                  ×
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

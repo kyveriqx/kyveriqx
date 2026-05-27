@@ -8,7 +8,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "../../../core/ui/button";
 import { Card } from "../../../core/ui/card";
-import type { BankReconcileResult, MatchGroup, MatchMethod, UnmatchedSide } from "../lib/types";
+import type { BankReconcileResult, MatchGroup, MatchMethod, UnmatchedSide, FileSource } from "../lib/types";
 
 type JobStatusValue = "queued" | "running" | "succeeded" | "failed" | "cancelled";
 
@@ -111,6 +111,7 @@ export function ReconcileResultView({ jobId, initialJob }: { jobId: string; init
     <div style={{ display: "grid", gap: 24 }}>
       <BalanceTiles res={res} />
       <MatchSummary res={res} />
+      <FilesMerged res={res} />
       <MatchedGroupsTable res={res} />
       <GapsSection res={res} />
       <ActionPlan res={res} />
@@ -199,6 +200,59 @@ function MatchSummary({ res }: { res: BankReconcileResult }) {
   );
 }
 
+function SourceList({ title, items }: { title: string; items: FileSource[] }) {
+  if (!items.length) return null;
+  return (
+    <div>
+      <SubTitle>{title}</SubTitle>
+      <div style={{ display: "grid", gap: 4 }}>
+        {items.map((f, i) => (
+          <div key={`${f.file}-${i}`} style={{ fontSize: 12.5, color: "var(--ink-200)", display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <span style={{ fontWeight: 600 }}>{f.file}</span>
+            <span style={{ color: "var(--ink-400)", fontFamily: "var(--font-mono)" }}>
+              {f.rows ? `${f.rows} row${f.rows === 1 ? "" : "s"} · rows ${f.rowStart}–${f.rowEnd}` : "no rows"}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** "Files merged" legend (only when a side has >1 file) + any pipeline
+ *  warnings (overlapping periods, differing column maps). Lets a global row
+ *  number in the matched-groups table be traced back to its source file. */
+function FilesMerged({ res }: { res: BankReconcileResult }) {
+  const s = res.sources;
+  const multi = !!s && (s.bank.length > 1 || s.books.length > 1 || s.settlement.length > 1);
+  const notes = res.notes ?? [];
+  if (!multi && notes.length === 0) return null;
+  return (
+    <Card style={{ padding: 24 }}>
+      <SectionTitle>Files merged</SectionTitle>
+      {multi && s && (
+        <div style={{ display: "grid", gap: 14 }}>
+          <SourceList title="Bank statement" items={s.bank} />
+          <SourceList title="Books ledger" items={s.books} />
+          <SourceList title="Settlement report" items={s.settlement} />
+        </div>
+      )}
+      {notes.length > 0 && (
+        <div style={{ marginTop: multi ? 16 : 0, display: "grid", gap: 8 }}>
+          {notes.map((n, i) => (
+            <div key={i} style={{
+              fontSize: 12.5, color: "var(--warn-fg)", background: "var(--warn-bg)",
+              border: "1px solid var(--warn-border)", borderRadius: 8, padding: "8px 12px",
+            }}>
+              ⚠ {n}
+            </div>
+          ))}
+        </div>
+      )}
+    </Card>
+  );
+}
+
 function MatchedGroupsTable({ res }: { res: BankReconcileResult }) {
   if (res.groups.length === 0) return null;
   return (
@@ -224,12 +278,16 @@ function MatchedGroupsTable({ res }: { res: BankReconcileResult }) {
   );
 }
 
+function rowRef(u: { file?: string; fileRow?: number; row: number }): string {
+  return u.file ? `${u.file} · r${u.fileRow}` : `r${u.row}`;
+}
+
 function UnmatchedTable({ rows }: { rows: UnmatchedSide[] }) {
   return (
-    <Table headers={["Row", "Date", "Description", "Debit", "Credit", "Flag"]}>
+    <Table headers={["Source", "Date", "Description", "Debit", "Credit", "Flag"]}>
       {rows.slice(0, MAX_ROWS).map((u) => (
         <tr key={u.row}>
-          <Td>{u.row}</Td>
+          <Td>{rowRef(u)}</Td>
           <Td>{u.date ?? "—"}</Td>
           <Td>{u.description || "—"}</Td>
           <Td align="right">{u.debit ? inr(u.debit) : "—"}</Td>
@@ -335,10 +393,10 @@ function ActionPlan({ res }: { res: BankReconcileResult }) {
 
 function DownloadBar({ res }: { res: BankReconcileResult }) {
   function download() {
-    const header = ["Side", "Row", "Date", "Description", "Debit", "Credit", "Flag"];
+    const header = ["Side", "File", "File row", "Date", "Description", "Debit", "Credit", "Flag"];
     const esc = (v: unknown) => { const x = String(v ?? ""); return /[",\n]/.test(x) ? `"${x.replace(/"/g, '""')}"` : x; };
     const rows: (string | number)[][] = [header];
-    const add = (side: string, u: UnmatchedSide) => rows.push([side, u.row, u.date ?? "", u.description, u.debit, u.credit, u.hint ? HINT_LABEL[u.hint] : ""]);
+    const add = (side: string, u: UnmatchedSide) => rows.push([side, u.file ?? "", u.fileRow ?? u.row, u.date ?? "", u.description, u.debit, u.credit, u.hint ? HINT_LABEL[u.hint] : ""]);
     res.unmatchedBank.forEach((u) => add("Bank", u));
     res.unmatchedBooks.forEach((u) => add("Books", u));
     const text = rows.map((r) => r.map(esc).join(",")).join("\n");

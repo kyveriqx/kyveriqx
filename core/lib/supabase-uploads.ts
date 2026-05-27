@@ -71,3 +71,40 @@ export async function downloadSupabaseUpload(
     return null;
   }
 }
+
+/** Like downloadSupabaseUpload, but also returns the original filename (from
+ *  the uploads row) so callers can label rows by their source file — needed
+ *  when several uploads are merged into one dataset. Returns null on failure. */
+export async function downloadSupabaseUploadNamed(
+  blobUrl: string | undefined,
+  bucket: string,
+): Promise<{ buffer: Buffer; filename: string } | null> {
+  if (!blobUrl) return null;
+
+  if (blobUrl.startsWith(PREFIX)) {
+    const uploadId = blobUrl.slice(PREFIX.length);
+    const admin = supabaseAdmin();
+    const { data: row } = await admin
+      .from("uploads")
+      .select("storage_path, filename")
+      .eq("id", uploadId)
+      .maybeSingle();
+    if (!row?.storage_path) return null;
+    const { data: blob } = await admin.storage.from(bucket).download(row.storage_path);
+    if (!blob) return null;
+    return {
+      buffer: Buffer.from(await blob.arrayBuffer()),
+      filename: row.filename || uploadId,
+    };
+  }
+
+  // Fallback: regular fetchable URL (legacy clients) — derive a name from it.
+  try {
+    const r = await fetch(blobUrl);
+    if (!r.ok) return null;
+    const name = decodeURIComponent(blobUrl.split("/").pop()?.split("?")[0] || "upload");
+    return { buffer: Buffer.from(await r.arrayBuffer()), filename: name };
+  } catch {
+    return null;
+  }
+}

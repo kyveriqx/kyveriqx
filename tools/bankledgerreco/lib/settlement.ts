@@ -47,7 +47,10 @@ export function parseSettlementReport(buffer: Buffer): {
 
   const parsed: SettlementRow[] = rows
     .map((r, i) => ({
+      // Per-file row now; mergeTxns reassigns a global `row` and stamps `file`.
       row: i + 1,
+      file: "",
+      fileRow: i + 1,
       utr: utrCol ? String(r[utrCol] ?? "").trim() || null : null,
       settledAt: dateCol ? toDate(r[dateCol]) : null,
       amount: amtCol ? toNum(r[amtCol]) : 0,
