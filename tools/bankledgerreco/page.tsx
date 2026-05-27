@@ -1,14 +1,21 @@
-/* Bank Ledger Reconciliation.
-   Auth-gated: signed-out users see a CTA to register/login; signed-in users
-   upload their bank statement + books (+ optional Razorpay settlement
-   report), run the matcher, and see the live status + categorized report. */
+/* Bank Ledger Reconciliation — Architecture §8.5.
+
+   Signed-out users → CTA to register/login.
+   Signed-in users (no jobId) → upload form for bank + books (+ settlement).
+   Signed-in users (jobId in URL) → result view.
+
+   Same shape as the Org Ledger Reconciliation tool. The reconciliation runs
+   via Trigger.dev (async), so unlike orgledgerreco the job may still be
+   queued/running on first paint — we preload the row server-side and let
+   ReconcileResultView poll until it's terminal. */
 
 import { Nav } from "../../core/ui/nav";
 import { Card } from "../../core/ui/card";
-import { Button } from "../../core/ui/button";
+import { SignedOutGate } from "../../core/ui/signed-out-gate";
 import { supabaseServer } from "../../core/lib/supabase-server";
-import { loginHrefWithReturn } from "../../core/lib/subdomain";
-import { UploadRun } from "./upload-run";
+import { getToolId } from "../../core/lib/tools";
+import { UploadForm } from "./components/upload-form";
+import { ReconcileResultView, type Job } from "./components/result-view";
 
 export const dynamic = "force-dynamic";
 
@@ -17,36 +24,55 @@ type Props = { searchParams: { jobId?: string } };
 export default async function BankLedgerReco({ searchParams }: Props) {
   const supabase = supabaseServer();
   const { data: { user } } = await supabase.auth.getUser();
+  const jobId = searchParams.jobId;
+
+  let toolId: string | null = null;
+  let initialJob: Job | null = null;
+  if (user) {
+    toolId = await getToolId(supabase, "bankledgerreco");
+    if (jobId) {
+      const { data } = await supabase
+        .from("jobs")
+        .select("id, status, result, error, updated_at, job_key")
+        .eq("id", jobId)
+        .maybeSingle();
+      initialJob = (data as Job | null) ?? null;
+    }
+  }
+
+  if (!user) {
+    return (
+      <>
+        <Nav />
+        <SignedOutGate
+          subdomain="bankledgerreco.kyveriqx.com"
+          title="Bank Ledger Reconciliation"
+          description="Match your bank statement against your books. Handles UPI day-aggregation, Razorpay settlement fees, posting-date lag, bank charges and reversals — then shows you exactly what doesn't tie out."
+        />
+      </>
+    );
+  }
 
   return (
     <>
       <Nav />
-      <main style={{ maxWidth: 1240, margin: "0 auto", padding: "80px 24px" }}>
-        <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, letterSpacing: "0.06em", color: "var(--ink-400)" }}>
-          bankledgerreco.kyveriqx.com
-        </span>
-        <h1 style={{ fontSize: "clamp(32px, 3.6vw, 52px)", lineHeight: 1.06, letterSpacing: "-0.022em", fontWeight: 600, margin: "8px 0 24px" }}>
-          Bank Ledger Reconciliation
-        </h1>
-        <p style={{ color: "var(--ink-200)", maxWidth: 720, margin: "0 0 48px", fontSize: 18 }}>
-          Match your bank statement against your books. Handles UPI day-aggregation,
-          Razorpay settlement fees, posting-date lag, bank charges and reversals — then
-          shows you exactly what doesn&apos;t tie out.
-        </p>
+      <main style={{ maxWidth: 1120, margin: "0 auto", padding: "40px 24px 80px" }}>
+        {!jobId && toolId && <UploadForm userId={user.id} toolId={toolId} />}
 
-        {!user && (
+        {!jobId && !toolId && (
           <Card style={{ padding: 24, maxWidth: 720 }}>
-            <p style={{ color: "var(--ink-300)", margin: "0 0 16px" }}>
-              Sign in to start your 14-day free trial.
-            </p>
-            <div style={{ display: "flex", gap: 12 }}>
-              <a href="/auth/register"><Button>Start free trial</Button></a>
-              <a href={loginHrefWithReturn()}><Button variant="ghost">Log in</Button></a>
-            </div>
+            <p style={{ color: "#FFB3B3" }}>Tool record missing — please contact support.</p>
           </Card>
         )}
 
-        {user && <UploadRun initialJobId={searchParams.jobId} />}
+        {jobId && (
+          <div style={{ display: "grid", gap: 16 }}>
+            <ReconcileResultView jobId={jobId} initialJob={initialJob ?? undefined} />
+            <a href="/tools/bankledgerreco" style={{ fontSize: 14, color: "var(--blue-400)", textDecoration: "none" }}>
+              ← Run another reconciliation
+            </a>
+          </div>
+        )}
       </main>
     </>
   );
