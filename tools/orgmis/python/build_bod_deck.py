@@ -617,23 +617,25 @@ else:
              "purchase register with vendor name + amount columns.",
              size=13, italic=True, color=GRAY, anchor=MSO_ANCHOR.MIDDLE)
 
-# Bar chart
-cdata = CategoryChartData()
-cdata.categories = [n[:20] for n,_ in top_v]
-cdata.add_series('Purchase Value', [a for _,a in top_v])
-chart_shape = slide.shapes.add_chart(
-    XL_CHART_TYPE.BAR_CLUSTERED, Inches(8.5), Inches(1.4), Inches(4.8), Inches(4.6), cdata
-)
-chart = chart_shape.chart
-chart.has_title = True
-chart.chart_title.text_frame.text = "Vendor Spend"
-chart.chart_title.text_frame.paragraphs[0].font.size = Pt(14)
-chart.chart_title.text_frame.paragraphs[0].font.bold = True
-chart.chart_title.text_frame.paragraphs[0].font.color.rgb = NAVY
-chart.has_legend = False
-for series in chart.series:
-    series.format.fill.solid()
-    series.format.fill.fore_color.rgb = GOLD
+# Bar chart (only when we have real categories to plot — python-pptx
+# raises "chart data contains no categories" otherwise).
+if top_v:
+    cdata = CategoryChartData()
+    cdata.categories = [str(n)[:20] for n, _ in top_v]
+    cdata.add_series('Purchase Value', [a for _, a in top_v])
+    chart_shape = slide.shapes.add_chart(
+        XL_CHART_TYPE.BAR_CLUSTERED, Inches(8.5), Inches(1.4), Inches(4.8), Inches(4.6), cdata
+    )
+    chart = chart_shape.chart
+    chart.has_title = True
+    chart.chart_title.text_frame.text = "Vendor Spend"
+    chart.chart_title.text_frame.paragraphs[0].font.size = Pt(14)
+    chart.chart_title.text_frame.paragraphs[0].font.bold = True
+    chart.chart_title.text_frame.paragraphs[0].font.color.rgb = NAVY
+    chart.has_legend = False
+    for series in chart.series:
+        series.format.fill.solid()
+        series.format.fill.fore_color.rgb = GOLD
 
 add_text(slide, Inches(0.5), Inches(6.4), Inches(12.3), Inches(0.4),
          f"Note: Based on purchase invoice line totals ({REPORTING_PERIOD}).",
@@ -646,43 +648,62 @@ slide = blank_slide()
 add_title_bar(slide, "Geographic & Currency Mix", "Revenue distribution by country and billing currency")
 add_footer(slide, 9)
 
-# Country chart - left
-country_data = sorted(s['country_rev'].items(), key=lambda x: -x[1])[:10]
-cdata = CategoryChartData()
-cdata.categories = [c or 'IN' for c,_ in country_data]
-cdata.add_series('Revenue', [a for _,a in country_data])
-ch1 = slide.shapes.add_chart(XL_CHART_TYPE.PIE, Inches(0.5), Inches(1.4), Inches(6), Inches(5), cdata).chart
-ch1.has_title = True
-ch1.chart_title.text_frame.text = "Revenue by Country"
-ch1.chart_title.text_frame.paragraphs[0].font.size = Pt(14)
-ch1.chart_title.text_frame.paragraphs[0].font.bold = True
-ch1.chart_title.text_frame.paragraphs[0].font.color.rgb = NAVY
-ch1.has_legend = True
-ch1.legend.position = XL_LEGEND_POSITION.RIGHT
-ch1.legend.font.size = Pt(10)
-ch1.plots[0].has_data_labels = True
-ch1.plots[0].data_labels.show_percentage = True
-ch1.plots[0].data_labels.font.size = Pt(9)
-ch1.plots[0].data_labels.font.bold = True
+# Country chart - left. Filter zero-amount countries so the pie chart
+# doesn't render a slice of nothing, and skip entirely if the result
+# is empty (otherwise python-pptx raises "chart data contains no
+# categories").
+country_data = [
+    (c, a) for c, a in sorted(s['country_rev'].items(), key=lambda x: -x[1])[:10]
+    if a
+]
+if country_data:
+    cdata = CategoryChartData()
+    cdata.categories = [c or 'IN' for c, _ in country_data]
+    cdata.add_series('Revenue', [a for _, a in country_data])
+    ch1 = slide.shapes.add_chart(XL_CHART_TYPE.PIE, Inches(0.5), Inches(1.4), Inches(6), Inches(5), cdata).chart
+    ch1.has_title = True
+    ch1.chart_title.text_frame.text = "Revenue by Country"
+    ch1.chart_title.text_frame.paragraphs[0].font.size = Pt(14)
+    ch1.chart_title.text_frame.paragraphs[0].font.bold = True
+    ch1.chart_title.text_frame.paragraphs[0].font.color.rgb = NAVY
+    ch1.has_legend = True
+    ch1.legend.position = XL_LEGEND_POSITION.RIGHT
+    ch1.legend.font.size = Pt(10)
+    ch1.plots[0].has_data_labels = True
+    ch1.plots[0].data_labels.show_percentage = True
+    ch1.plots[0].data_labels.font.size = Pt(9)
+    ch1.plots[0].data_labels.font.bold = True
+else:
+    add_text(slide, Inches(0.5), Inches(3), Inches(6), Inches(0.6),
+             "No country-level revenue available.",
+             size=12, italic=True, color=GRAY, align=PP_ALIGN.CENTER)
 
 # Currency chart - right
-curr_data = sorted(s['currency_rev'].items(), key=lambda x: -x[1])
-cdata2 = CategoryChartData()
-cdata2.categories = [c or 'INR' for c,_ in curr_data]
-cdata2.add_series('Revenue', [a for _,a in curr_data])
-ch2 = slide.shapes.add_chart(XL_CHART_TYPE.PIE, Inches(7.0), Inches(1.4), Inches(6), Inches(5), cdata2).chart
-ch2.has_title = True
-ch2.chart_title.text_frame.text = "Revenue by Currency"
-ch2.chart_title.text_frame.paragraphs[0].font.size = Pt(14)
-ch2.chart_title.text_frame.paragraphs[0].font.bold = True
-ch2.chart_title.text_frame.paragraphs[0].font.color.rgb = NAVY
-ch2.has_legend = True
-ch2.legend.position = XL_LEGEND_POSITION.RIGHT
-ch2.legend.font.size = Pt(10)
-ch2.plots[0].has_data_labels = True
-ch2.plots[0].data_labels.show_percentage = True
-ch2.plots[0].data_labels.font.size = Pt(9)
-ch2.plots[0].data_labels.font.bold = True
+curr_data = [
+    (c, a) for c, a in sorted(s['currency_rev'].items(), key=lambda x: -x[1])
+    if a
+]
+if curr_data:
+    cdata2 = CategoryChartData()
+    cdata2.categories = [c or 'INR' for c, _ in curr_data]
+    cdata2.add_series('Revenue', [a for _, a in curr_data])
+    ch2 = slide.shapes.add_chart(XL_CHART_TYPE.PIE, Inches(7.0), Inches(1.4), Inches(6), Inches(5), cdata2).chart
+    ch2.has_title = True
+    ch2.chart_title.text_frame.text = "Revenue by Currency"
+    ch2.chart_title.text_frame.paragraphs[0].font.size = Pt(14)
+    ch2.chart_title.text_frame.paragraphs[0].font.bold = True
+    ch2.chart_title.text_frame.paragraphs[0].font.color.rgb = NAVY
+    ch2.has_legend = True
+    ch2.legend.position = XL_LEGEND_POSITION.RIGHT
+    ch2.legend.font.size = Pt(10)
+    ch2.plots[0].has_data_labels = True
+    ch2.plots[0].data_labels.show_percentage = True
+    ch2.plots[0].data_labels.font.size = Pt(9)
+    ch2.plots[0].data_labels.font.bold = True
+else:
+    add_text(slide, Inches(7.0), Inches(3), Inches(6), Inches(0.6),
+             "No currency-level revenue available.",
+             size=12, italic=True, color=GRAY, align=PP_ALIGN.CENTER)
 
 add_text(slide, Inches(0.5), Inches(6.5), Inches(12.3), Inches(0.4),
          "Note: Multi-currency invoicing across 10+ countries. Indicates strong export exposure alongside domestic base.",

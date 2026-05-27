@@ -100,6 +100,14 @@ by_month_cat = defaultdict(lambda: defaultdict(float))  # YYYY-MM -> cat -> amt
 acct_desc = {}
 latest_posting_date = None
 
+# Customer/vendor totals from GL Source No. — used as a back-fill when the
+# user uploads only BC Sales/Purchase Invoice HEADER exports (no Line
+# sheets with amounts). Revenue postings on customer-typed sources give us
+# revenue per customer; payable/expense postings on vendor-typed sources
+# give purchase per vendor.
+gl_rev_by_cust = defaultdict(float)   # customer no. -> revenue (positive)
+gl_pur_by_vend = defaultdict(float)   # vendor no.   -> purchase (positive)
+
 for r in gl:
     d = to_date(r['Posting Date'])
     if d is None: continue
@@ -114,6 +122,24 @@ for r in gl:
     by_month_cat[d.strftime('%Y-%m')][cat] += amt
     if acct not in acct_desc and r.get('Description'):
         acct_desc[acct] = str(r['Description'])[:60]
+    # Source-No. attribution (only within the current FY so we don't mix
+    # prior-period activity). BC Source Type is "Customer" / "Vendor" /
+    # "Bank Account" / "Fixed Asset" / blank.
+    #
+    # We deliberately pick ONE leg of each journal entry to avoid
+    # double-counting:
+    #   - revenue per customer = credit to Revenue account tagged with the
+    #     customer source no. (flip sign)
+    #   - purchase per vendor  = credit to Trade Payables account tagged
+    #     with the vendor source no. (flip sign)
+    if fy == 'FY24-25':
+        src_type = str(r.get('Source Type') or '').strip()
+        src_no = r.get('Source No.')
+        if src_no:
+            if src_type == 'Customer' and cat == 'Revenue':
+                gl_rev_by_cust[src_no] += -amt
+            elif src_type == 'Vendor' and cat == 'Trade Payables':
+                gl_pur_by_vend[src_no] += -amt
 
 # ---------- Build P&L for FY24-25 ----------
 def build_pl(fy):
@@ -343,9 +369,38 @@ print(f"\nTop 10 customers by invoice line amount:")
 for n, a in top_customers:
     print(f"  {n[:40]:<40}: {a:>14,.0f}")
 
-# Diagnostic: if extraction produced nothing useful, dump column headers so
-# the next iteration can extend the candidate list to whatever the user's
-# file actually uses. Visible in the Trigger.dev run trace.
+# Back-fill from GL Source No. when the sales lines have no amount column
+# (typical when the user uploads only the BC "Sales Invoice Header" sheet
+# without the matching "Sales Invoice Line" — names are present but every
+# line amount is 0). We join the customer no. tagged on each GL revenue
+# entry to the customer name from the sales header.
+CUST_NO_KEYS = ['Sell-to Customer No.', 'Sell-to Customer No',
+                'Bill-to Customer No.', 'Bill-to Customer No',
+                'Customer No.', 'Customer No', 'Customer Code']
+
+if (not top_customers or sum(a for _, a in top_customers) == 0) and gl_rev_by_cust:
+    cust_no_to_name = {}
+    for r in sales_hdr:
+        no = find_value(r, CUST_NO_KEYS)
+        if no is None:
+            continue
+        nm = find_value(r, CUST_NAME_KEYS)
+        if nm and no not in cust_no_to_name:
+            cust_no_to_name[no] = str(nm).strip()
+    backfilled = defaultdict(float)
+    for no, amt in gl_rev_by_cust.items():
+        nm = cust_no_to_name.get(no) or cust_no_to_name.get(str(no)) or f"Customer {no}"
+        backfilled[nm] += amt
+    if backfilled:
+        cust_rev = backfilled
+        top_customers = sorted(cust_rev.items(), key=lambda x: -x[1])[:10]
+        print(f"\n[backfill] Top customers re-derived from GL Source No.:")
+        for n, a in top_customers:
+            print(f"  {n[:40]:<40}: {a:>14,.0f}")
+
+# Diagnostic: if extraction STILL produced nothing useful, dump column
+# headers so the next iteration can extend the candidate list to whatever
+# the user's file actually uses. Visible in the Trigger.dev run trace.
 if not top_customers or sum(a for _, a in top_customers) == 0:
     print(f"[diag] top_customers empty — sales_lines headers seen: {list_headers(sales_lines)}")
     print(f"[diag] top_customers empty — sales_hdr  headers seen: {list_headers(sales_hdr)}")
@@ -420,6 +475,31 @@ top_vendors = sorted(vend_pur.items(), key=lambda x: -x[1])[:10]
 print(f"\nTop 10 vendors by purchase line amount:")
 for n, a in top_vendors:
     print(f"  {n[:40]:<40}: {a:>14,.0f}")
+
+VEND_NO_KEYS = ['Buy-from Vendor No.', 'Buy-from Vendor No',
+                'Pay-to Vendor No.', 'Pay-to Vendor No',
+                'Vendor No.', 'Vendor No', 'Vendor Code',
+                'Supplier No.', 'Supplier Code']
+
+if (not top_vendors or sum(a for _, a in top_vendors) == 0) and gl_pur_by_vend:
+    vend_no_to_name = {}
+    for r in pur_hdr:
+        no = find_value(r, VEND_NO_KEYS)
+        if no is None:
+            continue
+        nm = find_value(r, VEND_NAME_KEYS)
+        if nm and no not in vend_no_to_name:
+            vend_no_to_name[no] = str(nm).strip()
+    backfilled_v = defaultdict(float)
+    for no, amt in gl_pur_by_vend.items():
+        nm = vend_no_to_name.get(no) or vend_no_to_name.get(str(no)) or f"Vendor {no}"
+        backfilled_v[nm] += amt
+    if backfilled_v:
+        vend_pur = backfilled_v
+        top_vendors = sorted(vend_pur.items(), key=lambda x: -x[1])[:10]
+        print(f"\n[backfill] Top vendors re-derived from GL Source No.:")
+        for n, a in top_vendors:
+            print(f"  {n[:40]:<40}: {a:>14,.0f}")
 
 if not top_vendors or sum(a for _, a in top_vendors) == 0:
     print(f"[diag] top_vendors empty — pur_lines headers seen: {list_headers(pur_lines)}")
