@@ -72,6 +72,13 @@ export default defineConfig({
         // but then `pip install -r` uses the original (now-missing) path.
         // Keep requirements.txt around for local dev / IDE hints.
         requirements: ["openpyxl==3.1.5", "python-pptx==1.0.2"],
+        // Without `scripts`, none of our .py files end up in the deployed
+        // worker image — python.runScript() fails with "Script does not
+        // exist: /app/tools/orgmis/python/pipeline.py". Glob in everything
+        // under the python folder so config_loader + the 5 stage scripts
+        // (analyze, build_mis_excel, build_bod_deck, convert_pdf, pipeline)
+        // all ship.
+        scripts: ["./tools/orgmis/python/*.py"],
         devPythonBinaryPath: "python",
       }),
       syncEnvVars(async () => {
