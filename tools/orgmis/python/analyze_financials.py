@@ -241,9 +241,17 @@ print(f"\nTop 10 customers by invoice line amount:")
 for n, a in top_customers:
     print(f"  {n[:40]:<40}: {a:>14,.0f}")
 
-# Items
+# Items — uploaded by the user as "inventory" (Item Ledger Entry export).
+# Optional: if no inventory file was provided, top_items just stays empty
+# instead of crashing.
 print("\nLoading item ledger...")
-items = load_sheet('Item Ledger Entry.xlsx')
+items = []
+for p in all_files('inventory'):
+    rows = load_sheet(p)
+    if not rows:
+        rows = load_sheet(p, header_row=1)
+    print(f"  + {os.path.basename(p)}: {len(rows)} rows")
+    items.extend(rows)
 items_sold = defaultdict(lambda: {'qty': 0, 'count': 0})
 for r in items:
     if r.get('Entry Type') == 'Sale':
