@@ -63,6 +63,32 @@ export function mainSiteUrl(path: string = "/"): string {
   return path;
 }
 
+/** Default destination after login/register, chosen from the current host
+ *  so the redirect lands on a page that exists on this subdomain.
+ *
+ *  Tool subdomains (e.g. orgmis.kyveriqx.com) don't have a `/store` route —
+ *  the middleware rewrites it to `/tools/<slug>/store`, which 404s. Send
+ *  tool-subdomain logins to the tool home instead. */
+export function postAuthDefaultPath(): string {
+  const sub = parseHost(headers().get("host"));
+  switch (sub.kind) {
+    case "tool":
+      return "/";
+    case "store":
+    case "marketing":
+      return "/store";
+  }
+}
+
+/** Build an `/auth/login` href that carries `?next=<currentPath>` so the
+ *  user returns to where they were after signing in. Reads the originating
+ *  path from the `x-pathname` request header injected by `middleware.ts`. */
+export function loginHrefWithReturn(): string {
+  const path = headers().get("x-pathname") ?? "/";
+  if (path.startsWith("/auth/")) return "/auth/login";
+  return `/auth/login?next=${encodeURIComponent(path)}`;
+}
+
 /** Returns "gstledgerreco" from "gstledgerreco.kyveriqx.com"
  *  or "gstledgerreco" from "gstledgerreco.lvh.me". */
 function leadingLabel(host: string, root: string): string | null {

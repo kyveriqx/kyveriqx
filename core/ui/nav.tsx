@@ -3,7 +3,7 @@
 
 import Link from "next/link";
 import { supabaseServer } from "../lib/supabase-server";
-import { mainSiteUrl } from "../lib/subdomain";
+import { mainSiteUrl, loginHrefWithReturn } from "../lib/subdomain";
 
 export async function Nav() {
   let user: { email?: string | null } | null = null;
@@ -93,7 +93,7 @@ export async function Nav() {
             </>
           ) : (
             <Link
-              href="/auth/login"
+              href={loginHrefWithReturn()}
               style={{
                 padding: "8px 14px",
                 fontSize: 14,

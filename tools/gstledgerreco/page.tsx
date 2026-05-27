@@ -7,6 +7,7 @@ import { Card } from "../../core/ui/card";
 import { Button } from "../../core/ui/button";
 import { JobStatus } from "../../core/ui/job-status";
 import { supabaseServer } from "../../core/lib/supabase-server";
+import { loginHrefWithReturn } from "../../core/lib/subdomain";
 import { runGstReconcileAction } from "./run-action";
 
 export const dynamic = "force-dynamic";
@@ -63,7 +64,7 @@ export default async function GstLedgerReco({ searchParams }: Props) {
               <a href="/auth/register">
                 <Button>Start free trial</Button>
               </a>
-              <a href="/auth/login">
+              <a href={loginHrefWithReturn()}>
                 <Button variant="ghost">Log in</Button>
               </a>
             </div>

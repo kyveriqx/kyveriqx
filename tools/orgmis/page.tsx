@@ -12,6 +12,7 @@
 import { Card } from "../../core/ui/card";
 import { Button } from "../../core/ui/button";
 import { supabaseServer } from "../../core/lib/supabase-server";
+import { loginHrefWithReturn } from "../../core/lib/subdomain";
 
 export const dynamic = "force-dynamic";
 
@@ -79,7 +80,7 @@ export default async function OrgMisLanding() {
     : { label: "Start free trial", href: "/auth/register" };
   const secondaryCta = user
     ? { label: "Skip to Upload", href: "/tools/orgmis/upload" }
-    : { label: "Log in", href: "/auth/login" };
+    : { label: "Log in", href: loginHrefWithReturn() };
 
   return (
     <main style={{ maxWidth: 1240, margin: "0 auto", padding: "56px 24px 0" }}>

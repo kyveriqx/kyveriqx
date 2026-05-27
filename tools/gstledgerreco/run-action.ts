@@ -8,13 +8,14 @@
 import { redirect } from "next/navigation";
 import { tasks } from "@trigger.dev/sdk";
 import { supabaseServer } from "../../core/lib/supabase-server";
+import { loginHrefWithReturn } from "../../core/lib/subdomain";
 import type { gstReconcile } from "./jobs/reconcile";
 
 export async function runGstReconcileAction() {
   const supabase = supabaseServer();
 
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/auth/login");
+  if (!user) redirect(loginHrefWithReturn());
 
   const { data: tool, error: toolErr } = await supabase
     .from("tools")

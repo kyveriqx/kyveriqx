@@ -3,10 +3,11 @@ import { Card } from "../../../core/ui/card";
 import { Button } from "../../../core/ui/button";
 import { loginAction } from "./actions";
 
-type Props = { searchParams: { error?: string } };
+type Props = { searchParams: { error?: string; next?: string } };
 
 export default function Login({ searchParams }: Props) {
   const errorMsg = searchParams.error;
+  const next = searchParams.next;
 
   return (
     <>
@@ -32,6 +33,7 @@ export default function Login({ searchParams }: Props) {
 
         <Card style={{ padding: 24 }}>
           <form action={loginAction} style={{ display: "grid", gap: 16 }}>
+            {next && <input type="hidden" name="next" value={next} />}
             <label style={{ display: "grid", gap: 6 }}>
               <span style={{ fontSize: 13, color: "var(--ink-300)" }}>Email</span>
               <input
@@ -59,7 +61,12 @@ export default function Login({ searchParams }: Props) {
 
         <p style={{ marginTop: 16, fontSize: 14, color: "var(--ink-400)" }}>
           No account?{" "}
-          <a href="/auth/register" style={{ color: "var(--blue-400)" }}>Register</a>
+          <a
+            href={next ? `/auth/register?next=${encodeURIComponent(next)}` : "/auth/register"}
+            style={{ color: "var(--blue-400)" }}
+          >
+            Register
+          </a>
         </p>
       </main>
     </>

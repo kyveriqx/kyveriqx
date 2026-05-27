@@ -15,6 +15,7 @@ import { redirect } from "next/navigation";
 import { supabaseServer } from "../../core/lib/supabase-server";
 import { supabaseAdmin } from "../../core/lib/supabase";
 import { runReconciliationPipeline } from "../../core/lib/ledger/run-pipeline";
+import { loginHrefWithReturn } from "../../core/lib/subdomain";
 
 export async function runOrgReconcileAction(formData: FormData) {
   const companyUploadId = String(formData.get("companyUploadId") ?? "");
@@ -25,7 +26,7 @@ export async function runOrgReconcileAction(formData: FormData) {
 
   const supabase = supabaseServer();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/auth/login");
+  if (!user) redirect(loginHrefWithReturn());
 
   const { data: tool, error: toolErr } = await supabaseAdmin()
     .from("tools")

@@ -13,6 +13,7 @@ import { Nav } from "../../core/ui/nav";
 import { Card } from "../../core/ui/card";
 import { Button } from "../../core/ui/button";
 import { supabaseServer } from "../../core/lib/supabase-server";
+import { loginHrefWithReturn } from "../../core/lib/subdomain";
 import { UploadForm } from "./components/upload-form";
 import { ReconcileResultView, type Job } from "./components/result-view";
 
@@ -83,7 +84,7 @@ export default async function OrgLedgerReco({ searchParams }: Props) {
             </p>
             <div style={{ display: "flex", gap: 12 }}>
               <a href="/auth/register"><Button>Start free trial</Button></a>
-              <a href="/auth/login"><Button variant="ghost">Log in</Button></a>
+              <a href={loginHrefWithReturn()}><Button variant="ghost">Log in</Button></a>
             </div>
           </Card>
         </main>
