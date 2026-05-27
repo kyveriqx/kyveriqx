@@ -153,7 +153,10 @@ export const orgmisGenerateReport = task({
         path.join(scriptDir, "pipeline.py"), [], { env },
       );
       if (pipelineRes.exitCode !== 0) {
-        throw new Error(`pipeline failed: ${pipelineRes.stderr}`);
+        // Script's stderr is already captured in the Trigger.dev run trace
+        // — no need to re-include it here (typed Result from tinyexec
+        // doesn't expose stderr at this layer).
+        throw new Error(`pipeline failed (exitCode=${pipelineRes.exitCode})`);
       }
 
       // 4) Locate outputs.
@@ -181,7 +184,7 @@ export const orgmisGenerateReport = task({
         .then((conv) => {
           if (conv.exitCode !== 0) {
             logger.warn("PDF conversion failed, continuing without PDF", {
-              stderr: conv.stderr,
+              exitCode: conv.exitCode,
             });
             return false;
           }
