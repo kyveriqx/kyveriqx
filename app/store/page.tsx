@@ -41,7 +41,7 @@ export default async function Store() {
             margin: "0 0 16px",
           }}
         >
-          Tool catalogue
+          Kyveriqx Stack
         </h1>
         <p style={{ color: "var(--ink-300)", maxWidth: 720, margin: "0 0 48px", fontSize: 16 }}>
           Every tool gets its own subdomain and a 14-day free trial on signup.
