@@ -4,7 +4,7 @@
 
 import { defineConfig } from "@trigger.dev/sdk";
 import { pythonExtension } from "@trigger.dev/python/extension";
-import { syncEnvVars } from "@trigger.dev/build/extensions/core";
+import { syncEnvVars, aptGet } from "@trigger.dev/build/extensions/core";
 import { readFileSync } from "node:fs";
 
 /** Read `.env.local` at deploy time and return the keys our tasks actually
@@ -66,6 +66,12 @@ export default defineConfig({
       // OrgMIS (BOD MIS Generator) — the report pipeline runs as Python
       // (openpyxl + python-pptx). The extension installs Python + the deps
       // into the Trigger.dev worker image so the JS task can shell to them.
+      // LibreOffice for PPTX → PDF conversion. Without this, convert_pdf.py
+      // exits with "No PDF converter available" and the user gets no PDF.
+      // Adds ~500MB to the worker image but only on first build (cached
+      // after that). libreoffice-impress alone would do too — keep the full
+      // metapackage so we get all fonts/dependencies for clean rendering.
+      aptGet({ packages: ["libreoffice"] }),
       pythonExtension({
         // Inline list instead of requirementsFile — the latter has a path
         // bug in @trigger.dev/python 4.4.6: it COPYs the file to WORKDIR

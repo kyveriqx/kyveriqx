@@ -200,41 +200,88 @@ def load_named_sheet(path, sheet, header_row=3):
         if not empty: rows.append(rec)
     return rows
 
+# Fuzzy column lookup — needed because users upload exports with different
+# column header conventions (Business Central, Tally, SAP, custom flat
+# registers, etc.). Tries an exact match first, then case-/punctuation-
+# insensitive, then a contains-match as a last resort.
+import re as _re_cols
+
+def _norm_col(k):
+    if k is None:
+        return ""
+    return _re_cols.sub(r"[^a-z0-9]+", "", str(k).lower())
+
+def find_value(row, candidates):
+    if not row:
+        return None
+    for cand in candidates:
+        if cand in row and row[cand] not in (None, ""):
+            return row[cand]
+    norm_row = {_norm_col(k): v for k, v in row.items()}
+    for cand in candidates:
+        nk = _norm_col(cand)
+        if nk in norm_row and norm_row[nk] not in (None, ""):
+            return norm_row[nk]
+    for cand in candidates:
+        nc = _norm_col(cand)
+        for k, v in norm_row.items():
+            if nc and nc in k and v not in (None, ""):
+                return v
+    return None
+
+# Column name candidates by field (most-specific first).
+DOC_NO_KEYS    = ['Document No.', 'Document No', 'Invoice No.', 'Invoice No',
+                  'No.', 'No', 'Doc No', 'Voucher No.', 'Bill No', 'Bill No.']
+AMOUNT_KEYS    = ['Line Amount', 'Amount', 'Invoice Amount', 'Total Amount',
+                  'Net Amount', 'Amount (LCY)', 'Taxable Value', 'Value']
+CUST_NAME_KEYS = ['Bill-to Name', 'Sell-to Customer Name', 'Customer Name',
+                  'Party Name', 'Customer', 'Bill To Name', 'Buyer Name',
+                  'Account Name']
+COUNTRY_KEYS   = ['Ship-to Country/Region Code', 'Sell-to Country/Region Code',
+                  'Country/Region Code', 'Country', 'Country Code',
+                  'State Code', 'State']
+CURRENCY_KEYS  = ['Currency Code', 'Currency']
+
 sales_hdr = []
 sales_lines = []
 for p in all_files('sales'):
     hdr = load_named_sheet(p, 'Sales Invoice Header')
     lns = load_named_sheet(p, 'Sales Invoice Line')
     if not hdr and not lns:
-        # Treat as flat sales register: same rows for header and lines
+        # Flat sales register — every row is both header AND line. Customer
+        # name + amount sit on the same row, no join required.
         flat = load_sheet(p)
+        if not flat:
+            flat = load_sheet(p, header_row=1)
         hdr = flat
         lns = flat
     sales_hdr.extend(hdr)
     sales_lines.extend(lns)
 print(f"  Sales: headers={len(sales_hdr)} lines={len(sales_lines)}")
-print(f"  Sales invoice headers: {len(sales_hdr)}, lines: {len(sales_lines)}")
 
-# Map doc_no -> header info
-hdr_by_doc = {r['No.']: r for r in sales_hdr if r.get('No.')}
+# Build doc_no -> header lookup using fuzzy doc-no detection.
+hdr_by_doc = {}
+for r in sales_hdr:
+    k = find_value(r, DOC_NO_KEYS)
+    if k is not None:
+        hdr_by_doc[k] = r
 
-# Aggregate Line Amount by Document
-doc_amt = defaultdict(float)
-for ln in sales_lines:
-    doc_amt[ln.get('Document No.')] += float(ln.get('Line Amount') or 0)
-
-# Top customers (in LCY-ish - amounts are in document currency, but most lines align)
+# Top customers: derive name from the header row if the join works, otherwise
+# fall back to the line row itself (flat-register case where the line *is*
+# the header).
 cust_rev = defaultdict(float)
 cust_count = defaultdict(int)
 country_rev = defaultdict(float)
 currency_rev = defaultdict(float)
-for doc, amt in doc_amt.items():
-    h = hdr_by_doc.get(doc, {})
-    name = h.get('Bill-to Name') or h.get('Sell-to Customer Name') or 'Unknown'
+for ln in sales_lines:
+    doc = find_value(ln, DOC_NO_KEYS)
+    amt = float(find_value(ln, AMOUNT_KEYS) or 0)
+    h = hdr_by_doc.get(doc) or ln
+    name = find_value(h, CUST_NAME_KEYS) or 'Unknown'
     cust_rev[name] += amt
     cust_count[name] += 1
-    country_rev[h.get('Ship-to Country/Region Code') or h.get('Sell-to Country/Region Code') or 'IN'] += amt
-    currency_rev[h.get('Currency Code') or 'INR'] += amt
+    country_rev[find_value(h, COUNTRY_KEYS) or 'IN'] += amt
+    currency_rev[find_value(h, CURRENCY_KEYS) or 'INR'] += amt
 
 top_customers = sorted(cust_rev.items(), key=lambda x: -x[1])[:10]
 print(f"\nTop 10 customers by invoice line amount:")
@@ -261,7 +308,13 @@ for r in items:
 
 top_items = sorted(items_sold.items(), key=lambda x: -x[1]['qty'])[:10]
 
-# Vendors - aggregate purchase data from any number of files / formats
+# Vendors — same fuzzy-column treatment as sales. Top vendors come from the
+# purchase data, NOT vendor aging (aging is used downstream for DPO / cash
+# flow only).
+VEND_NAME_KEYS = ['Pay-to Name', 'Buy-from Vendor Name', 'Vendor Name',
+                  'Supplier Name', 'Party Name', 'Vendor', 'Supplier',
+                  'Buy-from Vendor No.', 'Account Name']
+
 pur_hdr = []
 pur_lines = []
 for p in all_files('purchase'):
@@ -269,22 +322,32 @@ for p in all_files('purchase'):
     lns = load_named_sheet(p, 'Purch. Inv. Line')
     if not hdr and not lns:
         flat = load_sheet(p)
+        if not flat:
+            flat = load_sheet(p, header_row=1)
         hdr = flat
         lns = flat
     pur_hdr.extend(hdr)
     pur_lines.extend(lns)
 print(f"  Purchase: headers={len(pur_hdr)} lines={len(pur_lines)}")
-phdr_by_doc = {r['No.']: r for r in pur_hdr if r.get('No.')}
+
+phdr_by_doc = {}
+for r in pur_hdr:
+    k = find_value(r, DOC_NO_KEYS)
+    if k is not None:
+        phdr_by_doc[k] = r
 
 vend_pur = defaultdict(float)
 for ln in pur_lines:
-    doc = ln.get('Document No.')
-    amt = float(ln.get('Line Amount') or 0)
-    h = phdr_by_doc.get(doc, {})
-    name = h.get('Pay-to Name') or h.get('Buy-from Vendor Name') or h.get('Buy-from Vendor No.') or 'Unknown'
+    doc = find_value(ln, DOC_NO_KEYS)
+    amt = float(find_value(ln, AMOUNT_KEYS) or 0)
+    h = phdr_by_doc.get(doc) or ln
+    name = find_value(h, VEND_NAME_KEYS) or 'Unknown'
     vend_pur[name] += amt
 
 top_vendors = sorted(vend_pur.items(), key=lambda x: -x[1])[:10]
+print(f"\nTop 10 vendors by purchase line amount:")
+for n, a in top_vendors:
+    print(f"  {n[:40]:<40}: {a:>14,.0f}")
 
 # AR / AP - sourced from GL closing balances (account ranges)
 # AR = 2310 (Trade Debtors) + 2320 (other receivables)
