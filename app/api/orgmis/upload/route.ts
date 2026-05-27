@@ -11,13 +11,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseServer } from "../../../../core/lib/supabase-server";
 import { supabaseAdmin } from "../../../../core/lib/supabase";
+import { getToolId } from "../../../../core/lib/tools";
+import { STORAGE_BUCKETS } from "../../../../core/lib/storage-buckets";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
 const MAX_BYTES = 20 * 1024 * 1024; // 20 MB per file (BOD MIS limit)
-const BUCKET = "orgmis-uploads";
+const BUCKET = STORAGE_BUCKETS.orgmisUploads;
 
 export async function POST(req: NextRequest) {
   const supabase = supabaseServer();
@@ -46,9 +48,8 @@ export async function POST(req: NextRequest) {
 
   const admin = supabaseAdmin();
 
-  const { data: tool, error: toolErr } = await admin
-    .from("tools").select("id").eq("slug", "orgmis").maybeSingle();
-  if (toolErr || !tool) {
+  const toolId = await getToolId(admin, "orgmis");
+  if (!toolId) {
     return NextResponse.json({ error: "tool record missing" }, { status: 500 });
   }
 
@@ -74,7 +75,7 @@ export async function POST(req: NextRequest) {
     .from("uploads")
     .insert({
       user_id: user.id,
-      tool_id: tool.id,
+      tool_id: toolId,
       storage_path: storagePath,
       filename: file.name,
       size_bytes: file.size,

@@ -14,6 +14,7 @@
 import { redirect } from "next/navigation";
 import { supabaseServer } from "../../core/lib/supabase-server";
 import { supabaseAdmin } from "../../core/lib/supabase";
+import { getToolId } from "../../core/lib/tools";
 import { runReconciliationPipeline } from "../../core/lib/ledger/run-pipeline";
 import { loginHrefWithReturn } from "../../core/lib/subdomain";
 
@@ -28,18 +29,14 @@ export async function runOrgReconcileAction(formData: FormData) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect(loginHrefWithReturn());
 
-  const { data: tool, error: toolErr } = await supabaseAdmin()
-    .from("tools")
-    .select("id")
-    .eq("slug", "orgledgerreco")
-    .maybeSingle();
-  if (toolErr || !tool) throw new Error(`tools lookup failed: ${toolErr?.message ?? "no row"}`);
+  const toolId = await getToolId(supabaseAdmin(), "orgledgerreco");
+  if (!toolId) throw new Error("tools lookup failed for slug=orgledgerreco");
 
   const { jobId } = await runReconciliationPipeline({
     companyUploadId,
     partnerUploadId,
     userId: user.id,
-    toolId: tool.id,
+    toolId,
   });
 
   redirect(`/tools/orgledgerreco?jobId=${jobId}`);

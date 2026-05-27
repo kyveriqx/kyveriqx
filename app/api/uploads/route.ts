@@ -13,12 +13,13 @@
 import { NextResponse } from "next/server";
 import { supabaseServer } from "../../../core/lib/supabase-server";
 import { supabaseAdmin } from "../../../core/lib/supabase";
+import { getToolId } from "../../../core/lib/tools";
+import { UPLOAD_BUCKET_BY_TOOL_SLUG } from "../../../core/lib/storage-buckets";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs"; // Node runtime — large multipart bodies, file APIs
 
 const MAX_BYTES = 50 * 1024 * 1024; // 50 MB — match the upload-form cap
-const BUCKET = "ledger-uploads";
 
 export async function POST(req: Request) {
   const supabase = supabaseServer();
@@ -51,15 +52,17 @@ export async function POST(req: Request) {
 
   const admin = supabaseAdmin();
 
-  // Look up the tool's UUID (uploads row needs tool_id).
-  const { data: tool, error: toolErr } = await admin
-    .from("tools")
-    .select("id")
-    .eq("slug", toolSlug)
-    .maybeSingle();
-  if (toolErr || !tool) {
+  const toolId = await getToolId(admin, toolSlug);
+  if (!toolId) {
     return NextResponse.json(
       { error: `unknown tool: ${toolSlug}` },
+      { status: 400 },
+    );
+  }
+  const bucket = UPLOAD_BUCKET_BY_TOOL_SLUG[toolSlug];
+  if (!bucket) {
+    return NextResponse.json(
+      { error: `no upload bucket configured for tool: ${toolSlug}` },
       { status: 400 },
     );
   }
@@ -74,7 +77,7 @@ export async function POST(req: Request) {
   const buffer = Buffer.from(await file.arrayBuffer());
 
   const { error: upErr } = await admin.storage
-    .from(BUCKET)
+    .from(bucket)
     .upload(storagePath, buffer, {
       contentType: file.type || "application/octet-stream",
       cacheControl: "3600",
@@ -91,7 +94,7 @@ export async function POST(req: Request) {
     .from("uploads")
     .insert({
       user_id: user.id,
-      tool_id: tool.id,
+      tool_id: toolId,
       storage_path: storagePath,
       filename: file.name,
       size_bytes: file.size,
@@ -100,7 +103,7 @@ export async function POST(req: Request) {
     .single();
   if (rowErr || !row) {
     // Best-effort cleanup of the uploaded object so we don't leave orphans
-    await admin.storage.from(BUCKET).remove([storagePath]).catch(() => {});
+    await admin.storage.from(bucket).remove([storagePath]).catch(() => {});
     return NextResponse.json(
       { error: `recording upload failed: ${rowErr?.message ?? "no row"}` },
       { status: 500 },

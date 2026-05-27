@@ -12,54 +12,30 @@ import { NextRequest, NextResponse } from "next/server";
 import { tasks } from "@trigger.dev/sdk";
 import { supabaseServer } from "../../../../core/lib/supabase-server";
 import { supabaseAdmin } from "../../../../core/lib/supabase";
+import { getToolId } from "../../../../core/lib/tools";
+import { STORAGE_BUCKETS } from "../../../../core/lib/storage-buckets";
+import { resolveSupabaseUploadToSignedUrl } from "../../../../core/lib/supabase-uploads";
+import type { UploadedFile, FileMap } from "../../../../core/types/tool-uploads";
 import type { orgmisGenerateReport } from "../../../../tools/orgmis/jobs/generate-report";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-const BUCKET = "orgmis-uploads";
+const BUCKET = STORAGE_BUCKETS.orgmisUploads;
 const SIGNED_URL_TTL_SECONDS = 60 * 60; // 1 hour — task usually finishes in 30-60s
 
-type UploadedFile = {
-  id?: string;
-  filename?: string;
-  size?: number;
-  blobUrl?: string;
-  uploadedAt?: string;
-};
-
-type FileMap = Partial<Record<string, UploadedFile[] | UploadedFile>>;
-
-async function resolveToSignedUrls(items: UploadedFile[] | UploadedFile | undefined): Promise<string[]> {
+async function resolveToSignedUrls(
+  items: UploadedFile[] | UploadedFile | undefined,
+): Promise<string[]> {
   if (!items) return [];
   const list = Array.isArray(items) ? items : [items];
-  const admin = supabaseAdmin();
-  const urls: string[] = [];
-
-  for (const it of list) {
-    const blobUrl = it?.blobUrl;
-    if (!blobUrl) continue;
-
-    if (blobUrl.startsWith("supabase:")) {
-      const uploadId = blobUrl.slice("supabase:".length);
-      const { data: row } = await admin
-        .from("uploads")
-        .select("storage_path")
-        .eq("id", uploadId)
-        .maybeSingle();
-      if (!row?.storage_path) continue;
-
-      const { data: signed, error } = await admin.storage
-        .from(BUCKET)
-        .createSignedUrl(row.storage_path, SIGNED_URL_TTL_SECONDS);
-      if (!error && signed?.signedUrl) urls.push(signed.signedUrl);
-    } else {
-      // Legacy / external URL — pass through
-      urls.push(blobUrl);
-    }
-  }
-  return urls;
+  const resolved = await Promise.all(
+    list.map((it) =>
+      resolveSupabaseUploadToSignedUrl(it?.blobUrl, BUCKET, SIGNED_URL_TTL_SECONDS),
+    ),
+  );
+  return resolved.filter((u): u is string => !!u);
 }
 
 export async function POST(req: NextRequest) {
@@ -68,9 +44,8 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
 
   const admin = supabaseAdmin();
-  const { data: tool, error: toolErr } = await admin
-    .from("tools").select("id").eq("slug", "orgmis").maybeSingle();
-  if (toolErr || !tool) {
+  const toolId = await getToolId(admin, "orgmis");
+  if (!toolId) {
     return NextResponse.json({ error: "tool record missing" }, { status: 500 });
   }
 
@@ -107,7 +82,7 @@ export async function POST(req: NextRequest) {
       .from("jobs")
       .insert({
         user_id: user.id,
-        tool_id: tool.id,
+        tool_id: toolId,
         job_key: "orgmis-generate-report",
         status: "queued",
         payload: { /* opaque — task gets the real payload via trigger() */ },
@@ -124,7 +99,7 @@ export async function POST(req: NextRequest) {
     await tasks.trigger<typeof orgmisGenerateReport>("orgmis-generate-report", {
       jobId: job.id,
       userId: user.id,
-      toolId: tool.id,
+      toolId,
       branding,
       files: fileUrls,
       outlook,

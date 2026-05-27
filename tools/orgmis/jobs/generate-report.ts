@@ -16,6 +16,7 @@ import os from "node:os";
 import { randomUUID } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import { runJob } from "../../../core/lib/job-runner";
+import { STORAGE_BUCKETS } from "../../../core/lib/storage-buckets";
 
 type Branding = {
   companyName: string;
@@ -49,7 +50,7 @@ type Payload = {
   outlook: Outlook;
 };
 
-const OUTPUTS_BUCKET = "orgmis-outputs";
+const OUTPUTS_BUCKET = STORAGE_BUCKETS.orgmisOutputs;
 const OUTPUT_SIGNED_URL_TTL = 24 * 60 * 60; // 24 hours
 
 const admin = () =>

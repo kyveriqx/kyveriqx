@@ -11,9 +11,9 @@
 
 import { Nav } from "../../core/ui/nav";
 import { Card } from "../../core/ui/card";
-import { Button } from "../../core/ui/button";
+import { SignedOutGate } from "../../core/ui/signed-out-gate";
 import { supabaseServer } from "../../core/lib/supabase-server";
-import { loginHrefWithReturn } from "../../core/lib/subdomain";
+import { getToolId } from "../../core/lib/tools";
 import { UploadForm } from "./components/upload-form";
 import { ReconcileResultView, type Job } from "./components/result-view";
 
@@ -32,12 +32,7 @@ export default async function OrgLedgerReco({ searchParams }: Props) {
   let toolId: string | null = null;
   let initialJob: Job | null = null;
   if (user) {
-    const { data: tool } = await supabase
-      .from("tools")
-      .select("id")
-      .eq("slug", "orgledgerreco")
-      .maybeSingle();
-    toolId = tool?.id ?? null;
+    toolId = await getToolId(supabase, "orgledgerreco");
 
     // Preload the job row when we have a jobId so the result view renders
     // immediately, no client poll on first paint.
@@ -57,37 +52,11 @@ export default async function OrgLedgerReco({ searchParams }: Props) {
     return (
       <>
         <Nav />
-        <main style={{ maxWidth: 1240, margin: "0 auto", padding: "80px 24px" }}>
-          <span style={{
-            fontFamily: "var(--font-mono)", fontSize: 12,
-            letterSpacing: "0.06em", color: "var(--ink-400)",
-          }}>
-            orgledgerreco.kyveriqx.com
-          </span>
-          <h1 style={{
-            fontSize: "clamp(32px, 3.6vw, 52px)",
-            lineHeight: 1.06, letterSpacing: "-0.022em",
-            fontWeight: 600, margin: "8px 0 24px",
-          }}>
-            Org Ledger Reconciliation
-          </h1>
-          <p style={{
-            color: "var(--ink-200)", maxWidth: 720,
-            margin: "0 0 48px", fontSize: 18,
-          }}>
-            Reconcile your books against a business partner's (multi-location, TDS-aware) ledger.
-            Upload both files; we match invoice-by-invoice and surface the gaps in minutes.
-          </p>
-          <Card style={{ padding: 24, maxWidth: 720 }}>
-            <p style={{ color: "var(--ink-300)", margin: "0 0 16px" }}>
-              Sign in to start your 14-day free trial.
-            </p>
-            <div style={{ display: "flex", gap: 12 }}>
-              <a href="/auth/register"><Button>Start free trial</Button></a>
-              <a href={loginHrefWithReturn()}><Button variant="ghost">Log in</Button></a>
-            </div>
-          </Card>
-        </main>
+        <SignedOutGate
+          subdomain="orgledgerreco.kyveriqx.com"
+          title="Org Ledger Reconciliation"
+          description="Reconcile your books against a business partner's (multi-location, TDS-aware) ledger. Upload both files; we match invoice-by-invoice and surface the gaps in minutes."
+        />
       </>
     );
   }

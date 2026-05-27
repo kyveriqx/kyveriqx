@@ -41,6 +41,9 @@ if (!url || !serviceKey) {
 
 const supa = createClient(url, serviceKey, { auth: { persistSession: false } });
 
+// Bucket IDs mirror core/lib/storage-buckets.ts. Keep these two lists in
+// sync — this script runs as plain Node before the TS build exists, so we
+// can't import the constants module directly.
 const BUCKETS = [
   { id: "ledger-uploads", fileSizeLimit: 50 * 1024 * 1024 },
   { id: "orgmis-uploads", fileSizeLimit: 20 * 1024 * 1024 },

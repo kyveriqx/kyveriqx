@@ -9,48 +9,22 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseServer } from "../../../../core/lib/supabase-server";
-import { supabaseAdmin } from "../../../../core/lib/supabase";
+import { STORAGE_BUCKETS } from "../../../../core/lib/storage-buckets";
+import { downloadSupabaseUpload } from "../../../../core/lib/supabase-uploads";
 import { analyze } from "@orgmis/lib/financials";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-const BUCKET = "orgmis-uploads";
-
-async function downloadBuffer(blobUrl: string): Promise<Buffer | undefined> {
-  if (!blobUrl) return undefined;
-
-  if (blobUrl.startsWith("supabase:")) {
-    const uploadId = blobUrl.slice("supabase:".length);
-    const admin = supabaseAdmin();
-    const { data: row } = await admin
-      .from("uploads")
-      .select("storage_path")
-      .eq("id", uploadId)
-      .maybeSingle();
-    if (!row?.storage_path) return undefined;
-    const { data: blob } = await admin.storage.from(BUCKET).download(row.storage_path);
-    if (!blob) return undefined;
-    return Buffer.from(await blob.arrayBuffer());
-  }
-
-  // Fallback: regular fetchable URL
-  try {
-    const r = await fetch(blobUrl);
-    if (!r.ok) return undefined;
-    return Buffer.from(await r.arrayBuffer());
-  } catch {
-    return undefined;
-  }
-}
+const BUCKET = STORAGE_BUCKETS.orgmisUploads;
 
 async function downloadAll(input: unknown): Promise<Buffer[]> {
   if (!input) return [];
   const urls = Array.isArray(input)
     ? input.filter((u): u is string => typeof u === "string")
     : typeof input === "string" ? [input] : [];
-  const bufs = await Promise.all(urls.map(downloadBuffer));
+  const bufs = await Promise.all(urls.map((u) => downloadSupabaseUpload(u, BUCKET)));
   return bufs.filter((b): b is Buffer => !!b);
 }
 
