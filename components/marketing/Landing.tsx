@@ -239,12 +239,27 @@ const Icon: Record<string, (p?: IconProps) => JSX.Element> = {
 
 function Nav() {
   const [scrolled, setScrolled] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 80);
     onScroll();
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
+
+  // Lock background scroll while the mobile drawer is open
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setMobileOpen(false); };
+    window.addEventListener('keydown', onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [mobileOpen]);
 
   const items = [
     { label: 'Solution', href: '#solution' },
@@ -255,10 +270,12 @@ function Nav() {
     { label: 'FAQs',     href: '#faqs' },
   ];
 
+  const closeMenu = () => setMobileOpen(false);
+
   return (
-    <header className={`nav ${scrolled ? 'nav-scrolled' : ''}`}>
+    <header className={`nav ${scrolled ? 'nav-scrolled' : ''} ${mobileOpen ? 'nav-open' : ''}`}>
       <div className="nav-shell">
-        <a href="#top" className="nav-brand" aria-label="KYVERIQX home">
+        <a href="#top" className="nav-brand" aria-label="KYVERIQX home" onClick={closeMenu}>
           <span className="nav-mark" aria-hidden="true">
             <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
               <path d="M5 19V5M5 12l8-7M5 12l8 7M13 5h6M13 19h6" />
@@ -271,10 +288,55 @@ function Nav() {
             <a key={it.href} href={it.href} className="nav-link">{it.label}</a>
           ))}
         </nav>
-        <a href="#book" className="nav-cta btn btn-primary">
-          Book audit <Icon.ArrowSm className="arrow" />
+        <a href="#book" className="nav-cta btn btn-primary" onClick={closeMenu}>
+          <span className="nav-cta-label">Book audit</span>
+          <span className="nav-cta-label-short" aria-hidden="true">Book</span>
+          <Icon.ArrowSm className="arrow" />
+        </a>
+        <button
+          type="button"
+          className="nav-burger"
+          aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
+          aria-expanded={mobileOpen}
+          aria-controls="nav-mobile-panel"
+          onClick={() => setMobileOpen((v) => !v)}
+        >
+          <span className="nav-burger-bar" />
+          <span className="nav-burger-bar" />
+          <span className="nav-burger-bar" />
+        </button>
+      </div>
+
+      <div
+        className="nav-mobile-backdrop"
+        aria-hidden="true"
+        onClick={closeMenu}
+      />
+      <div
+        id="nav-mobile-panel"
+        className="nav-mobile-panel"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Site navigation"
+      >
+        <nav className="nav-mobile-links" aria-label="Mobile primary">
+          {items.map((it) => (
+            <a
+              key={it.href}
+              href={it.href}
+              className="nav-mobile-link"
+              onClick={closeMenu}
+            >
+              <span>{it.label}</span>
+              <Icon.ArrowSm />
+            </a>
+          ))}
+        </nav>
+        <a href="#book" className="btn btn-primary nav-mobile-cta" onClick={closeMenu}>
+          Book a free operations audit <Icon.Arrow className="arrow" />
         </a>
       </div>
+
       <style dangerouslySetInnerHTML={{ __html: `
         .nav {
           position: fixed;
@@ -344,10 +406,133 @@ function Nav() {
           padding: 10px 16px;
           font-size: 13.5px;
         }
+        .nav-cta-label-short { display: none; }
+
+        /* Hamburger — hidden on desktop, shown on mobile */
+        .nav-burger {
+          display: none;
+          width: 40px; height: 40px;
+          align-items: center; justify-content: center;
+          flex-direction: column;
+          gap: 5px;
+          border-radius: 999px;
+          background: rgba(255,255,255,0.04);
+          border: 1px solid var(--line);
+          transition: background .25s var(--ease), border-color .25s var(--ease);
+        }
+        .nav-burger:hover {
+          background: rgba(255,255,255,0.08);
+          border-color: var(--line-strong);
+        }
+        .nav-burger-bar {
+          display: block;
+          width: 18px; height: 1.5px;
+          background: var(--ink-100);
+          border-radius: 2px;
+          transition: transform .3s var(--ease), opacity .2s var(--ease);
+        }
+        .nav-open .nav-burger-bar:nth-child(1) {
+          transform: translateY(6.5px) rotate(45deg);
+        }
+        .nav-open .nav-burger-bar:nth-child(2) {
+          opacity: 0;
+        }
+        .nav-open .nav-burger-bar:nth-child(3) {
+          transform: translateY(-6.5px) rotate(-45deg);
+        }
+
+        /* Mobile drawer — hidden by default; appears below the pill on mobile */
+        .nav-mobile-backdrop {
+          display: none;
+          position: fixed;
+          inset: 0;
+          background: rgba(7, 14, 26, 0.55);
+          backdrop-filter: blur(4px);
+          -webkit-backdrop-filter: blur(4px);
+          z-index: 48;
+          opacity: 0;
+          pointer-events: none;
+          transition: opacity .3s var(--ease);
+        }
+        .nav-open .nav-mobile-backdrop {
+          opacity: 1;
+          pointer-events: auto;
+        }
+        .nav-mobile-panel {
+          display: none;
+          position: fixed;
+          top: 84px;
+          left: 16px; right: 16px;
+          z-index: 49;
+          background: rgba(10, 20, 34, 0.96);
+          backdrop-filter: saturate(150%) blur(16px);
+          -webkit-backdrop-filter: saturate(150%) blur(16px);
+          border: 1px solid rgba(255,255,255,0.10);
+          border-radius: 22px;
+          padding: 14px 14px 18px;
+          pointer-events: auto;
+          opacity: 0;
+          transform: translateY(-10px) scale(0.98);
+          transform-origin: top center;
+          transition: opacity .25s var(--ease), transform .25s var(--ease);
+          box-shadow: 0 30px 80px -30px rgba(0,0,0,0.7), 0 0 0 1px rgba(46,168,255,0.08) inset;
+          max-height: calc(100vh - 100px);
+          overflow-y: auto;
+        }
+        .nav-open .nav-mobile-panel {
+          opacity: 1;
+          transform: translateY(0) scale(1);
+        }
+        .nav-mobile-links {
+          display: grid;
+          gap: 2px;
+          margin-bottom: 14px;
+        }
+        .nav-mobile-link {
+          display: flex; align-items: center; justify-content: space-between;
+          padding: 14px 16px;
+          font-size: 16px;
+          color: var(--ink-100);
+          border-radius: 12px;
+          border: 1px solid transparent;
+          transition: background .2s var(--ease), border-color .2s var(--ease), color .2s var(--ease);
+        }
+        .nav-mobile-link:hover,
+        .nav-mobile-link:focus-visible {
+          background: rgba(46,168,255,0.08);
+          border-color: rgba(46,168,255,0.20);
+          color: var(--blue-400);
+        }
+        .nav-mobile-link svg {
+          opacity: 0.6;
+        }
+        .nav-mobile-cta {
+          width: 100%;
+          justify-content: center;
+          padding: 14px 20px;
+          font-size: 15px;
+        }
+
         @media (max-width: 880px) {
           .nav-links { display: none; }
-          .nav-shell { max-width: 480px; }
-          .nav-scrolled .nav-shell { max-width: 420px; }
+          .nav-shell { max-width: 560px; padding: 8px 8px 8px 14px; gap: 10px; }
+          .nav-scrolled .nav-shell { max-width: 520px; }
+          .nav-burger { display: inline-flex; }
+          .nav-mobile-backdrop,
+          .nav-mobile-panel { display: block; }
+          .nav-cta { padding: 9px 14px; font-size: 13px; }
+        }
+        @media (max-width: 420px) {
+          .nav { padding: 0 12px; top: 14px; }
+          .nav-word { font-size: 13px; }
+          .nav-cta-label { display: none; }
+          .nav-cta-label-short { display: inline; }
+          .nav-mobile-panel { top: 76px; }
+        }
+        @media (max-width: 360px) {
+          .nav-shell { padding: 7px 7px 7px 12px; gap: 8px; }
+          .nav-mark { width: 28px; height: 28px; }
+          .nav-burger { width: 36px; height: 36px; }
         }
       ` }} />
     </header>
