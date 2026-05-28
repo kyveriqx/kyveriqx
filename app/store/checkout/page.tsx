@@ -6,6 +6,7 @@ import { Nav } from "../../../core/ui/nav";
 import { Card } from "../../../core/ui/card";
 import { SubscribeButton } from "../../../core/ui/subscribe-button";
 import { supabaseServer } from "../../../core/lib/supabase-server";
+import { effectiveStatus } from "../../../core/lib/entitlement";
 
 export const dynamic = "force-dynamic";
 
@@ -62,7 +63,7 @@ export default async function Checkout() {
         slug: tool.slug,
         name: tool.name,
         price: Number(tool.price),
-        status: r.status as Row["status"],
+        status: effectiveStatus(r.status as string, (r.trial_ends_at as string | null) ?? null),
         trialEndsAt: (r.trial_ends_at as string | null) ?? null,
         currentPeriodEnd: (r.current_period_end as string | null) ?? null,
       };

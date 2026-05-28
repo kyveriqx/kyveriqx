@@ -44,6 +44,9 @@ export function middleware(req: NextRequest) {
       return NextResponse.next({ request: { headers: requestHeaders } });
 
     case "tool": {
+      // Tell server components which tool this request resolved to, so the
+      // shared /tools layout can enforce entitlement without re-parsing host.
+      requestHeaders.set("x-tool-slug", sub.slug);
       const prefix = `/tools/${sub.slug}`;
       if (!path.startsWith(prefix)) {
         url.pathname = `${prefix}${path === "/" ? "" : path}`;

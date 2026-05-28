@@ -1,7 +1,7 @@
 /* POST /api/billing/subscribe — Architecture §8.6.
    Creates a Razorpay subscription for the signed-in user × the requested tool,
    stores the razorpay_subscription_id on the user's existing subscriptions row
-   (created at signup as a 14-day trial), and returns what the browser needs
+   (created at signup as a 15-day trial), and returns what the browser needs
    to open Razorpay Checkout. The status flips to 'active' from the webhook. */
 
 import { NextResponse } from "next/server";
