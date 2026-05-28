@@ -515,12 +515,13 @@ function Nav() {
 
         @media (max-width: 880px) {
           .nav-links { display: none; }
-          .nav-shell { max-width: 560px; padding: 8px 8px 8px 14px; gap: 10px; }
+          .nav-shell { max-width: 560px; padding: 8px 8px 8px 14px; gap: 8px; }
           .nav-scrolled .nav-shell { max-width: 520px; }
           .nav-burger { display: inline-flex; }
           .nav-mobile-backdrop,
           .nav-mobile-panel { display: block; }
-          .nav-cta { padding: 9px 14px; font-size: 13px; }
+          /* Push Book audit + hamburger to the right edge of the pill */
+          .nav-cta { margin-left: auto; padding: 9px 14px; font-size: 13px; }
         }
         @media (max-width: 420px) {
           .nav { padding: 0 12px; top: 14px; }
