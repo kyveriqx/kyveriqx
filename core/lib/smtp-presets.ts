@@ -53,12 +53,13 @@ export const SMTP_PRESETS: Record<Exclude<SmtpProvider, "other">, SmtpProviderPr
     port: 587,
     secure: false,
     appPasswordHelpUrl:
-      "https://support.microsoft.com/en-us/account-billing/5896ed9b-4263-e681-128a-a6f2979a7944",
+      "https://learn.microsoft.com/en-us/exchange/clients-and-mobile-in-exchange-online/authenticated-client-smtp-submission",
     appPasswordSteps: [
-      "Ask your admin to enable SMTP AUTH for your mailbox if it’s disabled (M365 turns it off by default).",
-      "Turn on 2-Step Verification on your Microsoft account.",
-      "Open account.microsoft.com → Security → Advanced security options → App passwords.",
-      "Create a new app password and paste it in the Password field below.",
+      "Heads-up: Microsoft 365 work accounts disable SMTP basic auth by default. Most customers will need their IT admin's help — if your tenant has Security Defaults on, this provider may not work at all and you'll need to use Gmail/Zoho instead.",
+      "Ask your IT admin to enable Authenticated SMTP on your mailbox. In PowerShell they run: Set-CASMailbox -Identity you@yourdomain.com -SmtpClientAuthenticationDisabled $false (or in Exchange admin center → Mailboxes → your mailbox → Manage email apps → Authenticated SMTP = On).",
+      "If your tenant allows app passwords (Security Defaults off + per-user MFA on), open https://mysignins.microsoft.com/security-info, click Add method → App password, name it “Kyveriqx”, and copy the 16-character password it generates.",
+      "Paste the password (either your mailbox password if no MFA, or the app password from step 3) in the Password field below.",
+      "Still hitting 535 auth errors? Your admin has locked basic auth — pick a different provider (Gmail / Zoho work the same way and don't need IT involvement).",
     ],
   },
   zoho: {
