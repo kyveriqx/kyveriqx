@@ -155,9 +155,37 @@ export function SmtpSetupCard({ hasExisting }: Props) {
                 padding: "4px 18px 16px 18px", borderTop: "1px solid var(--line)",
                 color: "var(--ink-200)", fontSize: 13.5, lineHeight: 1.6,
               }}>
-                <ol style={{ margin: "12px 0 14px 18px", padding: 0, display: "grid", gap: 8 }}>
+                <ol style={{ margin: "12px 0 14px 18px", padding: 0, display: "grid", gap: 10 }}>
                   {preset.appPasswordSteps.map((step, i) => (
-                    <li key={i} style={{ paddingLeft: 4 }}>{step}</li>
+                    <li key={i} style={{ paddingLeft: 4 }}>
+                      {step.text}
+                      {step.url && (
+                        <>
+                          {" "}
+                          <a
+                            href={step.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{
+                              display: "inline-block",
+                              marginLeft: 4,
+                              padding: "1px 8px",
+                              fontSize: 11.5,
+                              fontFamily: "var(--font-mono)",
+                              color: "var(--accent)",
+                              background: "var(--accent-bg-soft)",
+                              border: "1px solid var(--accent-border-soft)",
+                              borderRadius: 6,
+                              textDecoration: "none",
+                              whiteSpace: "nowrap",
+                              verticalAlign: "baseline",
+                            }}
+                          >
+                            Open →
+                          </a>
+                        </>
+                      )}
+                    </li>
                   ))}
                 </ol>
                 <a

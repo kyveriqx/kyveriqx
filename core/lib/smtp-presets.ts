@@ -20,17 +20,29 @@ export type SmtpProvider =
   | "yahoo"
   | "other";
 
+/** One step in the inline "How to get your app password" guide. When
+ *  `url` is present the renderer appends a small "Open →" link next to
+ *  the text, so the customer can jump straight to the right page
+ *  instead of hunting through the provider's settings. */
+export type AppPasswordStep = {
+  text: string;
+  url?: string;
+};
+
 export type SmtpProviderPreset = {
   label: string;
   host: string;
   port: number;
   /** true = implicit TLS on port 465; false = STARTTLS on 587. */
   secure: boolean;
-  /** Where to send users who haven't enabled an app-specific password yet. */
+  /** Catch-all link to the provider's official help docs — shown at
+   *  the bottom of the inline guide as a fallback. */
   appPasswordHelpUrl: string;
   /** Short imperative steps shown in the inline "How to get your app
-   *  password" panel on the SMTP setup card. 3–4 steps, ≤ ~90 chars each. */
-  appPasswordSteps: string[];
+   *  password" panel on the SMTP setup card. 3–5 steps, ≤ ~140 chars
+   *  each. Steps that point at a specific page should set `url` so the
+   *  renderer can wire up a direct "Open →" link. */
+  appPasswordSteps: AppPasswordStep[];
 };
 
 export const SMTP_PRESETS: Record<Exclude<SmtpProvider, "other">, SmtpProviderPreset> = {
@@ -41,10 +53,20 @@ export const SMTP_PRESETS: Record<Exclude<SmtpProvider, "other">, SmtpProviderPr
     secure: true,
     appPasswordHelpUrl: "https://support.google.com/accounts/answer/185833",
     appPasswordSteps: [
-      "Turn on 2-Step Verification on your Google account (required for app passwords).",
-      "Open https://myaccount.google.com/apppasswords in a new tab.",
-      "Create a new app password — give it a name like “Kyveriqx”.",
-      "Copy the 16-character password Google shows you and paste it in the Password field below.",
+      {
+        text: "Turn on 2-Step Verification on your Google account (required before Google will show app passwords).",
+        url: "https://myaccount.google.com/signinoptions/two-step-verification",
+      },
+      {
+        text: "Open the Google App Passwords page.",
+        url: "https://myaccount.google.com/apppasswords",
+      },
+      {
+        text: "Create a new app password — give it a name like “Kyveriqx”.",
+      },
+      {
+        text: "Copy the 16-character password Google shows you and paste it in the Password field below.",
+      },
     ],
   },
   office365: {
@@ -55,11 +77,24 @@ export const SMTP_PRESETS: Record<Exclude<SmtpProvider, "other">, SmtpProviderPr
     appPasswordHelpUrl:
       "https://learn.microsoft.com/en-us/exchange/clients-and-mobile-in-exchange-online/authenticated-client-smtp-submission",
     appPasswordSteps: [
-      "Heads-up: Microsoft 365 work accounts disable SMTP basic auth by default. Most customers will need their IT admin's help — if your tenant has Security Defaults on, this provider may not work at all and you'll need to use Gmail/Zoho instead.",
-      "Ask your IT admin to enable Authenticated SMTP on your mailbox. In PowerShell they run: Set-CASMailbox -Identity you@yourdomain.com -SmtpClientAuthenticationDisabled $false (or in Exchange admin center → Mailboxes → your mailbox → Manage email apps → Authenticated SMTP = On).",
-      "If your tenant allows app passwords (Security Defaults off + per-user MFA on), open https://mysignins.microsoft.com/security-info, click Add method → App password, name it “Kyveriqx”, and copy the 16-character password it generates.",
-      "Paste the password (either your mailbox password if no MFA, or the app password from step 3) in the Password field below.",
-      "Still hitting 535 auth errors? Your admin has locked basic auth — pick a different provider (Gmail / Zoho work the same way and don't need IT involvement).",
+      {
+        text: "Heads-up: Microsoft 365 work accounts disable SMTP basic auth by default. Many tenants block it entirely — see the official docs for what your tenant actually allows.",
+        url: "https://learn.microsoft.com/en-us/exchange/clients-and-mobile-in-exchange-online/authenticated-client-smtp-submission",
+      },
+      {
+        text: "Ask your IT admin to enable Authenticated SMTP on your mailbox. PowerShell: Set-CASMailbox -Identity you@yourdomain.com -SmtpClientAuthenticationDisabled $false (or Exchange admin center → Mailboxes → your mailbox → Manage email apps → Authenticated SMTP = On).",
+        url: "https://learn.microsoft.com/en-us/powershell/module/exchange/set-casmailbox",
+      },
+      {
+        text: "If your tenant allows app passwords (Security Defaults off + per-user MFA on), open Microsoft Security info, click Add method → App password, name it “Kyveriqx”, and copy the 16-character password.",
+        url: "https://mysignins.microsoft.com/security-info",
+      },
+      {
+        text: "Paste the password (your mailbox password if no MFA, or the app password from step 3) in the Password field below.",
+      },
+      {
+        text: "Still hitting 535 auth errors? Your admin has locked basic auth — switch to Gmail or Zoho instead (they work without IT involvement).",
+      },
     ],
   },
   zoho: {
@@ -70,10 +105,19 @@ export const SMTP_PRESETS: Record<Exclude<SmtpProvider, "other">, SmtpProviderPr
     appPasswordHelpUrl:
       "https://www.zoho.com/mail/help/adminconsole/two-factor-authentication.html",
     appPasswordSteps: [
-      "Sign in to Zoho Mail → My Account → Security → App Passwords.",
-      "Click Generate New Password and name it “Kyveriqx”.",
-      "Copy the password Zoho shows you and paste it in the Password field below.",
-      "Your normal Zoho password won’t work over SMTP once 2FA is on.",
+      {
+        text: "Open your Zoho Account → Security → App Passwords.",
+        url: "https://accounts.zoho.com/home#security/app_passwords",
+      },
+      {
+        text: "Click Generate New Password and name it “Kyveriqx”.",
+      },
+      {
+        text: "Copy the password Zoho shows you and paste it in the Password field below.",
+      },
+      {
+        text: "Your normal Zoho password won’t work over SMTP once 2FA is on — you must use an app password.",
+      },
     ],
   },
   outlook: {
@@ -84,10 +128,19 @@ export const SMTP_PRESETS: Record<Exclude<SmtpProvider, "other">, SmtpProviderPr
     appPasswordHelpUrl:
       "https://support.microsoft.com/en-us/account-billing/5896ed9b-4263-e681-128a-a6f2979a7944",
     appPasswordSteps: [
-      "Turn on 2-Step Verification on your Microsoft account.",
-      "Open account.microsoft.com → Security → Advanced security options.",
-      "Under App passwords, click Create a new app password.",
-      "Copy the generated password and paste it in the Password field below.",
+      {
+        text: "Open your Microsoft account Security page.",
+        url: "https://account.microsoft.com/security",
+      },
+      {
+        text: "Turn on 2-Step Verification if it isn’t already.",
+      },
+      {
+        text: "Under Advanced security options → App passwords, click Create a new app password.",
+      },
+      {
+        text: "Copy the generated password and paste it in the Password field below.",
+      },
     ],
   },
   yahoo: {
@@ -97,10 +150,19 @@ export const SMTP_PRESETS: Record<Exclude<SmtpProvider, "other">, SmtpProviderPr
     secure: true,
     appPasswordHelpUrl: "https://help.yahoo.com/kb/SLN15241.html",
     appPasswordSteps: [
-      "Sign in at login.yahoo.com → Account Info → Account Security.",
-      "Turn on 2-Step Verification if it isn’t already.",
-      "Under “Generate app password”, enter “Kyveriqx” and click Generate.",
-      "Copy the 16-character password Yahoo shows you and paste it in the Password field below.",
+      {
+        text: "Open Yahoo Account Security.",
+        url: "https://login.yahoo.com/account/security",
+      },
+      {
+        text: "Turn on 2-Step Verification if it isn’t already.",
+      },
+      {
+        text: "Click “Generate app password”, enter “Kyveriqx”, and click Generate.",
+      },
+      {
+        text: "Copy the 16-character password Yahoo shows you and paste it in the Password field below.",
+      },
     ],
   },
 };
