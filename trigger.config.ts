@@ -15,6 +15,9 @@ import { readFileSync } from "node:fs";
 const WORKER_ENV_KEYS = [
   "NEXT_PUBLIC_SUPABASE_URL",
   "SUPABASE_SERVICE_ROLE_KEY",
+  // emailcampaign — needed by core/lib/smtp-crypto.ts to decrypt the saved
+  // SMTP password inside the send-email-campaign task.
+  "SMTP_ENCRYPTION_KEY",
 ];
 
 function readDotEnvLocal(): Record<string, string> {

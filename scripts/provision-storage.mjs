@@ -4,9 +4,10 @@
    Run once per environment:  node scripts/provision-storage.mjs
 
    Buckets:
-     ledger-uploads   — orgledgerreco (50 MB cap)
-     orgmis-uploads   — Management/BOD MIS Generator inputs (20 MB cap)
-     orgmis-outputs   — BOD MIS generated reports (50 MB cap) */
+     ledger-uploads          — orgledgerreco (50 MB cap)
+     orgmis-uploads          — Management/BOD MIS Generator inputs (20 MB cap)
+     orgmis-outputs          — BOD MIS generated reports (50 MB cap)
+     emailcampaign-uploads   — email campaign recipient lists (50 MB cap) */
 
 import { readFileSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
@@ -48,6 +49,7 @@ const BUCKETS = [
   { id: "ledger-uploads", fileSizeLimit: 50 * 1024 * 1024 },
   { id: "orgmis-uploads", fileSizeLimit: 20 * 1024 * 1024 },
   { id: "orgmis-outputs", fileSizeLimit: 50 * 1024 * 1024 },
+  { id: "emailcampaign-uploads", fileSizeLimit: 50 * 1024 * 1024 },
 ];
 
 for (const { id, fileSizeLimit } of BUCKETS) {

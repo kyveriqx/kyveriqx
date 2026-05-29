@@ -15,6 +15,7 @@ export const CATEGORY_BY_SLUG: Record<string, ToolCategory> = {
   bankledgerreco:   "plug-and-play",
   orgledgerreco:    "plug-and-play",
   orgmis:           "plug-and-play",
+  emailcampaign:    "plug-and-play",
   custportal:       "hands-on",
   whatsappcampaign: "hands-on",
   callingtool:      "hands-on",
