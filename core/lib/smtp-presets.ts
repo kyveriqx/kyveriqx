@@ -28,6 +28,9 @@ export type SmtpProviderPreset = {
   secure: boolean;
   /** Where to send users who haven't enabled an app-specific password yet. */
   appPasswordHelpUrl: string;
+  /** Short imperative steps shown in the inline "How to get your app
+   *  password" panel on the SMTP setup card. 3–4 steps, ≤ ~90 chars each. */
+  appPasswordSteps: string[];
 };
 
 export const SMTP_PRESETS: Record<Exclude<SmtpProvider, "other">, SmtpProviderPreset> = {
@@ -37,6 +40,12 @@ export const SMTP_PRESETS: Record<Exclude<SmtpProvider, "other">, SmtpProviderPr
     port: 465,
     secure: true,
     appPasswordHelpUrl: "https://support.google.com/accounts/answer/185833",
+    appPasswordSteps: [
+      "Turn on 2-Step Verification on your Google account (required for app passwords).",
+      "Open https://myaccount.google.com/apppasswords in a new tab.",
+      "Create a new app password — give it a name like “Kyveriqx”.",
+      "Copy the 16-character password Google shows you and paste it in the Password field below.",
+    ],
   },
   office365: {
     label: "Microsoft 365",
@@ -45,6 +54,12 @@ export const SMTP_PRESETS: Record<Exclude<SmtpProvider, "other">, SmtpProviderPr
     secure: false,
     appPasswordHelpUrl:
       "https://support.microsoft.com/en-us/account-billing/5896ed9b-4263-e681-128a-a6f2979a7944",
+    appPasswordSteps: [
+      "Ask your admin to enable SMTP AUTH for your mailbox if it’s disabled (M365 turns it off by default).",
+      "Turn on 2-Step Verification on your Microsoft account.",
+      "Open account.microsoft.com → Security → Advanced security options → App passwords.",
+      "Create a new app password and paste it in the Password field below.",
+    ],
   },
   zoho: {
     label: "Zoho Mail",
@@ -53,6 +68,12 @@ export const SMTP_PRESETS: Record<Exclude<SmtpProvider, "other">, SmtpProviderPr
     secure: true,
     appPasswordHelpUrl:
       "https://www.zoho.com/mail/help/adminconsole/two-factor-authentication.html",
+    appPasswordSteps: [
+      "Sign in to Zoho Mail → My Account → Security → App Passwords.",
+      "Click Generate New Password and name it “Kyveriqx”.",
+      "Copy the password Zoho shows you and paste it in the Password field below.",
+      "Your normal Zoho password won’t work over SMTP once 2FA is on.",
+    ],
   },
   outlook: {
     label: "Outlook.com",
@@ -61,6 +82,12 @@ export const SMTP_PRESETS: Record<Exclude<SmtpProvider, "other">, SmtpProviderPr
     secure: false,
     appPasswordHelpUrl:
       "https://support.microsoft.com/en-us/account-billing/5896ed9b-4263-e681-128a-a6f2979a7944",
+    appPasswordSteps: [
+      "Turn on 2-Step Verification on your Microsoft account.",
+      "Open account.microsoft.com → Security → Advanced security options.",
+      "Under App passwords, click Create a new app password.",
+      "Copy the generated password and paste it in the Password field below.",
+    ],
   },
   yahoo: {
     label: "Yahoo Mail",
@@ -68,6 +95,12 @@ export const SMTP_PRESETS: Record<Exclude<SmtpProvider, "other">, SmtpProviderPr
     port: 465,
     secure: true,
     appPasswordHelpUrl: "https://help.yahoo.com/kb/SLN15241.html",
+    appPasswordSteps: [
+      "Sign in at login.yahoo.com → Account Info → Account Security.",
+      "Turn on 2-Step Verification if it isn’t already.",
+      "Under “Generate app password”, enter “Kyveriqx” and click Generate.",
+      "Copy the 16-character password Yahoo shows you and paste it in the Password field below.",
+    ],
   },
 };
 

@@ -38,6 +38,7 @@ export function SmtpSetupCard({ hasExisting }: Props) {
   const [password, setPassword] = useState("");
   const [fromEmail, setFromEmail] = useState("");
   const [fromName, setFromName] = useState("");
+  const [helpOpen, setHelpOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -82,6 +83,7 @@ export function SmtpSetupCard({ hasExisting }: Props) {
             onChange={(e) => {
               const next = e.target.value as SmtpProvider;
               setProvider(next);
+              setHelpOpen(false);
               if (next !== "other") {
                 const p = SMTP_PRESETS[next];
                 setHost(p.host);
@@ -118,6 +120,56 @@ export function SmtpSetupCard({ hasExisting }: Props) {
             >
               Need an app password? →
             </a>
+          </div>
+        )}
+
+        {preset && (
+          <div style={{
+            border: "1px solid var(--line)", borderRadius: 10,
+            background: "var(--bg-elev)", overflow: "hidden",
+          }}>
+            <button
+              type="button"
+              onClick={() => setHelpOpen((v) => !v)}
+              aria-expanded={helpOpen}
+              style={{
+                width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
+                padding: "10px 14px", background: "transparent", border: "none",
+                color: "var(--ink-200)", fontSize: 13, fontWeight: 600,
+                cursor: "pointer", textAlign: "left",
+              }}
+            >
+              <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--ink-400)" }}>
+                  {helpOpen ? "▼" : "▶"}
+                </span>
+                How to get your {preset.label} app password
+              </span>
+              <span style={{ fontSize: 12, color: "var(--ink-400)", fontFamily: "var(--font-mono)" }}>
+                {helpOpen ? "hide" : "show"}
+              </span>
+            </button>
+
+            {helpOpen && (
+              <div style={{
+                padding: "4px 18px 16px 18px", borderTop: "1px solid var(--line)",
+                color: "var(--ink-200)", fontSize: 13.5, lineHeight: 1.6,
+              }}>
+                <ol style={{ margin: "12px 0 14px 18px", padding: 0, display: "grid", gap: 8 }}>
+                  {preset.appPasswordSteps.map((step, i) => (
+                    <li key={i} style={{ paddingLeft: 4 }}>{step}</li>
+                  ))}
+                </ol>
+                <a
+                  href={preset.appPasswordHelpUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ color: "var(--accent)", textDecoration: "none", fontSize: 13 }}
+                >
+                  Open {preset.label}&rsquo;s official docs →
+                </a>
+              </div>
+            )}
           </div>
         )}
 
