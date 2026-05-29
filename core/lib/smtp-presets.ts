@@ -20,13 +20,28 @@ export type SmtpProvider =
   | "yahoo"
   | "other";
 
-/** One step in the inline "How to get your app password" guide. When
- *  `url` is present the renderer appends a small "Open →" link next to
- *  the text, so the customer can jump straight to the right page
- *  instead of hunting through the provider's settings. */
+/** One step in the DIY app-password flow. When `url` is present the
+ *  renderer appends a small "Open →" link so the customer can jump
+ *  straight to the right page. Keep step text crisp — ~10 words max,
+ *  no jargon, no caveats. */
 export type AppPasswordStep = {
   text: string;
   url?: string;
+};
+
+/** Two-path help block shown when a preset provider is selected:
+ *    - askAdmin: a short copy-paste-able message for the customer's IT
+ *      admin. Only present when admin involvement is realistic (e.g.
+ *      M365, Zoho Workplace). Personal accounts (Gmail/Yahoo/Outlook.com)
+ *      omit this.
+ *    - diy: crisp self-serve steps for technical users. Always present.
+ *  The renderer also adds a fixed closing line ("Paste it below. Done.")
+ *  so each provider doesn't have to repeat it. */
+export type AppPasswordGuide = {
+  askAdmin?: {
+    message: string;
+  };
+  diy: AppPasswordStep[];
 };
 
 export type SmtpProviderPreset = {
@@ -38,11 +53,8 @@ export type SmtpProviderPreset = {
   /** Catch-all link to the provider's official help docs — shown at
    *  the bottom of the inline guide as a fallback. */
   appPasswordHelpUrl: string;
-  /** Short imperative steps shown in the inline "How to get your app
-   *  password" panel on the SMTP setup card. 3–5 steps, ≤ ~140 chars
-   *  each. Steps that point at a specific page should set `url` so the
-   *  renderer can wire up a direct "Open →" link. */
-  appPasswordSteps: AppPasswordStep[];
+  /** Inline help shown when this provider is picked from the dropdown. */
+  appPasswordGuide: AppPasswordGuide;
 };
 
 export const SMTP_PRESETS: Record<Exclude<SmtpProvider, "other">, SmtpProviderPreset> = {
@@ -52,22 +64,14 @@ export const SMTP_PRESETS: Record<Exclude<SmtpProvider, "other">, SmtpProviderPr
     port: 465,
     secure: true,
     appPasswordHelpUrl: "https://support.google.com/accounts/answer/185833",
-    appPasswordSteps: [
-      {
-        text: "Turn on 2-Step Verification on your Google account (required before Google will show app passwords).",
-        url: "https://myaccount.google.com/signinoptions/two-step-verification",
-      },
-      {
-        text: "Open the Google App Passwords page.",
-        url: "https://myaccount.google.com/apppasswords",
-      },
-      {
-        text: "Create a new app password — give it a name like “Kyveriqx”.",
-      },
-      {
-        text: "Copy the 16-character password Google shows you and paste it in the Password field below.",
-      },
-    ],
+    appPasswordGuide: {
+      diy: [
+        { text: "Turn on 2-Step Verification.", url: "https://myaccount.google.com/signinoptions/two-step-verification" },
+        { text: "Open the App Passwords page.", url: "https://myaccount.google.com/apppasswords" },
+        { text: "Click “Create”, name it “Kyveriqx”." },
+        { text: "Copy the 16-character password Google shows you." },
+      ],
+    },
   },
   office365: {
     label: "Microsoft 365",
@@ -76,26 +80,31 @@ export const SMTP_PRESETS: Record<Exclude<SmtpProvider, "other">, SmtpProviderPr
     secure: false,
     appPasswordHelpUrl:
       "https://learn.microsoft.com/en-us/exchange/clients-and-mobile-in-exchange-online/authenticated-client-smtp-submission",
-    appPasswordSteps: [
-      {
-        text: "Heads-up: Microsoft 365 work accounts disable SMTP basic auth by default. Many tenants block it entirely — see the official docs for what your tenant actually allows.",
-        url: "https://learn.microsoft.com/en-us/exchange/clients-and-mobile-in-exchange-online/authenticated-client-smtp-submission",
+    appPasswordGuide: {
+      askAdmin: {
+        message:
+`Hi,
+
+For our marketing email tool to send from my mailbox, please do these on my Microsoft 365 mailbox:
+
+1. Turn ON "Authenticated SMTP" for me.
+   - Exchange admin center → Mailboxes → my mailbox → Manage email apps → toggle Authenticated SMTP ON.
+   - Or in PowerShell:
+       Set-CASMailbox -Identity <my-email> -SmtpClientAuthenticationDisabled $false
+
+2. Either:
+   (a) confirm I can use my regular Microsoft 365 password for SMTP, OR
+   (b) help me generate an "app password" for this tool (https://mysignins.microsoft.com/security-info → Add method → App password).
+
+Thanks!`,
       },
-      {
-        text: "Ask your IT admin to enable Authenticated SMTP on your mailbox. PowerShell: Set-CASMailbox -Identity you@yourdomain.com -SmtpClientAuthenticationDisabled $false (or Exchange admin center → Mailboxes → your mailbox → Manage email apps → Authenticated SMTP = On).",
-        url: "https://learn.microsoft.com/en-us/powershell/module/exchange/set-casmailbox",
-      },
-      {
-        text: "If your tenant allows app passwords (Security Defaults off + per-user MFA on), open Microsoft Security info, click Add method → App password, name it “Kyveriqx”, and copy the 16-character password.",
-        url: "https://mysignins.microsoft.com/security-info",
-      },
-      {
-        text: "Paste the password (your mailbox password if no MFA, or the app password from step 3) in the Password field below.",
-      },
-      {
-        text: "Still hitting 535 auth errors? Your admin has locked basic auth — switch to Gmail or Zoho instead (they work without IT involvement).",
-      },
-    ],
+      diy: [
+        { text: "Open Microsoft Security info.", url: "https://mysignins.microsoft.com/security-info" },
+        { text: "Click “Add method” → “App password”." },
+        { text: "Name it “Kyveriqx”, click Next." },
+        { text: "Copy the password Microsoft shows you." },
+      ],
+    },
   },
   zoho: {
     label: "Zoho Mail",
@@ -104,21 +113,24 @@ export const SMTP_PRESETS: Record<Exclude<SmtpProvider, "other">, SmtpProviderPr
     secure: true,
     appPasswordHelpUrl:
       "https://www.zoho.com/mail/help/adminconsole/two-factor-authentication.html",
-    appPasswordSteps: [
-      {
-        text: "Open your Zoho Account → Security → App Passwords.",
-        url: "https://accounts.zoho.com/home#security/app_passwords",
+    appPasswordGuide: {
+      askAdmin: {
+        message:
+`Hi,
+
+For our marketing email tool to send from my Zoho mailbox, please:
+
+1. Make sure IMAP/SMTP access is enabled for my account (Zoho Mail admin → Mail Account Settings → IMAP/SMTP access).
+2. Confirm I'm allowed to generate an app-specific password for my account.
+
+Thanks!`,
       },
-      {
-        text: "Click Generate New Password and name it “Kyveriqx”.",
-      },
-      {
-        text: "Copy the password Zoho shows you and paste it in the Password field below.",
-      },
-      {
-        text: "Your normal Zoho password won’t work over SMTP once 2FA is on — you must use an app password.",
-      },
-    ],
+      diy: [
+        { text: "Open your Zoho App Passwords page.", url: "https://accounts.zoho.com/home#security/app_passwords" },
+        { text: "Click “Generate New Password”, name it “Kyveriqx”." },
+        { text: "Copy the password Zoho shows you." },
+      ],
+    },
   },
   outlook: {
     label: "Outlook.com",
@@ -127,21 +139,14 @@ export const SMTP_PRESETS: Record<Exclude<SmtpProvider, "other">, SmtpProviderPr
     secure: false,
     appPasswordHelpUrl:
       "https://support.microsoft.com/en-us/account-billing/5896ed9b-4263-e681-128a-a6f2979a7944",
-    appPasswordSteps: [
-      {
-        text: "Open your Microsoft account Security page.",
-        url: "https://account.microsoft.com/security",
-      },
-      {
-        text: "Turn on 2-Step Verification if it isn’t already.",
-      },
-      {
-        text: "Under Advanced security options → App passwords, click Create a new app password.",
-      },
-      {
-        text: "Copy the generated password and paste it in the Password field below.",
-      },
-    ],
+    appPasswordGuide: {
+      diy: [
+        { text: "Open Microsoft account Security.", url: "https://account.microsoft.com/security" },
+        { text: "Turn on Two-Step Verification." },
+        { text: "Under Advanced security options → App passwords, click “Create”." },
+        { text: "Copy the password Microsoft shows you." },
+      ],
+    },
   },
   yahoo: {
     label: "Yahoo Mail",
@@ -149,21 +154,14 @@ export const SMTP_PRESETS: Record<Exclude<SmtpProvider, "other">, SmtpProviderPr
     port: 465,
     secure: true,
     appPasswordHelpUrl: "https://help.yahoo.com/kb/SLN15241.html",
-    appPasswordSteps: [
-      {
-        text: "Open Yahoo Account Security.",
-        url: "https://login.yahoo.com/account/security",
-      },
-      {
-        text: "Turn on 2-Step Verification if it isn’t already.",
-      },
-      {
-        text: "Click “Generate app password”, enter “Kyveriqx”, and click Generate.",
-      },
-      {
-        text: "Copy the 16-character password Yahoo shows you and paste it in the Password field below.",
-      },
-    ],
+    appPasswordGuide: {
+      diy: [
+        { text: "Open Yahoo Account Security.", url: "https://login.yahoo.com/account/security" },
+        { text: "Turn on Two-Step Verification." },
+        { text: "Click “Generate app password”, name it “Kyveriqx”." },
+        { text: "Copy the password Yahoo shows you." },
+      ],
+    },
   },
 };
 

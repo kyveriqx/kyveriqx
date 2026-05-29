@@ -155,46 +155,53 @@ export function SmtpSetupCard({ hasExisting }: Props) {
                 padding: "4px 18px 16px 18px", borderTop: "1px solid var(--line)",
                 color: "var(--ink-200)", fontSize: 13.5, lineHeight: 1.6,
               }}>
-                <ol style={{ margin: "12px 0 14px 18px", padding: 0, display: "grid", gap: 10 }}>
-                  {preset.appPasswordSteps.map((step, i) => (
-                    <li key={i} style={{ paddingLeft: 4 }}>
-                      {step.text}
-                      {step.url && (
-                        <>
-                          {" "}
-                          <a
-                            href={step.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            style={{
-                              display: "inline-block",
-                              marginLeft: 4,
-                              padding: "1px 8px",
-                              fontSize: 11.5,
-                              fontFamily: "var(--font-mono)",
-                              color: "var(--accent)",
-                              background: "var(--accent-bg-soft)",
-                              border: "1px solid var(--accent-border-soft)",
-                              borderRadius: 6,
-                              textDecoration: "none",
-                              whiteSpace: "nowrap",
-                              verticalAlign: "baseline",
-                            }}
-                          >
-                            Open →
-                          </a>
-                        </>
-                      )}
-                    </li>
-                  ))}
-                </ol>
+                {preset.appPasswordGuide.askAdmin && (
+                  <AskAdminBlock
+                    message={preset.appPasswordGuide.askAdmin.message}
+                    providerLabel={preset.label}
+                  />
+                )}
+                <div style={{ marginTop: preset.appPasswordGuide.askAdmin ? 18 : 12 }}>
+                  <PathHeading icon="👤">
+                    {preset.appPasswordGuide.askAdmin
+                      ? "Or set it up yourself"
+                      : "Set it up yourself"}
+                  </PathHeading>
+                  <ol style={{ margin: "10px 0 4px 18px", padding: 0, display: "grid", gap: 8 }}>
+                    {preset.appPasswordGuide.diy.map((step, i) => (
+                      <li key={i} style={{ paddingLeft: 4 }}>
+                        {step.text}
+                        {step.url && (
+                          <>
+                            {" "}
+                            <a
+                              href={step.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={openLinkStyle}
+                            >
+                              Open →
+                            </a>
+                          </>
+                        )}
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+                <div style={{
+                  marginTop: 14, padding: "10px 14px",
+                  background: "var(--success-bg)", border: "1px solid var(--success-border)",
+                  borderRadius: 8, color: "var(--success-fg)", fontSize: 13, fontWeight: 600,
+                }}>
+                  ✓ Paste the password in the Password field below. That&rsquo;s it.
+                </div>
                 <a
                   href={preset.appPasswordHelpUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  style={{ color: "var(--accent)", textDecoration: "none", fontSize: 13 }}
+                  style={{ color: "var(--ink-400)", textDecoration: "none", fontSize: 12, marginTop: 12, display: "inline-block" }}
                 >
-                  Open {preset.label}&rsquo;s official docs →
+                  {preset.label} official docs →
                 </a>
               </div>
             )}
@@ -309,5 +316,80 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       </div>
       {children}
     </label>
+  );
+}
+
+const openLinkStyle: React.CSSProperties = {
+  display: "inline-block",
+  marginLeft: 4,
+  padding: "1px 8px",
+  fontSize: 11.5,
+  fontFamily: "var(--font-mono)",
+  color: "var(--accent)",
+  background: "var(--accent-bg-soft)",
+  border: "1px solid var(--accent-border-soft)",
+  borderRadius: 6,
+  textDecoration: "none",
+  whiteSpace: "nowrap",
+  verticalAlign: "baseline",
+};
+
+function PathHeading({ icon, children }: { icon: string; children: React.ReactNode }) {
+  return (
+    <div style={{
+      display: "flex", alignItems: "center", gap: 8,
+      fontSize: 13, fontWeight: 700, color: "var(--ink-100)",
+      letterSpacing: "0.01em",
+    }}>
+      <span style={{ fontSize: 16 }}>{icon}</span>
+      {children}
+    </div>
+  );
+}
+
+function AskAdminBlock({ message, providerLabel }: { message: string; providerLabel: string }) {
+  const [copied, setCopied] = useState(false);
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(message);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setCopied(false);
+    }
+  }
+
+  return (
+    <div style={{ marginTop: 12 }}>
+      <PathHeading icon="🧑‍💼">Not technical? Ask your IT admin</PathHeading>
+      <div style={{
+        marginTop: 10, padding: 12,
+        background: "var(--bg-card)", border: "1px solid var(--line)",
+        borderRadius: 8, position: "relative",
+      }}>
+        <pre style={{
+          margin: 0, fontFamily: "var(--font-mono)", fontSize: 12.5,
+          color: "var(--ink-200)", whiteSpace: "pre-wrap", lineHeight: 1.55,
+        }}>{message}</pre>
+        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 10 }}>
+          <button
+            type="button"
+            onClick={copy}
+            aria-label={`Copy the ${providerLabel} admin message`}
+            style={{
+              padding: "5px 12px", fontSize: 12, fontWeight: 600,
+              color: copied ? "var(--success-fg)" : "var(--ink-100)",
+              background: copied ? "var(--success-bg)" : "var(--bg-elev)",
+              border: `1px solid ${copied ? "var(--success-border)" : "var(--line-strong)"}`,
+              borderRadius: 6, cursor: "pointer",
+              fontFamily: "var(--font-mono)", letterSpacing: "0.02em",
+            }}
+          >
+            {copied ? "✓ Copied" : "📋 Copy message"}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
