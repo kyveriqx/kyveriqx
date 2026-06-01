@@ -13,7 +13,7 @@
    <img> onError swaps in a neutral placeholder showing the caption, so the
    layout is reviewable before the real mockups are dropped in. */
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 type Slide = { src: string; caption: string };
 
@@ -50,6 +50,23 @@ const ARROW: React.CSSProperties = {
   lineHeight: 1,
 };
 
+/* Controls inside the dark lightbox overlay (light-on-dark). */
+const OVERLAY_BTN: React.CSSProperties = {
+  position: "absolute",
+  width: 44,
+  height: 44,
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  borderRadius: 999,
+  border: "1px solid rgba(255,255,255,0.4)",
+  background: "rgba(255,255,255,0.12)",
+  color: "#fff",
+  fontSize: 24,
+  cursor: "pointer",
+  lineHeight: 1,
+};
+
 export function OutputGallery() {
   const trackRef = useRef<HTMLDivElement>(null);
   const [index, setIndex] = useState(0);
@@ -66,6 +83,30 @@ export function OutputGallery() {
     if (!track || track.clientWidth === 0) return;
     setIndex(Math.round(track.scrollLeft / track.clientWidth));
   }, []);
+
+  // Lightbox: which slide is zoomed open (null = closed).
+  const [zoom, setZoom] = useState<number | null>(null);
+  const stepZoom = useCallback((d: number) => {
+    setZoom((z) => (z === null ? z : (z + d + SLIDES.length) % SLIDES.length));
+  }, []);
+
+  // While the lightbox is open: arrow keys navigate, Esc closes, and the
+  // page behind it is locked from scrolling.
+  useEffect(() => {
+    if (zoom === null) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setZoom(null);
+      else if (e.key === "ArrowRight") stepZoom(1);
+      else if (e.key === "ArrowLeft") stepZoom(-1);
+    };
+    document.addEventListener("keydown", onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [zoom, stepZoom]);
 
   return (
     <div>
@@ -107,6 +148,8 @@ export function OutputGallery() {
                 src={s.src}
                 alt={s.caption}
                 loading={i === 0 ? "eager" : "lazy"}
+                onClick={() => setZoom(i)}
+                title="Click to enlarge"
                 onError={(e) => {
                   const img = e.currentTarget;
                   img.style.display = "none";
@@ -119,6 +162,7 @@ export function OutputGallery() {
                   aspectRatio: "16 / 9",
                   objectFit: "contain",
                   background: "var(--bg-card)",
+                  cursor: "zoom-in",
                 }}
               />
               {/* placeholder shown only if the image fails to load */}
@@ -207,6 +251,87 @@ export function OutputGallery() {
           ›
         </button>
       </div>
+
+      {/* Lightbox — click a slide to enlarge it over a dark backdrop */}
+      {zoom !== null && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={SLIDES[zoom].caption}
+          onClick={() => setZoom(null)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 1000,
+            background: "rgba(0,0,0,0.82)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 24,
+          }}
+        >
+          <button
+            type="button"
+            aria-label="Close"
+            onClick={() => setZoom(null)}
+            style={{ ...OVERLAY_BTN, top: 16, right: 20 }}
+          >
+            ×
+          </button>
+          <button
+            type="button"
+            aria-label="Previous"
+            onClick={(e) => {
+              e.stopPropagation();
+              stepZoom(-1);
+            }}
+            style={{ ...OVERLAY_BTN, left: 16, top: "50%", transform: "translateY(-50%)" }}
+          >
+            ‹
+          </button>
+
+          <figure
+            onClick={(e) => e.stopPropagation()}
+            style={{ margin: 0, maxWidth: "min(1100px, 92vw)", textAlign: "center" }}
+          >
+            <img
+              src={SLIDES[zoom].src}
+              alt={SLIDES[zoom].caption}
+              style={{
+                display: "block",
+                maxWidth: "100%",
+                maxHeight: "82vh",
+                objectFit: "contain",
+                margin: "0 auto",
+                borderRadius: "var(--radius-lg)",
+                background: "#fff",
+                boxShadow: "0 24px 60px -12px rgba(0,0,0,0.6)",
+              }}
+            />
+            <figcaption
+              style={{
+                marginTop: 14,
+                color: "rgba(255,255,255,0.85)",
+                fontSize: 14,
+              }}
+            >
+              {SLIDES[zoom].caption} · {zoom + 1} / {SLIDES.length}
+            </figcaption>
+          </figure>
+
+          <button
+            type="button"
+            aria-label="Next"
+            onClick={(e) => {
+              e.stopPropagation();
+              stepZoom(1);
+            }}
+            style={{ ...OVERLAY_BTN, right: 16, top: "50%", transform: "translateY(-50%)" }}
+          >
+            ›
+          </button>
+        </div>
+      )}
     </div>
   );
 }
