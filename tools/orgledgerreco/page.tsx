@@ -11,13 +11,50 @@
 
 import { Nav } from "../../core/ui/nav";
 import { Card } from "../../core/ui/card";
-import { SignedOutGate } from "../../core/ui/signed-out-gate";
+import { ToolLanding } from "../../core/ui/tool-landing";
+import type { GallerySlide } from "../../core/ui/output-gallery";
 import { supabaseServer } from "../../core/lib/supabase-server";
+import { loginHrefWithReturn } from "../../core/lib/subdomain";
 import { getToolId } from "../../core/lib/tools";
 import { UploadForm } from "./components/upload-form";
 import { ReconcileResultView, type Job } from "./components/result-view";
 
 export const dynamic = "force-dynamic";
+
+const STEPS = [
+  { n: "01", title: "Upload your ledger", body: "The partner's account from your ERP — Business Central, Tally, SAP, Zoho. Excel or CSV." },
+  { n: "02", title: "Upload their ledger", body: "Your business partner's statement of account. Multi-location workbooks — one sheet per location — are handled automatically." },
+  { n: "03", title: "Reconcile invoice-by-invoice", body: "Doc numbers are normalized (case & format-insensitive) and matched line by line, TDS-aware." },
+  { n: "04", title: "Review & download", body: "See balances, gaps and a priority action plan live — then download a 4-sheet Excel report to send back." },
+];
+
+const PILLARS = [
+  { title: "Invoice-by-invoice", body: "Normalized doc-number matching ties out every invoice, not just the closing balances." },
+  { title: "Multi-location & TDS-aware", body: "Handles partner workbooks with one location per sheet and flags TDS-deduction differences." },
+  { title: "Actionable", body: "Per-location status, a priority action plan that says who owns each fix, and an Excel report to share." },
+];
+
+const OUTPUT_ITEMS = [
+  "Your books vs partner's books — closing balances",
+  "Total gap (zero = fully reconciled)",
+  "Matched invoices",
+  "TDS-difference invoices flagged",
+  "Amount-mismatch invoices",
+  "Payments in your books, not in theirs",
+  "Invoices in your books, not in theirs",
+  "Invoices in their books, not in yours",
+  "Per-location status (settled / outstanding)",
+  "Priority action plan (URGENT / MEDIUM / FINAL, by owner)",
+  "Excel report: Summary · Matched · Gaps · Action Plan",
+];
+
+const SLIDES: GallerySlide[] = [
+  { src: "/tools/orgledgerreco/out-1-balance.png", caption: "Your books vs partner's — balances & total gap" },
+  { src: "/tools/orgledgerreco/out-2-matched.png", caption: "Matched invoices (TDS & amount diffs flagged)" },
+  { src: "/tools/orgledgerreco/out-3-gaps.png", caption: "Gaps — unmatched on either side" },
+  { src: "/tools/orgledgerreco/out-4-action-plan.png", caption: "Priority action plan, by owner" },
+  { src: "/tools/orgledgerreco/out-5-excel.png", caption: "4-sheet Excel report to share" },
+];
 
 type Props = { searchParams: { jobId?: string } };
 
@@ -52,10 +89,28 @@ export default async function OrgLedgerReco({ searchParams }: Props) {
     return (
       <>
         <Nav />
-        <SignedOutGate
-          subdomain="orgledgerreco.kyveriqx.com"
-          title="Org Ledger Reconciliation"
-          description="Reconcile your books against a business partner's (multi-location, TDS-aware) ledger. Upload both files; we match invoice-by-invoice and surface the gaps in minutes."
+        <ToolLanding
+          eyebrow="orgledgerreco.kyveriqx.com · You vs your partner, tied out"
+          claim="Settle partner accounts in minutes"
+          stepStrip={["1. Your ledger", "2. Partner ledger", "3. Reconcile", "4. Download"]}
+          headline={
+            <>
+              Your books and your partner&apos;s.
+              <br />
+              <span style={{ color: "var(--ink-200)" }}>Matched, invoice by invoice.</span>
+            </>
+          }
+          subhead="Reconcile your books against a business partner's (multi-location, TDS-aware) ledger. Upload both files; we match invoice-by-invoice and surface the gaps in minutes."
+          primaryCta={{ label: "Start free trial", href: "/auth/register" }}
+          secondaryCta={{ label: "Log in", href: loginHrefWithReturn() }}
+          stepsHeading="From two ledgers to a clean reconciliation — in four steps."
+          steps={STEPS}
+          pillars={PILLARS}
+          outputHeading="A live reconciliation dashboard plus a 4-sheet Excel report to share."
+          outputItems={OUTPUT_ITEMS}
+          gallerySlides={SLIDES}
+          footerLeft="© Org Ledger Reconciliation — Built for finance teams."
+          footerRight="Powered by Vercel"
         />
       </>
     );
