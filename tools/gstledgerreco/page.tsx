@@ -12,13 +12,52 @@
 
 import { Nav } from "../../core/ui/nav";
 import { Card } from "../../core/ui/card";
-import { SignedOutGate } from "../../core/ui/signed-out-gate";
+import { ToolLanding } from "../../core/ui/tool-landing";
+import type { GallerySlide } from "../../core/ui/output-gallery";
 import { supabaseServer } from "../../core/lib/supabase-server";
+import { loginHrefWithReturn } from "../../core/lib/subdomain";
 import { getToolId } from "../../core/lib/tools";
 import { UploadForm } from "./components/upload-form";
 import { ReconcileResultView, type Job } from "./components/result-view";
 
 export const dynamic = "force-dynamic";
+
+const STEPS = [
+  { n: "01", title: "Upload the ITC pair", body: "GSTR-2B (JSON/Excel from the portal) + your Purchase Register. That's all it takes to start." },
+  { n: "02", title: "Add the outward side (optional)", body: "Drop in GSTR-1 + Sales Register to reconcile sales, and GSTR-2A to catch filed-late suppliers." },
+  { n: "03", title: "Set your tolerance", body: "Pick the date window and amount tolerance so genuine rounding doesn't show up as a mismatch." },
+  { n: "04", title: "Reconcile & download", body: "See ITC at risk live, work the action plan, and export three ready-to-share CSVs." },
+];
+
+const PILLARS = [
+  { title: "Fast", body: "Upload, click Reconcile, see every rupee of ITC at risk in seconds — no formulas, no VLOOKUP." },
+  { title: "Accurate", body: "GSTINs and invoice numbers are normalized, with date & amount tolerances so only real mismatches surface." },
+  { title: "Actionable", body: "A priority action plan tells you exactly who to chase, plus three CSV exports for your team." },
+];
+
+const OUTPUT_ITEMS = [
+  "ITC matched & tax tied out",
+  "Total tax at risk + taxable value at risk",
+  "Missing in 2B (supplier hasn't filed)",
+  "Missing in your books (unrecorded purchase)",
+  "GSTIN mismatches (supplier typos)",
+  "Value & tax differences beyond tolerance",
+  "Invoice-date mismatches",
+  "Supplier filing status & filed-late (with 2A)",
+  "Sales vs GSTR-1 reconciliation",
+  "Priority action plan (who to chase first)",
+  "CSV: gst-itc-exceptions.csv",
+  "CSV: gst-sales-exceptions.csv",
+  "CSV: gst-supplier-rollup.csv",
+];
+
+const SLIDES: GallerySlide[] = [
+  { src: "/tools/gstledgerreco/out-1-itc-risk.png", caption: "ITC at risk — matched, tax at risk & exception breakdown" },
+  { src: "/tools/gstledgerreco/out-2-exceptions.png", caption: "Every exception, tagged by kind" },
+  { src: "/tools/gstledgerreco/out-3-suppliers.png", caption: "Supplier filing status — books vs 2B" },
+  { src: "/tools/gstledgerreco/out-4-action-plan.png", caption: "Priority action plan" },
+  { src: "/tools/gstledgerreco/out-5-csv.png", caption: "Download-ready CSV exports" },
+];
 
 type Props = { searchParams: { jobId?: string } };
 
@@ -45,10 +84,28 @@ export default async function GstLedgerReco({ searchParams }: Props) {
     return (
       <>
         <Nav />
-        <SignedOutGate
-          subdomain="gstledgerreco.kyveriqx.com"
-          title="GST Ledger Reconciliation"
-          description="Match your Purchase Register against GSTR-2B and flag every rupee of ITC at risk — missing in 2B, GSTIN typos, value/tax mismatches, filed-late suppliers. Add GSTR-1 and your Sales Register to reconcile the outward side too."
+        <ToolLanding
+          eyebrow="gstledgerreco.kyveriqx.com · ITC at risk, found in seconds"
+          claim="Catch ITC leakage before you file"
+          stepStrip={["1. Upload 2B", "2. Purchase Register", "3. Set tolerance", "4. Reconcile"]}
+          headline={
+            <>
+              Every rupee of ITC at risk.
+              <br />
+              <span style={{ color: "var(--ink-200)" }}>Found before you file.</span>
+            </>
+          }
+          subhead="Match your Purchase Register against GSTR-2B and flag every rupee of ITC at risk — missing in 2B, GSTIN typos, value/tax mismatches, filed-late suppliers. Add GSTR-1 and your Sales Register to reconcile the outward side too."
+          primaryCta={{ label: "Start free trial", href: "/auth/register" }}
+          secondaryCta={{ label: "Log in", href: loginHrefWithReturn() }}
+          stepsHeading="From raw exports to ITC at risk — in four steps."
+          steps={STEPS}
+          pillars={PILLARS}
+          outputHeading="A live ITC-at-risk dashboard plus three download-ready CSVs."
+          outputItems={OUTPUT_ITEMS}
+          gallerySlides={SLIDES}
+          footerLeft="© GST Ledger Reconciliation — Built for finance teams."
+          footerRight="Powered by Vercel + Trigger.dev"
         />
       </>
     );

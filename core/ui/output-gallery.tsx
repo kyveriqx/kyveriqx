@@ -1,39 +1,24 @@
 "use client";
 
-/* "See the output" carousel for the orgmis landing page.
+/* Sample-output carousel for tool landing pages.
 
    Pure CSS scroll-snap track + a thin layer of state for the prev/next
    arrows and dot indicators — no carousel library. Inline styles + CSS-var
-   tokens to match core/ui (NOT the Tailwind components/ui.tsx).
+   tokens to match the rest of core/ui.
 
-   Each slide is full-width; the track snaps one slide at a time, so the
-   active index is simply round(scrollLeft / clientWidth).
+   Each slide is full-width within its container; the track snaps one slide at
+   a time, so the active index is simply round(scrollLeft / clientWidth).
 
-   Images live in /public/tools/orgmis/. If a file isn't present yet the
-   <img> onError swaps in a neutral placeholder showing the caption, so the
-   layout is reviewable before the real mockups are dropped in. */
+   Clicking a slide opens it in a lightbox (zoom over a dark backdrop, with
+   prev/next, Esc-to-close and body-scroll-lock).
+
+   Images live under /public. If a file isn't present yet the <img> onError
+   swaps in a neutral placeholder showing the caption, so a landing page is
+   reviewable before its real mockups are dropped in. */
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-type Slide = { src: string; caption: string };
-
-const SLIDES: Slide[] = [
-  { src: "/tools/orgmis/out-1-cover.png", caption: "Branded PPT cover slide" },
-  {
-    src: "/tools/orgmis/out-2-highlights.png",
-    caption: "Financial Highlights — Revenue, EBITDA, PAT at a glance",
-  },
-  { src: "/tools/orgmis/out-3-trends.png", caption: "Revenue & margin trends" },
-  {
-    src: "/tools/orgmis/out-4-customers.png",
-    caption: "Top customers & vendors",
-  },
-  {
-    src: "/tools/orgmis/out-5-excel.png",
-    caption: "10-sheet Excel MIS workbook",
-  },
-  { src: "/tools/orgmis/out-6-pdf.png", caption: "Board-ready PDF report" },
-];
+export type GallerySlide = { src: string; caption: string };
 
 const ARROW: React.CSSProperties = {
   width: 40,
@@ -67,16 +52,19 @@ const OVERLAY_BTN: React.CSSProperties = {
   lineHeight: 1,
 };
 
-export function OutputGallery() {
+export function OutputGallery({ slides }: { slides: GallerySlide[] }) {
   const trackRef = useRef<HTMLDivElement>(null);
   const [index, setIndex] = useState(0);
 
-  const scrollTo = useCallback((i: number) => {
-    const track = trackRef.current;
-    if (!track) return;
-    const clamped = Math.max(0, Math.min(i, SLIDES.length - 1));
-    track.scrollTo({ left: clamped * track.clientWidth, behavior: "smooth" });
-  }, []);
+  const scrollTo = useCallback(
+    (i: number) => {
+      const track = trackRef.current;
+      if (!track) return;
+      const clamped = Math.max(0, Math.min(i, slides.length - 1));
+      track.scrollTo({ left: clamped * track.clientWidth, behavior: "smooth" });
+    },
+    [slides.length],
+  );
 
   const onScroll = useCallback(() => {
     const track = trackRef.current;
@@ -86,9 +74,12 @@ export function OutputGallery() {
 
   // Lightbox: which slide is zoomed open (null = closed).
   const [zoom, setZoom] = useState<number | null>(null);
-  const stepZoom = useCallback((d: number) => {
-    setZoom((z) => (z === null ? z : (z + d + SLIDES.length) % SLIDES.length));
-  }, []);
+  const stepZoom = useCallback(
+    (d: number) => {
+      setZoom((z) => (z === null ? z : (z + d + slides.length) % slides.length));
+    },
+    [slides.length],
+  );
 
   // While the lightbox is open: arrow keys navigate, Esc closes, and the
   // page behind it is locked from scrolling.
@@ -108,14 +99,16 @@ export function OutputGallery() {
     };
   }, [zoom, stepZoom]);
 
+  if (slides.length === 0) return null;
+
   return (
     <div>
       {/* hide the scrollbar on the snap track (webkit needs a real rule) */}
-      <style>{`.orgmis-gallery-track::-webkit-scrollbar{display:none}`}</style>
+      <style>{`.kvx-gallery-track::-webkit-scrollbar{display:none}`}</style>
 
       <div
         ref={trackRef}
-        className="orgmis-gallery-track"
+        className="kvx-gallery-track"
         onScroll={onScroll}
         style={{
           display: "flex",
@@ -126,7 +119,7 @@ export function OutputGallery() {
           borderRadius: "var(--radius-lg)",
         }}
       >
-        {SLIDES.map((s, i) => (
+        {slides.map((s, i) => (
           <div
             key={s.src}
             style={{
@@ -218,7 +211,7 @@ export function OutputGallery() {
         </button>
 
         <div style={{ display: "flex", gap: 8 }}>
-          {SLIDES.map((s, i) => (
+          {slides.map((s, i) => (
             <button
               key={s.src}
               type="button"
@@ -231,8 +224,7 @@ export function OutputGallery() {
                 border: "none",
                 borderRadius: 999,
                 cursor: "pointer",
-                background:
-                  i === index ? "var(--accent)" : "var(--line-strong)",
+                background: i === index ? "var(--accent)" : "var(--line-strong)",
                 transition: "width .25s var(--ease), background .25s var(--ease)",
               }}
             />
@@ -243,10 +235,7 @@ export function OutputGallery() {
           type="button"
           aria-label="Next"
           onClick={() => scrollTo(index + 1)}
-          style={{
-            ...ARROW,
-            opacity: index === SLIDES.length - 1 ? 0.4 : 1,
-          }}
+          style={{ ...ARROW, opacity: index === slides.length - 1 ? 0.4 : 1 }}
         >
           ›
         </button>
@@ -257,7 +246,7 @@ export function OutputGallery() {
         <div
           role="dialog"
           aria-modal="true"
-          aria-label={SLIDES[zoom].caption}
+          aria-label={slides[zoom].caption}
           onClick={() => setZoom(null)}
           style={{
             position: "fixed",
@@ -295,8 +284,8 @@ export function OutputGallery() {
             style={{ margin: 0, maxWidth: "min(1100px, 92vw)", textAlign: "center" }}
           >
             <img
-              src={SLIDES[zoom].src}
-              alt={SLIDES[zoom].caption}
+              src={slides[zoom].src}
+              alt={slides[zoom].caption}
               style={{
                 display: "block",
                 maxWidth: "100%",
@@ -309,13 +298,9 @@ export function OutputGallery() {
               }}
             />
             <figcaption
-              style={{
-                marginTop: 14,
-                color: "rgba(255,255,255,0.85)",
-                fontSize: 14,
-              }}
+              style={{ marginTop: 14, color: "rgba(255,255,255,0.85)", fontSize: 14 }}
             >
-              {SLIDES[zoom].caption} · {zoom + 1} / {SLIDES.length}
+              {slides[zoom].caption} · {zoom + 1} / {slides.length}
             </figcaption>
           </figure>
 
