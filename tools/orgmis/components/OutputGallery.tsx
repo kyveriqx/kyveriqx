@@ -35,49 +35,6 @@ const SLIDES: Slide[] = [
   { src: "/tools/orgmis/out-6-pdf.png", caption: "Board-ready PDF report" },
 ];
 
-/* Single hero image with the same fail-soft placeholder as the carousel.
-   Lives in a client component because the orgmis page is a server component
-   and can't attach an onError handler to a plain <img>. */
-export function HeroShot({ src, alt }: { src: string; alt: string }) {
-  return (
-    <>
-      <img
-        src={src}
-        alt={alt}
-        onError={(e) => {
-          const img = e.currentTarget;
-          img.style.display = "none";
-          const ph = img.nextElementSibling as HTMLElement | null;
-          if (ph) ph.style.display = "flex";
-        }}
-        style={{
-          display: "block",
-          width: "100%",
-          aspectRatio: "16 / 9",
-          objectFit: "cover",
-        }}
-      />
-      <div
-        style={{
-          display: "none",
-          width: "100%",
-          aspectRatio: "16 / 9",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: 24,
-          textAlign: "center",
-          background: "var(--accent-bg-soft)",
-          color: "var(--ink-300)",
-          fontFamily: "var(--font-mono)",
-          fontSize: 13,
-        }}
-      >
-        {alt}
-      </div>
-    </>
-  );
-}
-
 const ARROW: React.CSSProperties = {
   width: 40,
   height: 40,
@@ -128,7 +85,7 @@ export function OutputGallery() {
           borderRadius: "var(--radius-lg)",
         }}
       >
-        {SLIDES.map((s) => (
+        {SLIDES.map((s, i) => (
           <div
             key={s.src}
             style={{
@@ -149,6 +106,7 @@ export function OutputGallery() {
               <img
                 src={s.src}
                 alt={s.caption}
+                loading={i === 0 ? "eager" : "lazy"}
                 onError={(e) => {
                   const img = e.currentTarget;
                   img.style.display = "none";
@@ -159,7 +117,8 @@ export function OutputGallery() {
                   display: "block",
                   width: "100%",
                   aspectRatio: "16 / 9",
-                  objectFit: "cover",
+                  objectFit: "contain",
+                  background: "var(--bg-card)",
                 }}
               />
               {/* placeholder shown only if the image fails to load */}
