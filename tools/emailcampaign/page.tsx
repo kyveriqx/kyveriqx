@@ -12,13 +12,49 @@
    status — no direct chatter with Trigger.dev from the client. */
 
 import { Nav } from "../../core/ui/nav";
-import { SignedOutGate } from "../../core/ui/signed-out-gate";
+import { ToolLanding } from "../../core/ui/tool-landing";
+import type { GallerySlide } from "../../core/ui/output-gallery";
 import { supabaseServer } from "../../core/lib/supabase-server";
+import { loginHrefWithReturn } from "../../core/lib/subdomain";
 import { SmtpSetupCard } from "./components/smtp-setup-card";
 import { UploadForm } from "./components/upload-form";
 import { CampaignResultView, type Job } from "./components/result-view";
 
 export const dynamic = "force-dynamic";
+
+const STEPS = [
+  { n: "01", title: "Connect your mailbox", body: "Pick Gmail, Office 365, Zoho, Outlook or Yahoo and paste an app password. Step-by-step guides are built in." },
+  { n: "02", title: "Upload your list", body: "Drop a CSV or Excel file. We auto-detect the Email and Name columns and skip blank or invalid rows." },
+  { n: "03", title: "Write & merge", body: "Compose your subject and HTML body. {{name}} personalizes every email — it works in the subject too." },
+  { n: "04", title: "Send & track", body: "We send through your mailbox and show a live delivery summary with a per-recipient error log." },
+];
+
+const PILLARS = [
+  { title: "Your mailbox, your reputation", body: "Bring your own SMTP — Gmail, O365, Zoho, Outlook, Yahoo. No third-party credits, no shared sending IPs." },
+  { title: "No setup headaches", body: "Built-in app-password guides for each provider, including the exact request to send your IT admin for Microsoft 365." },
+  { title: "Real personalization", body: "{{name}} merge in the subject and HTML body, with automatic Email & Name column detection from your file." },
+];
+
+const OUTPUT_ITEMS = [
+  "A personalized HTML email per recipient ({{name}} merge)",
+  "Sent through your own Gmail / O365 / Zoho / Outlook / Yahoo mailbox",
+  "Auto-detected Email & Name columns (any order, typo-tolerant)",
+  "Invalid / blank rows skipped, with a count",
+  "Recipients accepted from your file",
+  "Sent — handed off to your SMTP server",
+  "Failed — rejected, with a per-recipient SMTP error log",
+  "Send duration",
+  "Inline app-password guides (incl. the M365 admin request)",
+  "Send another campaign in one click",
+];
+
+const SLIDES: GallerySlide[] = [
+  { src: "/tools/emailcampaign/out-1-setup.png", caption: "Connect your mailbox — with built-in app-password guides" },
+  { src: "/tools/emailcampaign/out-2-recipients.png", caption: "Upload CSV/Excel — Email & Name auto-detected" },
+  { src: "/tools/emailcampaign/out-3-compose.png", caption: "Compose with {{name}} merge" },
+  { src: "/tools/emailcampaign/out-4-email.png", caption: "A personalized HTML email in every inbox" },
+  { src: "/tools/emailcampaign/out-5-summary.png", caption: "Live delivery summary + error log" },
+];
 
 type Props = { searchParams: { jobId?: string; settings?: string } };
 
@@ -32,10 +68,28 @@ export default async function EmailCampaign({ searchParams }: Props) {
     return (
       <>
         <Nav />
-        <SignedOutGate
-          subdomain="emailcampaign.kyveriqx.com"
-          title="Email Campaigns"
-          description="Send a templated email to your CSV/Excel contact list through your own Gmail / Office 365 / Zoho / Outlook / Yahoo mailbox. Subject and body both support a {{name}} merge field."
+        <ToolLanding
+          eyebrow="emailcampaign.kyveriqx.com · Send from your own mailbox"
+          claim="Mail-merge campaigns — no per-email fees"
+          stepStrip={["1. Connect mailbox", "2. Upload list", "3. Write & merge", "4. Send"]}
+          headline={
+            <>
+              Email campaigns.
+              <br />
+              <span style={{ color: "var(--ink-200)" }}>From your own mailbox.</span>
+            </>
+          }
+          subhead="Send a templated email to your CSV/Excel contact list through your own Gmail / Office 365 / Zoho / Outlook / Yahoo mailbox. Subject and body both support a {{name}} merge field."
+          primaryCta={{ label: "Start free trial", href: "/auth/register" }}
+          secondaryCta={{ label: "Log in", href: loginHrefWithReturn() }}
+          stepsHeading="Your mailbox, your list, sent — in four steps."
+          steps={STEPS}
+          pillars={PILLARS}
+          outputHeading="A personalized HTML email in every inbox — plus a live delivery summary."
+          outputItems={OUTPUT_ITEMS}
+          gallerySlides={SLIDES}
+          footerLeft="© Email Campaigns — Sent from your own mailbox."
+          footerRight="Powered by Vercel + Trigger.dev"
         />
       </>
     );
