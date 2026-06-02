@@ -2595,8 +2595,10 @@ function Footer() {
             <h4 className="foot-h">Contact</h4>
             <ul>
               <li><a href="mailto:hello@kyveriqx.com">hello@kyveriqx.com</a></li>
-              <li><a href="#">LinkedIn &mdash; K. Kanth Chandra</a></li>
-              <li><a href="#">YouTube &mdash; K Kant</a></li>
+              {/* Founder social links hidden until the Founder section is re-enabled
+                  (see the commented <Founder /> below). Re-enable both together. */}
+              {/* <li><a href="#">LinkedIn &mdash; K. Kanth Chandra</a></li> */}
+              {/* <li><a href="#">YouTube &mdash; K Kant</a></li> */}
             </ul>
           </div>
         </div>
