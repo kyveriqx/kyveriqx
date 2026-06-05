@@ -34,7 +34,22 @@ type ReconcileResultJson = {
   totalTds: number;
   companyPartyName: string;
   durationMs?: number;
-  sourceFiles?: { company: string; partner: string };
+  /** Parse warnings: control-total mismatches, period-bridge gaps, de-duped files. */
+  notes?: string[];
+  /** Source filenames per side (each side may receive several files). */
+  sources?: { company: string[]; partner: string[] };
+  gapAnalysis?: {
+    totalGap: number;
+    tdsCompanyDeducted: number;
+    tdsPartnerCredited: number;
+    tdsNet: number;
+    cutoffItems: Array<{ side: "company" | "partner"; location: string; ref: string; date: string | null; amount: number }>;
+    cutoffTotal: number;
+    companyLastDate: string | null;
+    partnerLastDate: string | null;
+    matchedInvoiceCount: number;
+    amountDateMatchedCount: number;
+  };
 };
 
 export type Job = {
@@ -145,6 +160,8 @@ export function ReconcileResultView({
   return (
     <div style={{ display: "grid", gap: 24 }}>
       <BalanceTiles res={res} />
+      <NotesBanner res={res} />
+      <GapAnalysisSection res={res} />
       <LocationSummary res={res} />
       <MatchedInvoicesTable res={res} />
       <GapsSection res={res} />
@@ -176,6 +193,90 @@ function BalanceTiles({ res }: { res: ReconcileResultJson }) {
           ? "✓ Both books match — fully reconciled"
           : `⚠ Total gap = ${inr(res.totalGap)} — both books disagree by this amount`}
       </div>
+    </Card>
+  );
+}
+
+function GapAnalysisSection({ res }: { res: ReconcileResultJson }) {
+  const ga = res.gapAnalysis;
+  if (!ga || res.totalGap === 0) return null;
+  const tdsNetSmall = Math.abs(ga.tdsNet) < Math.max(5000, ga.totalGap * 0.5);
+  return (
+    <Card style={{ padding: 24 }}>
+      <SectionTitle>Why the books differ</SectionTitle>
+      <div style={{ display: "grid", gap: 10, fontSize: 13.5, color: "var(--ink-200)", lineHeight: 1.55 }}>
+        <Line
+          label="TDS"
+          value={`You deducted ${inr(ga.tdsCompanyDeducted)}; partner credited ${inr(ga.tdsPartnerCredited)} → net ${inr(ga.tdsNet)}`}
+          note={tdsNetSmall ? "TDS largely nets out — not the main cause." : "TDS difference is material — chase the missing TDS credit."}
+        />
+        {ga.cutoffItems.length > 0 && (
+          <Line
+            label="Cut-off / timing"
+            value={`${ga.cutoffItems.length} entr${ga.cutoffItems.length > 1 ? "ies" : "y"} totalling ${inr(ga.cutoffTotal)} fall outside the other book's date range`}
+            note={`Your last entry ${dateStr(ga.companyLastDate)} · partner's last entry ${dateStr(ga.partnerLastDate)} — re-run with the same end date to remove this.`}
+          />
+        )}
+        <Line
+          label="Match coverage"
+          value={`${ga.matchedInvoiceCount} invoices matched (${ga.amountDateMatchedCount} by amount+date where invoice numbers differ)`}
+        />
+      </div>
+      {ga.cutoffItems.length > 0 && (
+        <div style={{ marginTop: 14, overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
+            <thead>
+              <tr>
+                {["Side", "Location", "Reference", "Date", "Amount"].map((h) => (
+                  <th key={h} style={{ textAlign: h === "Amount" ? "right" : "left", padding: "6px 10px",
+                    borderBottom: "1px solid var(--line)", color: "var(--ink-400)", fontWeight: 600 }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {ga.cutoffItems.slice(0, 12).map((c, i) => (
+                <tr key={i}>
+                  <td style={{ padding: "6px 10px", borderBottom: "1px solid var(--line)" }}>{c.side === "company" ? "Your books" : "Partner"}</td>
+                  <td style={{ padding: "6px 10px", borderBottom: "1px solid var(--line)" }}>{c.location}</td>
+                  <td style={{ padding: "6px 10px", borderBottom: "1px solid var(--line)" }}>{c.ref}</td>
+                  <td style={{ padding: "6px 10px", borderBottom: "1px solid var(--line)" }}>{dateStr(c.date)}</td>
+                  <td style={{ padding: "6px 10px", borderBottom: "1px solid var(--line)", textAlign: "right", fontFamily: "var(--font-mono)" }}>{inr(c.amount)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </Card>
+  );
+}
+
+function Line({ label, value, note }: { label: string; value: string; note?: string }) {
+  return (
+    <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "baseline" }}>
+      <span style={{ minWidth: 130, fontWeight: 600, color: "var(--ink-300)" }}>{label}</span>
+      <span style={{ flex: 1, minWidth: 240 }}>
+        {value}
+        {note && <span style={{ display: "block", fontSize: 12, color: "var(--ink-400)", marginTop: 2 }}>{note}</span>}
+      </span>
+    </div>
+  );
+}
+
+function NotesBanner({ res }: { res: ReconcileResultJson }) {
+  const notes = res.notes ?? [];
+  if (!notes.length) return null;
+  return (
+    <Card style={{ padding: "16px 20px", background: "var(--accent-bg-soft)", border: "1px solid var(--accent-border-soft)" }}>
+      <div style={{ fontSize: 12, letterSpacing: "0.06em", color: "var(--ink-400)",
+        fontFamily: "var(--font-mono)", textTransform: "uppercase", marginBottom: 8 }}>
+        Parsing notes
+      </div>
+      <ul style={{ margin: 0, paddingLeft: 18, display: "grid", gap: 6 }}>
+        {notes.map((n, i) => (
+          <li key={i} style={{ fontSize: 13, color: "var(--ink-200)", lineHeight: 1.5 }}>{n}</li>
+        ))}
+      </ul>
     </Card>
   );
 }

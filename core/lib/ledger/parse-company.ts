@@ -22,10 +22,35 @@ function toFloat(v: Cell): number {
   if (typeof v === "number") return Number.isFinite(v) ? v : 0;
   if (typeof v === "boolean") return v ? 1 : 0;
   if (v instanceof Date) return 0;
-  const s = String(v).trim().replace(/,/g, "").replace(/₹/g, "").replace(/Rs\.?/gi, "");
+  let s = String(v).trim().replace(/,/g, "").replace(/[₹$]/g, "").replace(/Rs\.?/gi, "").trim();
+  let sign = 1;
+  if (/^\(.*\)$/.test(s)) { sign = -1; s = s.slice(1, -1); }
   if (s === "" || s === "-") return 0;
   const n = Number(s);
-  return Number.isFinite(n) ? n : 0;
+  return Number.isFinite(n) ? sign * n : 0;
+}
+
+/** Dr/Cr label scanned from the right of a marker row (e.g. " Cr." / "Dr"). */
+function drcrLabel(row: Cell[]): DrCr | "" {
+  for (let i = row.length - 1; i >= 0; i--) {
+    const s = cleanStr(row[i]).replace(/\.$/, "").toLowerCase();
+    if (s === "cr" || s === "credit") return "Cr";
+    if (s === "dr" || s === "debit") return "Dr";
+  }
+  return "";
+}
+
+/** Value of the rightmost numeric cell in a row — opening/closing markers put
+ *  the balance in a shifted column, so a fixed index can't be trusted. */
+function rightmostNum(row: Cell[]): number {
+  let v = 0;
+  for (const c of row) {
+    if (c === null || c === undefined || c === "") continue;
+    if (typeof c === "number") { v = c; continue; }
+    const s = String(c).replace(/[,$₹]/g, "").replace(/Rs\.?/gi, "").replace(/[()]/g, "").trim();
+    if (s !== "" && s !== "-" && Number.isFinite(Number(s))) v = toFloat(c);
+  }
+  return v;
 }
 
 const MONTHS: Record<string, number> = {
@@ -92,11 +117,14 @@ type SheetParsed = {
 };
 
 function parseSheet(sheetName: string, rows: Row[]): SheetParsed | null {
-  // Header row = first row that contains "date" AND something with "document".
+  // Header row = first row that has Date + both Debit Amount and Credit Amount
+  // columns (each DCS sheet uses a different column layout, so detect by name).
   let hdrRow = -1;
   for (let i = 0; i < rows.length; i++) {
     const lowered = rows[i].map((c) => cleanStr(c).toLowerCase());
-    if (lowered.includes("date") && lowered.some((v) => v.includes("document"))) {
+    if (lowered.some((v) => v === "date") &&
+        lowered.some((v) => v.includes("debit")) &&
+        lowered.some((v) => v.includes("credit"))) {
       hdrRow = i;
       break;
     }
@@ -104,20 +132,18 @@ function parseSheet(sheetName: string, rows: Row[]): SheetParsed | null {
   if (hdrRow === -1) return null;
 
   const hdr = rows[hdrRow].map((c) => cleanStr(c).toLowerCase());
-
-  const findOr = (frag: string, fallback: number) => {
-    const idx = findCol(hdr, frag);
+  const find = (pred: (h: string) => boolean, fallback: number) => {
+    const idx = hdr.findIndex(pred);
     return idx === -1 ? fallback : idx;
   };
-
-  const cDate     = findOr("date", 1);
-  const cDocType  = findOr("document type", 2);
-  const cDocNo    = findOr("document no", 4);
-  const cExtDocNo = findOr("external document", 7);
-  const cTds      = findOr("tds", 11);
-  const cDebit    = findOr("debit", 12);
-  const cCredit   = findOr("credit", 14);
-  const cBalance  = findOr("balance", 15);
+  const cDate     = find((h) => h === "date", 1);
+  const cDocType  = find((h) => h.includes("document type"), 2);
+  const cDocNo    = find((h) => h.includes("document no"), 4); // before "external document no."
+  const cExtDocNo = find((h) => h.includes("external document"), 7);
+  const cTds      = find((h) => h.includes("tds"), 11);
+  const cDebit    = find((h) => h.includes("debit"), 12);
+  const cCredit   = find((h) => h.includes("credit"), 14);
+  const cBalance  = find((h) => h.includes("balance"), 15);
 
   let openingBal = 0;
   let closingBal = 0;
@@ -131,66 +157,47 @@ function parseSheet(sheetName: string, rows: Row[]): SheetParsed | null {
     const row = rows[r];
     if (!row || row.every((v) => v === null || v === undefined || v === "")) continue;
 
-    const label = cleanStr(cellAt(row, cDocNo));
-    const labelLower = label.toLowerCase();
+    // Markers can sit in a shifted column, so scan the whole row's text.
+    const rowText = row.filter((c) => typeof c === "string").join(" ").toLowerCase();
 
-    if (labelLower.includes("opening balance")) {
-      const rawBal = toFloat(cellAt(row, cBalance));
-      const rawCr = toFloat(cellAt(row, cCredit));
-      openingBal = rawBal !== 0 ? rawBal : rawCr;
+    if (rowText.includes("opening balance")) {
+      const bal = rightmostNum(row);
+      openingBal = drcrLabel(row) === "Dr" ? -bal : bal;
       continue;
     }
-
-    if (labelLower.includes("closing balance")) {
-      const rawBal = toFloat(cellAt(row, cBalance));
-      const rawCr = toFloat(cellAt(row, cCredit));
-      closingBal = rawBal !== 0 ? rawBal : rawCr;
-      // Scan from right for Dr./Cr.
-      for (let i = row.length - 1; i >= 0; i--) {
-        const s = cleanStr(row[i]).toLowerCase();
-        if (s === "dr." || s === "dr" || s === "debit") {
-          closingDrCr = "Dr";
-          break;
-        }
-        if (s === "cr." || s === "cr" || s === "credit") {
-          closingDrCr = "Cr";
-          break;
-        }
-      }
-      continue;
+    if (rowText.includes("closing balance")) {
+      closingBal = rightmostNum(row);
+      const lbl = drcrLabel(row);
+      if (lbl) closingDrCr = lbl;
+      break; // the Summary block (grand-total rows) follows — stop here
     }
 
-    // Party name = first non-empty col-0 after header, excluding "balance" rows.
     if (!partyName) {
       const c0 = cleanStr(cellAt(row, 0));
-      if (c0 && !c0.toLowerCase().includes("balance")) {
+      // Account header looks like "VEN-00137  :  CENTENARY GEOTEX PVT.LTD".
+      const acct = c0.match(/^(?:VEN-|VU)\S*\s*:\s*(.+)$/i);
+      if (acct) {
+        partyName = acct[1].trim();
+      } else if (c0 && !c0.toLowerCase().includes("balance") &&
+                 parseDate(c0) === null && !/^\d/.test(c0)) {
         partyName = c0;
       }
     }
 
-    const dateVal = parseDate(cellAt(row, cDate));
-    const docType = cleanStr(cellAt(row, cDocType));
-    const docNo   = cleanStr(cellAt(row, cDocNo));
-    const extNo   = cleanInvoiceNo(cellAt(row, cExtDocNo));
-    const tds     = toFloat(cellAt(row, cTds));
-    const debit   = toFloat(cellAt(row, cDebit));
-    const credit  = toFloat(cellAt(row, cCredit));
-    const balance = toFloat(cellAt(row, cBalance));
-
-    if (dateVal === null && docType === "" && credit === 0 && debit === 0) continue;
-    if (docType.toLowerCase().includes("summary")) continue;
-    if (docNo.toLowerCase().includes("balance as on")) continue;
+    const debit  = toFloat(cellAt(row, cDebit));
+    const credit = toFloat(cellAt(row, cCredit));
+    if (debit === 0 && credit === 0) continue; // skip non-movement rows
 
     records.push({
       sheet: sheetName,
-      date: dateVal,
-      docType,
-      docNo,
-      extNo,
-      tds,
+      date: parseDate(cellAt(row, cDate)),
+      docType: cleanStr(cellAt(row, cDocType)),
+      docNo: cleanStr(cellAt(row, cDocNo)),
+      extNo: cleanInvoiceNo(cellAt(row, cExtDocNo)),
+      tds: toFloat(cellAt(row, cTds)),
       debit,
       credit,
-      balance,
+      balance: toFloat(cellAt(row, cBalance)),
       opening: openingBal,
       closing: closingBal,
     });
@@ -198,14 +205,7 @@ function parseSheet(sheetName: string, rows: Row[]): SheetParsed | null {
 
   if (records.length === 0) return null;
 
-  return {
-    sheet: sheetName,
-    partyName,
-    openingBal,
-    closingBal,
-    closingDrCr,
-    records,
-  };
+  return { sheet: sheetName, partyName, openingBal, closingBal, closingDrCr, records };
 }
 
 export function parseCompanyLedger(buffer: ArrayBuffer | Uint8Array | Buffer): CompanyLedger {

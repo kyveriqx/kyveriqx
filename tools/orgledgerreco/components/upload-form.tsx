@@ -3,11 +3,14 @@
 /* Upload form for Org Ledger Reconciliation.
 
    Two-column layout:
-     Step 1 — paired description cards + dropzones (Your Company / Partner)
+     Step 1 — paired description cards + multi-file dropzones (Company / Partner)
      Step 2 — full-width "Reconcile Now" CTA + hint
 
-   Drag-and-drop with click-to-browse fallback. Uploads to Supabase Storage,
-   inserts uploads rows, then submits two upload IDs to the server action. */
+   Each side accepts SEVERAL files in mixed formats (Excel / CSV / PDF) — vendors
+   commonly send one ledger per location and per period (e.g. older years as Tally
+   PDFs, current year as Business Central Excel). Files upload to Supabase Storage;
+   the resulting upload ids (one or more per side) are submitted to the server
+   action, which queues the Trigger.dev job and redirects to ?jobId. */
 
 import { useState, useRef, useTransition, type DragEvent } from "react";
 import { Button } from "../../../core/ui/button";
@@ -15,7 +18,8 @@ import { runOrgReconcileAction } from "../run-action";
 
 type UploadStage = "idle" | "uploading" | "submitting";
 
-const ACCEPT = ".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv";
+const ACCEPT_DATA = ".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv";
+const ACCEPT_PDF = `${ACCEPT_DATA},.pdf,application/pdf`;
 const MAX_BYTES = 50 * 1024 * 1024; // 50 MB
 
 // Tool props are accepted for forward-compatibility but the actual upload is
@@ -23,19 +27,19 @@ const MAX_BYTES = 50 * 1024 * 1024; // 50 MB
 type Props = { userId: string; toolId: string };
 
 export function UploadForm(_props: Props) {
-  const [companyFile, setCompanyFile] = useState<File | null>(null);
-  const [partnerFile, setPartnerFile] = useState<File | null>(null);
+  const [companyFiles, setCompanyFiles] = useState<File[]>([]);
+  const [partnerFiles, setPartnerFiles] = useState<File[]>([]);
   const [stage, setStage] = useState<UploadStage>("idle");
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState<string>("");
   const [, startTransition] = useTransition();
 
-  async function uploadOne(file: File, kind: "company" | "partner"): Promise<string> {
+  async function uploadOne(file: File, kind: "company" | "partner", idx: number, total: number): Promise<string> {
     if (file.size > MAX_BYTES) {
       throw new Error(`${file.name} is larger than 50 MB — please trim the file before uploading.`);
     }
-
-    setProgress(`Uploading ${kind === "company" ? "your books" : "partner's books"} (${(file.size / 1024 / 1024).toFixed(1)} MB)…`);
+    const label = kind === "company" ? "your books" : "partner's books";
+    setProgress(`Uploading ${label} — file ${idx} of ${total} (${(file.size / 1024 / 1024).toFixed(1)} MB)…`);
 
     const fd = new FormData();
     fd.set("file", file);
@@ -45,10 +49,7 @@ export function UploadForm(_props: Props) {
     const res = await fetch("/api/uploads", { method: "POST", body: fd });
     if (!res.ok) {
       let msg = `Upload failed (HTTP ${res.status})`;
-      try {
-        const body = await res.json();
-        if (body?.error) msg = body.error;
-      } catch {}
+      try { const body = await res.json(); if (body?.error) msg = body.error; } catch {}
       throw new Error(msg);
     }
     const body = (await res.json()) as { id: string };
@@ -58,22 +59,27 @@ export function UploadForm(_props: Props) {
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
-    if (!companyFile || !partnerFile) {
-      setError("Please attach both files.");
+    if (!companyFiles.length || !partnerFiles.length) {
+      setError("Please attach at least one company ledger and one partner ledger.");
       return;
     }
     try {
       setStage("uploading");
-      const [companyUploadId, partnerUploadId] = await Promise.all([
-        uploadOne(companyFile, "company"),
-        uploadOne(partnerFile, "partner"),
-      ]);
+      const queue: { file: File; kind: "company" | "partner" }[] = [
+        ...companyFiles.map((file) => ({ file, kind: "company" as const })),
+        ...partnerFiles.map((file) => ({ file, kind: "partner" as const })),
+      ];
+      const ids: Record<"company" | "partner", string[]> = { company: [], partner: [] };
+      for (let i = 0; i < queue.length; i++) {
+        const { file, kind } = queue[i];
+        ids[kind].push(await uploadOne(file, kind, i + 1, queue.length));
+      }
 
       setStage("submitting");
       setProgress("Starting reconciliation…");
       const fd = new FormData();
-      fd.set("companyUploadId", companyUploadId);
-      fd.set("partnerUploadId", partnerUploadId);
+      ids.company.forEach((id) => fd.append("companyUploadId", id));
+      ids.partner.forEach((id) => fd.append("partnerUploadId", id));
 
       startTransition(async () => {
         try {
@@ -90,7 +96,7 @@ export function UploadForm(_props: Props) {
   }
 
   const busy = stage !== "idle";
-  const ready = !!companyFile && !!partnerFile && !busy;
+  const ready = companyFiles.length > 0 && partnerFiles.length > 0 && !busy;
 
   return (
     <form onSubmit={onSubmit}>
@@ -119,7 +125,7 @@ export function UploadForm(_props: Props) {
           fontFamily: "var(--font-mono)",
           letterSpacing: "0.01em",
         }}>
-          Upload both ledger files → Click Reconcile → Download Report
+          Upload both ledgers → Click Reconcile → Download Report
         </div>
       </div>
 
@@ -132,13 +138,13 @@ export function UploadForm(_props: Props) {
           icon="🏢"
           title="Your Company's Ledger"
           accent="var(--bg-banner-start)"
-          body="Export the account ledger from your ERP (Business Central / Tally / SAP) and upload it here. Excel and CSV files supported."
+          body="Export the partner's account ledger from your ERP (Business Central / Tally / SAP). Excel or CSV — add multiple files if your books span several years."
         />
         <DescCard
           icon="🏭"
           title="Your Business Partner's Ledger"
           accent="var(--bg-banner-start)"
-          body="Upload the ledger received from your business partner. It can have multiple sheets (one per location). Excel or CSV."
+          body="Upload the ledger(s) your partner sent. Excel, CSV or PDF — add several files (one per location and/or per year) and we auto-detect each location and bridge the periods."
         />
       </div>
 
@@ -146,14 +152,18 @@ export function UploadForm(_props: Props) {
       <div style={{ ...gridTwo, marginTop: 18 }}>
         <Dropzone
           label="Upload Your Company's Ledger"
-          file={companyFile}
-          onFile={setCompanyFile}
+          hint="One or more files · 50 MB each · XLSX, CSV"
+          accept={ACCEPT_DATA}
+          files={companyFiles}
+          onFiles={setCompanyFiles}
           disabled={busy}
         />
         <Dropzone
           label="Upload Your Business Partner's Ledger"
-          file={partnerFile}
-          onFile={setPartnerFile}
+          hint="One or more files · 50 MB each · XLSX, CSV, PDF"
+          accept={ACCEPT_PDF}
+          files={partnerFiles}
+          onFiles={setPartnerFiles}
           disabled={busy}
         />
       </div>
@@ -202,7 +212,7 @@ export function UploadForm(_props: Props) {
             color: "var(--ink-200)",
             fontSize: 13,
           }}>
-            ↑ Please upload both ledger files above, then click Reconcile.
+            ↑ Please upload your company and partner ledgers above, then click Reconcile.
           </div>
         )}
 
@@ -239,7 +249,7 @@ export function UploadForm(_props: Props) {
         fontFamily: "var(--font-mono)",
         letterSpacing: "0.03em",
       }}>
-        Org Ledger Reconciliation · Supports Excel &amp; CSV ledger files from Business Central, Tally, SAP and more
+        Org Ledger Reconciliation · Excel, CSV &amp; Tally PDF ledgers · multi-location, multi-year, TDS-aware
       </div>
     </form>
   );
@@ -290,25 +300,29 @@ function DescCard({ icon, title, accent, body }: {
   );
 }
 
-function Dropzone({ label, file, onFile, disabled }: {
+function Dropzone({ label, hint, accept, files, onFiles, disabled }: {
   label: string;
-  file: File | null;
-  onFile: (f: File | null) => void;
+  hint: string;
+  accept: string;
+  files: File[];
+  onFiles: (f: File[]) => void;
   disabled: boolean;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [hover, setHover] = useState(false);
 
-  function pick(f: File | null | undefined) {
-    if (!f) return;
-    onFile(f);
+  // Append new files, skipping ones already attached (same name + size).
+  function addFiles(list: FileList | null | undefined) {
+    if (!list || !list.length) return;
+    const next = [...files];
+    for (const f of Array.from(list)) {
+      if (!next.some((x) => x.name === f.name && x.size === f.size)) next.push(f);
+    }
+    onFiles(next);
   }
-
+  function removeAt(idx: number) { onFiles(files.filter((_, i) => i !== idx)); }
   function onDrop(e: DragEvent<HTMLDivElement>) {
-    e.preventDefault();
-    setHover(false);
-    if (disabled) return;
-    pick(e.dataTransfer.files?.[0]);
+    e.preventDefault(); setHover(false); if (disabled) return; addFiles(e.dataTransfer.files);
   }
 
   return (
@@ -340,23 +354,17 @@ function Dropzone({ label, file, onFile, disabled }: {
       >
         <div style={{ fontSize: 26, color: "var(--accent)" }}>⬆</div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          {file ? (
-            <>
-              <div style={{ fontSize: 13.5, fontWeight: 600, color: "var(--ink-100)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                ✓ {file.name}
-              </div>
-              <div style={{ fontSize: 12, color: "var(--ink-400)", marginTop: 2 }}>
-                {(file.size / 1024 / 1024).toFixed(2)} MB · click to replace
-              </div>
-            </>
+          {files.length ? (
+            <div style={{ fontSize: 13.5, fontWeight: 600, color: "var(--ink-100)" }}>
+              ✓ {files.length} file{files.length > 1 ? "s" : ""} attached
+              <span style={{ fontWeight: 400, color: "var(--ink-400)" }}> · click to add more</span>
+            </div>
           ) : (
             <>
               <div style={{ fontSize: 14, fontWeight: 600, color: "var(--ink-100)" }}>
-                Drag and drop file here
+                Drag and drop file(s) here
               </div>
-              <div style={{ fontSize: 12, color: "var(--ink-400)", marginTop: 2 }}>
-                Limit 50 MB · XLSX, CSV  <span style={{ opacity: 0.7 }}>· PDF / DOCX coming soon</span>
-              </div>
+              <div style={{ fontSize: 12, color: "var(--ink-400)", marginTop: 2 }}>{hint}</div>
             </>
           )}
         </div>
@@ -367,12 +375,44 @@ function Dropzone({ label, file, onFile, disabled }: {
         <input
           ref={inputRef}
           type="file"
-          accept={ACCEPT}
+          accept={accept}
+          multiple
           disabled={disabled}
-          onChange={(e) => pick(e.target.files?.[0])}
+          onChange={(e) => { addFiles(e.target.files); e.currentTarget.value = ""; }}
           style={{ display: "none" }}
         />
       </div>
+
+      {files.length > 0 && (
+        <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 6 }}>
+          {files.map((f, i) => (
+            <div key={`${f.name}-${f.size}-${i}`} style={{
+              display: "flex", alignItems: "center", gap: 10, padding: "7px 10px",
+              background: "var(--bg-elev)", border: "1px solid var(--line)", borderRadius: 8,
+              fontSize: 12.5, color: "var(--ink-100)",
+            }}>
+              <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {f.name}
+              </span>
+              <span style={{ color: "var(--ink-400)", fontSize: 11, fontFamily: "var(--font-mono)", flexShrink: 0 }}>
+                {(f.size / 1024 / 1024).toFixed(2)} MB
+              </span>
+              {!disabled && (
+                <button
+                  type="button" aria-label={`Remove ${f.name}`}
+                  onClick={(e) => { e.stopPropagation(); removeAt(i); }}
+                  style={{
+                    flexShrink: 0, width: 22, height: 22, lineHeight: "20px", textAlign: "center",
+                    borderRadius: 6, border: "1px solid var(--line-strong)", background: "transparent",
+                    color: "var(--ink-300)", cursor: "pointer", fontSize: 15,
+                  }}>
+                  ×
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

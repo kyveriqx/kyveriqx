@@ -273,6 +273,57 @@ function buildSummary(wb: ExcelJS.Workbook, res: ReconcileResult) {
   mergeRange(ws, `E${r}:F${r}`,
     `₹${res.totalGap.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
     C.red, { color: C.white, bold: true, size: 13 }, { h: "center" });
+
+  // ── Why the books differ (TDS net + cut-off/timing) ─────────────────────
+  const ga = res.gapAnalysis;
+  if (ga) {
+    r += 2; ws.getRow(r).height = 20;
+    mergeRange(ws, `B${r}:F${r}`, "WHY THE BOOKS DIFFER", C.navy,
+      { color: C.white, bold: true, size: 11 }, { h: "center" });
+
+    const small = Math.abs(ga.tdsNet) < Math.max(5000, res.totalGap * 0.5);
+    const lines: [string, string][] = [
+      ["TDS",
+        `You deducted ₹${money(ga.tdsCompanyDeducted)}; partner credited ₹${money(ga.tdsPartnerCredited)} → net ₹${money(ga.tdsNet)}. ${small ? "Largely nets out — not the main cause." : "Material — chase the missing TDS credit."}`],
+      ["Cut-off / timing",
+        ga.cutoffItems.length
+          ? `${ga.cutoffItems.length} entr${ga.cutoffItems.length > 1 ? "ies" : "y"} totalling ₹${money(ga.cutoffTotal)} fall outside the other book's dates (your last ${fmtDate(ga.companyLastDate)} · partner's last ${fmtDate(ga.partnerLastDate)}).`
+          : "None — both books cover the same period."],
+      ["Match coverage",
+        `${ga.matchedInvoiceCount} invoices matched (${ga.amountDateMatchedCount} by amount+date where invoice numbers differ).`],
+    ];
+    for (const [label, text] of lines) {
+      r += 1; ws.getRow(r).height = 28;
+      wc(ws, r, 2, label, C.gray, { bold: true, size: 9 }, { h: "left", v: "middle" }, null, "thin");
+      mergeRange(ws, `C${r}:F${r}`, text, C.white, { size: 9 }, { h: "left", v: "middle", wrap: true });
+    }
+
+    if (ga.cutoffItems.length) {
+      r += 1;
+      hdr(ws, r, ["Side", "Location", "Reference", "Date", "Amount (₹)"], C.blue);
+      for (const c of ga.cutoffItems.slice(0, 12)) {
+        r += 1; ws.getRow(r).height = 16;
+        const vals: (string | number)[] = [
+          c.side === "company" ? "Your books" : "Partner",
+          c.location, c.ref, fmtDate(c.date), c.amount,
+        ];
+        for (let j = 0; j < vals.length; j++) {
+          wc(ws, r, j + 1, vals[j], C.ltamb, { size: 9 }, { h: "center" }, j === 4 ? INR : null, "thin");
+        }
+      }
+    }
+  }
+}
+
+function money(n: number): string {
+  return n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function fmtDate(d: Date | string | null): string {
+  if (!d) return "—";
+  const s = typeof d === "string" ? d.slice(0, 10) : d.toISOString().slice(0, 10);
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : s;
 }
 
 function buildMatched(wb: ExcelJS.Workbook, res: ReconcileResult) {

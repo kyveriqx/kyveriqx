@@ -1,43 +1,65 @@
 "use server";
 
-/* Server action — run an inter-entity ledger reconciliation inline.
+/* Server action — start an inter-entity ledger reconciliation.
+   Architecture §1, §8.5: insert an RLS-scoped queued job row and hand the heavy
+   work to the Trigger.dev task; the browser polls Supabase for status. The
+   client uploads the files first (POST /api/uploads) and submits the resulting
+   upload ids here (one or more per side), mirroring the bankledgerreco flow.
 
-   Unlike most tools in this codebase, Org Ledger Reconciliation does NOT
-   route through Trigger.dev. The matcher runs in ~500ms so the queue +
-   cold-start + polling overhead cost more than the work. We download
-   both files, parse, match, and write the completed jobs row all inside
-   this request, then redirect to the result page where it renders
-   server-side without polling.
-
-   See plan: switch from queued to inline execution. */
+   Moved from the old inline pipeline to support multi-file + PDF parsing and the
+   (Phase 2) AI fallback, which can exceed an inline request's budget. */
 
 import { redirect } from "next/navigation";
+import { tasks } from "@trigger.dev/sdk";
 import { supabaseServer } from "../../core/lib/supabase-server";
-import { supabaseAdmin } from "../../core/lib/supabase";
 import { getToolId } from "../../core/lib/tools";
-import { runReconciliationPipeline } from "../../core/lib/ledger/run-pipeline";
 import { loginHrefWithReturn } from "../../core/lib/subdomain";
+import type { orgReconcile } from "./jobs/reconcile";
+
+/** Pull a repeated FormData field into a clean, de-duplicated id list. */
+function ids(formData: FormData, key: string): string[] {
+  const seen = new Set<string>();
+  for (const v of formData.getAll(key)) {
+    const id = String(v ?? "").trim();
+    if (id) seen.add(id);
+  }
+  return [...seen];
+}
 
 export async function runOrgReconcileAction(formData: FormData) {
-  const companyUploadId = String(formData.get("companyUploadId") ?? "");
-  const partnerUploadId = String(formData.get("partnerUploadId") ?? "");
-  if (!companyUploadId || !partnerUploadId) {
-    throw new Error("Both files must be uploaded before running.");
+  const companyUploadIds = ids(formData, "companyUploadId");
+  const partnerUploadIds = ids(formData, "partnerUploadId");
+  if (!companyUploadIds.length || !partnerUploadIds.length) {
+    throw new Error("At least one company ledger and one partner ledger are required.");
   }
 
   const supabase = supabaseServer();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect(loginHrefWithReturn());
 
-  const toolId = await getToolId(supabaseAdmin(), "orgledgerreco");
+  const toolId = await getToolId(supabase, "orgledgerreco");
   if (!toolId) throw new Error("tools lookup failed for slug=orgledgerreco");
 
-  const { jobId } = await runReconciliationPipeline({
-    companyUploadId,
-    partnerUploadId,
+  const { data: job, error: jobErr } = await supabase
+    .from("jobs")
+    .insert({
+      user_id: user.id,
+      tool_id: toolId,
+      job_key: "org-ledger-reconcile",
+      status: "queued",
+      payload: {},
+    })
+    .select("id")
+    .single();
+  if (jobErr || !job) throw new Error(`failed to create job: ${jobErr?.message}`);
+
+  await tasks.trigger<typeof orgReconcile>("org-ledger-reconcile", {
+    jobId: job.id,
     userId: user.id,
     toolId,
+    companyUploadIds,
+    partnerUploadIds,
   });
 
-  redirect(`/tools/orgledgerreco?jobId=${jobId}`);
+  redirect(`/tools/orgledgerreco?jobId=${job.id}`);
 }
