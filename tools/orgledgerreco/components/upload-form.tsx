@@ -138,7 +138,7 @@ export function UploadForm(_props: Props) {
           icon="🏢"
           title="Your Company's Ledger"
           accent="var(--bg-banner-start)"
-          body="Export the partner's account ledger from your ERP (Business Central / Tally / SAP). Excel or CSV — add multiple files if your books span several years."
+          body="Export the partner's account ledger from your ERP (Business Central / Tally / SAP). Excel, CSV or PDF — add multiple files if your books span several years."
         />
         <DescCard
           icon="🏭"
@@ -152,8 +152,8 @@ export function UploadForm(_props: Props) {
       <div style={{ ...gridTwo, marginTop: 18 }}>
         <Dropzone
           label="Upload Your Company's Ledger"
-          hint="One or more files · 50 MB each · XLSX, CSV"
-          accept={ACCEPT_DATA}
+          hint="One or more files · 50 MB each · XLSX, CSV, PDF"
+          accept={ACCEPT_PDF}
           files={companyFiles}
           onFiles={setCompanyFiles}
           disabled={busy}

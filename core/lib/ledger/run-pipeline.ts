@@ -14,6 +14,7 @@
    `reconcileFromFiles` and lets runJob persist the result. */
 
 import { parseCompanyLedger } from "./parse-company";
+import { parseCompanyPdf } from "./parse-company-pdf";
 import { parsePartnerExcelFile } from "./parse-partner";
 import { parsePartnerPdf } from "./parse-partner-pdf";
 import { reconcile } from "./match-ledgers";
@@ -38,17 +39,26 @@ function r2(n: number): number {
 
 // ── company side ────────────────────────────────────────────────────────────
 
-export function parseCompanyFiles(files: NamedBuffer[]): CompanyLedger {
+export async function parseCompanyFiles(
+  files: NamedBuffer[],
+): Promise<{ ledger: CompanyLedger; notes: string[] }> {
   if (!files.length) throw new Error("No company ledger file provided.");
-  const parsed = files.map((f) => {
+  const notes: string[] = [];
+  const parsed: CompanyLedger[] = [];
+  for (const f of files) {
     if (isPdf(f)) {
-      throw new Error(
-        `${f.filename}: company ledgers must be Excel or CSV (PDF support for the company side is coming soon).`,
-      );
+      const { ledger, tiesOut } = await parseCompanyPdf(f.buffer, { source: f.filename });
+      if (!tiesOut) {
+        notes.push(
+          `${f.filename}: parsed closing ₹${r2(ledger.closingRaw)} does not match the printed closing — please review.`,
+        );
+      }
+      parsed.push(ledger);
+    } else {
+      parsed.push(parseCompanyLedger(f.buffer));
     }
-    return parseCompanyLedger(f.buffer);
-  });
-  if (parsed.length === 1) return parsed[0];
+  }
+  if (parsed.length === 1) return { ledger: parsed[0], notes };
 
   // Merge several company exports: concatenate transactions, take the closing
   // from the ledger whose latest transaction date is most recent (cumulative).
@@ -57,9 +67,12 @@ export function parseCompanyFiles(files: NamedBuffer[]): CompanyLedger {
   const latest = [...parsed].sort((a, b) => (maxDate(b)?.getTime() ?? 0) - (maxDate(a)?.getTime() ?? 0))[0];
   const earliest = [...parsed].sort((a, b) => (maxDate(a)?.getTime() ?? 0) - (maxDate(b)?.getTime() ?? 0))[0];
   return {
-    ...latest,
-    openingBal: earliest.openingBal,
-    transactions: parsed.flatMap((c) => c.transactions),
+    ledger: {
+      ...latest,
+      openingBal: earliest.openingBal,
+      transactions: parsed.flatMap((c) => c.transactions),
+    },
+    notes,
   };
 }
 
@@ -161,13 +174,13 @@ export async function reconcileFromFiles(
   partnerFiles: NamedBuffer[],
 ): Promise<OrgReconcileOutput> {
   const start = Date.now();
-  const company = parseCompanyFiles(companyFiles);
+  const company = await parseCompanyFiles(companyFiles);
   const partner = await parsePartnerFiles(partnerFiles);
-  const result = reconcile(company, partner);
+  const result = reconcile(company.ledger, partner);
   return {
     ...result,
     durationMs: Date.now() - start,
-    notes: partner.notes ?? [],
+    notes: [...company.notes, ...(partner.notes ?? [])],
     sources: {
       company: companyFiles.map((f) => f.filename),
       partner: partnerFiles.map((f) => f.filename),

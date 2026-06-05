@@ -7,6 +7,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync, existsSync } from "node:fs";
 import { parseCompanyFiles, parsePartnerFiles, reconcileFromFiles } from "../run-pipeline";
+import { parseCompanyPdf } from "../parse-company-pdf";
 
 // These are the real (untracked) customer files; skip when they aren't present
 // (e.g. in CI) so the suite stays green without them.
@@ -30,9 +31,19 @@ const PARTNER = [
 ];
 
 describe.skipIf(!HAVE_FIXTURES)("golden: GrowiT ↔ Centenary", () => {
-  it("company DCS closing ties to −30,034.25", () => {
-    const c = parseCompanyFiles(COMPANY);
-    expect(c.closingBal).toBeCloseTo(-30034.25, 1);
+  it("company DCS closing ties to −30,034.25", async () => {
+    const c = await parseCompanyFiles(COMPANY);
+    expect(c.ledger.closingBal).toBeCloseTo(-30034.25, 1);
+  });
+
+  it("company-side Tally PDF parses and ties to its printed closing (auto sign)", async () => {
+    // Mechanics check: feed a Tally ledger PDF to the company parser; the
+    // control-total sign auto-detect must make the running balance tie out.
+    const { ledger, tiesOut } = await parseCompanyPdf(readFileSync(`${DIR}/GIPL Daman.pdf`));
+    console.log("company-PDF closingRaw:", ledger.closingRaw.toFixed(2), "Dr/Cr:", ledger.closingDrCr, "ties:", tiesOut);
+    expect(tiesOut).toBe(true);
+    expect(ledger.closingRaw).toBeCloseTo(1458453.19, 1);
+    expect(ledger.transactions.length).toBeGreaterThan(50);
   });
 
   it("partner bridges PDF→Excel and de-dupes to 4 locations", async () => {
