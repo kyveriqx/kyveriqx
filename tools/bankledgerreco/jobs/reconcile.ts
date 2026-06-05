@@ -10,7 +10,7 @@ import { logger, task } from "@trigger.dev/sdk";
 import { runJob } from "../../../core/lib/job-runner";
 import { downloadSupabaseUploadNamed } from "../../../core/lib/supabase-uploads";
 import { STORAGE_BUCKETS } from "../../../core/lib/storage-buckets";
-import { parseBankStatement, parseBooksLedger, mergeTxns } from "../lib/parse";
+import { parseBankStatement, parseBooksLedger, mergeTxns, checkRunningBalance } from "../lib/parse";
 import { parseSettlementReport } from "../lib/settlement";
 import { reconcile } from "../lib/match";
 import { DEFAULT_OPTIONS } from "../lib/types";
@@ -110,7 +110,16 @@ export const bankReconcile = task({
         { bankColumns: bankParsed[0].columns, booksColumns: booksParsed[0].columns },
       );
 
+      // Per-file running-balance tie-out: catches a row misread/dropped/duplicated
+      // during parsing (esp. the PDF path) before the gap is trusted. Run per file
+      // — balance continuity only holds within one statement, not across the merge.
+      const balanceNotes = [
+        ...bankParsed.map((p, i) => checkRunningBalance(p.txns, bankFiles[i].filename)),
+        ...booksParsed.map((p, i) => checkRunningBalance(p.txns, booksFiles[i].filename)),
+      ].filter((n): n is string => n !== null);
+
       const extraNotes = [
+        ...balanceNotes,
         ...bankMerge.notes,
         ...booksMerge.notes,
         ...(settlementMerge?.notes ?? []),

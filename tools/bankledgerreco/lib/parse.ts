@@ -381,3 +381,82 @@ export function mergeTxns<T extends Mergeable>(
 
   return { merged, sources, notes };
 }
+
+// ── Running-balance tie-out ─────────────────────────────────────────────
+
+/** ₹ with thousands separators, 2dp — for tie-out warning notes. */
+function inr(n: number): string {
+  return `₹${(Math.round(n * 100) / 100).toLocaleString("en-IN", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+}
+
+/** Verify a single file's running-balance column ties out: from one row to the
+ *  next the printed balance should move by exactly the row's signed amount, so
+ *  the last balance should equal the first plus the sum of every step between.
+ *  When it doesn't, a row was almost certainly misread, dropped, or duplicated
+ *  during parsing — most likely on the PDF path — and the headline gap can't be
+ *  trusted. Returns a warning note in that case, or null when it ties out (or
+ *  when there's no usable balance column to check, e.g. most CSV exports).
+ *
+ *  The balance's sign convention is auto-detected per file rather than assumed:
+ *  a bank statement's balance moves WITH `signed` (credit − debit), but a books
+ *  bank-ledger export often moves the opposite way. We pick whichever direction
+ *  fits the majority of steps (same idea as parse-company-pdf.ts's "try both
+ *  interpretations"), so the check works for either side without hard-coding.
+ *
+ *  Rows are walked in file order (running balance is sequential in the source —
+ *  never sorted). A null balance breaks the chain, so we re-anchor on the next
+ *  row that has one and only tie out within each contiguous run. */
+export function checkRunningBalance(
+  txns: Array<{ signed: number; balance: number | null; fileRow: number }>,
+  file: string,
+): string | null {
+  const TOL = 0.5; // rupees — absorb rounding noise, not a dropped row
+  const withBal = txns.filter((t) => t.balance != null);
+  // Not enough of a balance column to say anything meaningful.
+  if (withBal.length < 3 || withBal.length < txns.length * 0.6) return null;
+
+  // Detect the sign convention: does the balance move with `signed` or against it?
+  let agree = 0;
+  let prev: { signed: number; balance: number } | null = null;
+  for (const t of txns) {
+    if (t.balance == null) { prev = null; continue; }
+    if (prev) {
+      const delta = t.balance - prev.balance;
+      if (Math.abs(delta - t.signed) <= TOL) agree += 1;
+      else if (Math.abs(delta + t.signed) <= TOL) agree -= 1;
+    }
+    prev = { signed: t.signed, balance: t.balance };
+  }
+  const sign = agree >= 0 ? 1 : -1;
+
+  // Walk each contiguous run of balance-bearing rows and accumulate the residual.
+  let residual = 0;
+  let breakRow: number | null = null;
+  prev = null;
+  for (const t of txns) {
+    if (t.balance == null) { prev = null; continue; }
+    if (prev) {
+      const expected = sign * t.signed;
+      const step = t.balance - prev.balance - expected;
+      if (Math.abs(step) > TOL && breakRow == null) breakRow = t.fileRow;
+      residual += step;
+    }
+    prev = { signed: t.signed, balance: t.balance };
+  }
+
+  if (Math.abs(residual) <= TOL) return null;
+
+  // residual = (printed last balance) − (balance implied by the rows). Report the
+  // implied vs printed closing so the user can see the size and direction of the gap.
+  const last = withBal[withBal.length - 1].balance as number;
+  const implied = last - residual;
+  const near = breakRow != null ? ` First mismatch near row ${breakRow}.` : "";
+  return (
+    `⚠ ${file}: running balance doesn't tie out — the rows add up to a closing of ` +
+    `${inr(implied)} but the statement shows ${inr(last)} (off by ${inr(Math.abs(residual))}). ` +
+    `A row may have been misread or dropped while parsing${near} — re-check this file before trusting the gap.`
+  );
+}
