@@ -19,10 +19,13 @@ function toFloat(v: Cell): number {
   if (typeof v === "number") return Number.isFinite(v) ? v : 0;
   if (typeof v === "boolean") return v ? 1 : 0;
   if (v instanceof Date) return 0;
-  const s = String(v).trim().replace(/,/g, "").replace(/₹/g, "").replace(/Rs\.?/gi, "");
+  let s = String(v).trim().replace(/,/g, "").replace(/[₹$]/g, "").replace(/Rs\.?/gi, "").trim();
+  // Accounting negatives: "(1,234.00)" → -1234.00
+  let sign = 1;
+  if (/^\(.*\)$/.test(s)) { sign = -1; s = s.slice(1, -1); }
   if (s === "" || s === "-") return 0;
   const n = Number(s);
-  return Number.isFinite(n) ? n : 0;
+  return Number.isFinite(n) ? sign * n : 0;
 }
 
 const MONTHS: Record<string, number> = {
@@ -185,6 +188,184 @@ function parseLocation(sheetName: string, rows: Row[]): PartnerLocation | null {
     closingBal,
     transactions: records,
   };
+}
+
+// ── Location & period auto-detection (single-location-per-file vendors) ─────
+
+// Order matters — first match wins. Tokens include address landmarks so the
+// account-holder's location is detected even when the filename is unhelpful.
+const CITY_CANON: Array<[RegExp, string]> = [
+  [/bengaluru|bangalore|banglore|nelamangala/i, "Bengaluru"],
+  [/\bdaman\b|dabhel/i, "Daman"],
+  [/\bnashik\b|dindori|dhakambe/i, "Nashik"],
+  [/\bsurat\b|vesu/i, "Surat"],
+  [/\bpune\b|fursungi|furungi/i, "Pune"],
+];
+
+/** Canonical location for any free text that mentions a known city/region token
+ *  (used for both Excel address blocks and Tally PDF address lines). */
+export function detectCityFromText(text: string): string | null {
+  for (const [re, name] of CITY_CANON) if (re.test(text)) return name;
+  return null;
+}
+
+function canonCity(raw: string): string {
+  const s = raw.trim();
+  for (const [re, name] of CITY_CANON) if (re.test(s)) return name;
+  // Title-case + drop "Rural"/"Urban" qualifiers.
+  return s.replace(/\b(rural|urban)\b/gi, "").replace(/\s+/g, " ").trim()
+    .replace(/\w\S*/g, (w) => w[0].toUpperCase() + w.slice(1).toLowerCase());
+}
+
+const GENERIC_SHEET = /^(sheet|table|worksheet)\s*\d*$/i;
+
+/** Best-effort location label for a single-location vendor file: filename hint →
+ *  the account-holder's "City - PIN" address line → a meaningful sheet name. */
+function detectLocation(preamble: string[], sheetName: string, source?: string): string {
+  if (source) {
+    const inParen = source.match(/\(([^)]+)\)/)?.[1] ?? source;
+    for (const [re, name] of CITY_CANON) if (re.test(inParen)) return name;
+  }
+  // Last "City - 123456" in the preamble = the customer (account-holder) block,
+  // after the supplier's own letterhead address.
+  let city = "";
+  for (const line of preamble) {
+    const m = line.match(/([A-Za-z][A-Za-z .]*?)\s*-\s*\d{6}\b/);
+    if (m) city = m[1];
+  }
+  if (city) return canonCity(city);
+  if (sheetName && !GENERIC_SHEET.test(sheetName)) return sheetName;
+  return "Location";
+}
+
+function detectPeriod(preamble: string[], txns: PartnerTxn[]): string {
+  // Header may carry "Date Filter: 01-04-24..26-05-26" — take the start year.
+  for (const line of preamble) {
+    const m = line.match(/date filter:\s*(\d{2})-(\d{2})-(\d{2,4})/i);
+    if (m) {
+      const yy = Number(m[3]) % 100;
+      return `FY${yy}-${(yy + 1) % 100}`.replace(/-(\d)$/, "-0$1");
+    }
+  }
+  let min: Date | null = null;
+  for (const t of txns) if (t.date && (!min || t.date < min)) min = t.date;
+  if (min) {
+    const fy = min.getUTCMonth() >= 3 ? min.getUTCFullYear() : min.getUTCFullYear() - 1;
+    const a = fy % 100, b = (fy + 1) % 100;
+    return `FY${String(a).padStart(2, "0")}-${String(b).padStart(2, "0")}`;
+  }
+  return "";
+}
+
+/** Parse one partner Excel/CSV file (Business Central customer ledger). Unlike
+ *  parsePartnerLedger, the location name is auto-detected per sheet (vendors send
+ *  one location per file as "Sheet1"), each row is tagged with its source + period,
+ *  and the printed/computed closing are captured for control-total validation. */
+/** Value of the rightmost numeric-looking cell (including a genuine 0). On a
+ *  Business Central "Total (LCY)" row the closing balance is the last number. */
+function rightmostNum(row: Row): number {
+  let v = 0;
+  for (const c of row) {
+    if (c === null || c === undefined || c === "") continue;
+    if (typeof c === "number") { v = c; continue; }
+    const s = String(c).replace(/[,$₹]/g, "").replace(/Rs\.?/gi, "").replace(/[()]/g, "").trim();
+    if (s !== "" && s !== "-" && Number.isFinite(Number(s))) v = toFloat(c);
+  }
+  return v;
+}
+
+export function parsePartnerExcelFile(
+  buffer: ArrayBuffer | Uint8Array | Buffer,
+  source: string,
+): PartnerLocation[] {
+  const wb = XLSX.read(buffer, { type: "buffer", cellDates: true, raw: false });
+  const out: PartnerLocation[] = [];
+
+  for (const name of wb.SheetNames) {
+    const ws = wb.Sheets[name];
+    if (!ws) continue;
+    const rows = XLSX.utils.sheet_to_json<Row>(ws, { header: 1, defval: null, raw: false });
+
+    // Locate the header row (Business Central "Posting Date … Amount … Balance").
+    let hdrRow = -1;
+    for (let i = 0; i < rows.length; i++) {
+      const lowered = rows[i].map((c) => cleanStr(c).toLowerCase());
+      if (lowered.includes("posting date") || (lowered.includes("date") && lowered.includes("amount"))) {
+        hdrRow = i;
+        break;
+      }
+    }
+    if (hdrRow === -1) continue;
+
+    const hdr = rows[hdrRow].map((c) => cleanStr(c).toLowerCase());
+    const findOr = (frag: string, fallback: number) => {
+      const idx = hdr.findIndex((h) => h.includes(frag));
+      return idx === -1 ? fallback : idx;
+    };
+    const cDate = findOr("posting date", findOr("date", 0));
+    const cType = findOr("document type", 1);
+    const cDocNo = findOr("document no", 2);
+    // "Amount" but not "Remaining Amount" — take the first plain "amount" header.
+    const cAmt = hdr.findIndex((h) => h.includes("amount") && !h.includes("remaining"));
+    const cAmount = cAmt === -1 ? 7 : cAmt;
+    const cDesc = (() => { const i = hdr.findIndex((h) => h.includes("description")); return i === -1 ? 3 : i; })();
+
+    const preamble = rows.slice(0, hdrRow).map((r) => r.map((c) => cleanStr(c)).join(" "));
+
+    let openingBal = 0;
+    let printedClosing = 0;
+    const records: PartnerTxn[] = [];
+    const cellAt = (r: Row, i: number): Cell => (i >= 0 && i < r.length ? r[i] : null);
+
+    for (let r = hdrRow + 1; r < rows.length; r++) {
+      const row = rows[r];
+      if (!row || row.every((v) => v === null || v === undefined || v === "")) continue;
+      const c0 = cleanStr(cellAt(row, 0)).toLowerCase();
+
+      if (c0.startsWith("total (lcy) before period")) {
+        openingBal = rightmostNum(row);
+        continue;
+      }
+      if (c0.startsWith("total (lcy)")) {
+        printedClosing = rightmostNum(row);
+        continue;
+      }
+
+      // A real transaction row: col0 is a posting date AND the Amount cell is numeric.
+      const dateVal = parseDate(cellAt(row, cDate));
+      const amtCell = cellAt(row, cAmount);
+      if (dateVal === null) continue;
+      if (amtCell === null || amtCell === undefined || amtCell === "") continue;
+      const amount = toFloat(amtCell);
+
+      records.push({
+        location: name,
+        date: dateVal,
+        docType: cleanStr(cellAt(row, cType)),
+        docNo: cleanInvoiceNo(cellAt(row, cDocNo)),
+        amount,
+        balance: 0,
+        desc: cleanStr(cellAt(row, cDesc)),
+      });
+    }
+
+    const realName = detectLocation(preamble, name, source);
+    const period = detectPeriod(preamble, records);
+    const computedClosing = openingBal + records.reduce((s, t) => s + t.amount, 0);
+
+    out.push({
+      location: realName,
+      partyName: "",
+      openingBal,
+      closingBal: printedClosing,
+      format: "excel",
+      printedClosing,
+      computedClosing,
+      sources: [source],
+      transactions: records.map((t) => ({ ...t, location: realName, source, period })),
+    });
+  }
+  return out;
 }
 
 export function parsePartnerLedger(buffer: ArrayBuffer | Uint8Array | Buffer): PartnerLedger {
