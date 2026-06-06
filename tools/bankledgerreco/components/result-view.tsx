@@ -116,7 +116,7 @@ export function ReconcileResultView({ jobId, initialJob }: { jobId: string; init
       <MatchedGroupsTable res={res} />
       <GapsSection res={res} />
       <ActionPlan res={res} />
-      <DownloadBar res={res} />
+      <DownloadBar res={res} jobId={jobId} />
     </div>
   );
 }
@@ -392,7 +392,7 @@ function ActionPlan({ res }: { res: BankReconcileResult }) {
   );
 }
 
-function DownloadBar({ res }: { res: BankReconcileResult }) {
+function DownloadBar({ res, jobId }: { res: BankReconcileResult; jobId: string }) {
   function download() {
     const header = ["Side", "File", "File row", "Date", "Description", "Debit", "Credit", "Flag"];
     const esc = (v: unknown) => { const x = String(v ?? ""); return /[",\n]/.test(x) ? `"${x.replace(/"/g, '""')}"` : x; };
@@ -407,14 +407,19 @@ function DownloadBar({ res }: { res: BankReconcileResult }) {
     URL.revokeObjectURL(url);
   }
   return (
-    <Card style={{ padding: 24, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
+    <Card style={{ padding: 24, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
       <div>
-        <div style={{ fontSize: 15, fontWeight: 700, color: "var(--ink-200)" }}>Need to work the exceptions in Excel?</div>
+        <div style={{ fontSize: 15, fontWeight: 700, color: "var(--ink-200)" }}>Download the reconciliation report</div>
         <div style={{ fontSize: 13, color: "var(--ink-100)", opacity: 0.75, marginTop: 4 }}>
-          Download every unmatched bank + book line (with its flag) as a CSV.
+          A formatted 6-sheet Excel report — Summary &amp; bridge · Matched · Exceptions (Bank) · Exceptions (Books) · Action Plan · Notes.
         </div>
       </div>
-      <Button size="sm" onClick={download}>Download exceptions (CSV)</Button>
+      <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+        <a href={`/api/jobs/${jobId}/report`}>
+          <Button size="sm">Download Excel report</Button>
+        </a>
+        <Button size="sm" variant="ghost" onClick={download}>Exceptions only (CSV)</Button>
+      </div>
     </Card>
   );
 }
