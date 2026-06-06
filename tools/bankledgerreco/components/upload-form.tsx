@@ -12,6 +12,7 @@
 
 import { useState, useRef, useTransition, type DragEvent } from "react";
 import { Button } from "../../../core/ui/button";
+import { JobProgress } from "../../../core/ui/job-progress";
 import { runBankReconcileAction } from "../run-action";
 
 type UploadStage = "idle" | "uploading" | "submitting";
@@ -31,6 +32,7 @@ export function UploadForm(_props: Props) {
   const [stage, setStage] = useState<UploadStage>("idle");
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState<string>("");
+  const [uploadPct, setUploadPct] = useState(0);
   const [, startTransition] = useTransition();
 
   async function uploadOne(file: File, kind: "bank" | "books" | "settlement", idx: number, total: number): Promise<string> {
@@ -64,6 +66,7 @@ export function UploadForm(_props: Props) {
     }
     try {
       setStage("uploading");
+      setUploadPct(4);
       const queue: { file: File; kind: "bank" | "books" | "settlement" }[] = [
         ...bankFiles.map((file) => ({ file, kind: "bank" as const })),
         ...booksFiles.map((file) => ({ file, kind: "books" as const })),
@@ -73,10 +76,12 @@ export function UploadForm(_props: Props) {
       for (let i = 0; i < queue.length; i++) {
         const { file, kind } = queue[i];
         ids[kind].push(await uploadOne(file, kind, i + 1, queue.length));
+        setUploadPct(Math.round(((i + 1) / queue.length) * 90));
       }
 
       setStage("submitting");
       setProgress("Starting reconciliation…");
+      setUploadPct(95);
       const fd = new FormData();
       ids.bank.forEach((id) => fd.append("bankUploadId", id));
       ids.books.forEach((id) => fd.append("booksUploadId", id));
@@ -100,6 +105,12 @@ export function UploadForm(_props: Props) {
 
   const busy = stage !== "idle";
   const ready = bankFiles.length > 0 && booksFiles.length > 0 && !busy;
+
+  // While uploading / starting, replace the form with the calm progress card —
+  // the result view then continues the same bar through queued → running → report.
+  if (busy) {
+    return <JobProgress stage="uploading" detail={progress} pct={uploadPct} />;
+  }
 
   return (
     <form onSubmit={onSubmit}>
@@ -215,9 +226,7 @@ export function UploadForm(_props: Props) {
               : "none",
             transition: "all .25s var(--ease)",
           }}>
-          {stage === "uploading" ? "Uploading…" :
-           stage === "submitting" ? "Starting…" :
-           "▶  RECONCILE NOW"}
+          ▶  RECONCILE NOW
         </button>
 
         {!ready && !busy && !error && (
@@ -227,12 +236,6 @@ export function UploadForm(_props: Props) {
             borderRadius: 10, color: "var(--ink-200)", fontSize: 13,
           }}>
             ↑ Please upload your bank statement and books ledger above, then click Reconcile.
-          </div>
-        )}
-
-        {busy && (
-          <div style={{ marginTop: 14, color: "var(--ink-200)", fontSize: 13, fontFamily: "var(--font-mono)" }}>
-            {progress}
           </div>
         )}
 

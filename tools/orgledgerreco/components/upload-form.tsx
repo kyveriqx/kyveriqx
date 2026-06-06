@@ -14,6 +14,7 @@
 
 import { useState, useRef, useTransition, type DragEvent } from "react";
 import { Button } from "../../../core/ui/button";
+import { JobProgress } from "../../../core/ui/job-progress";
 import { runOrgReconcileAction } from "../run-action";
 
 type UploadStage = "idle" | "uploading" | "submitting";
@@ -32,6 +33,7 @@ export function UploadForm(_props: Props) {
   const [stage, setStage] = useState<UploadStage>("idle");
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState<string>("");
+  const [uploadPct, setUploadPct] = useState(0);
   const [, startTransition] = useTransition();
 
   async function uploadOne(file: File, kind: "company" | "partner", idx: number, total: number): Promise<string> {
@@ -65,6 +67,7 @@ export function UploadForm(_props: Props) {
     }
     try {
       setStage("uploading");
+      setUploadPct(4);
       const queue: { file: File; kind: "company" | "partner" }[] = [
         ...companyFiles.map((file) => ({ file, kind: "company" as const })),
         ...partnerFiles.map((file) => ({ file, kind: "partner" as const })),
@@ -73,10 +76,12 @@ export function UploadForm(_props: Props) {
       for (let i = 0; i < queue.length; i++) {
         const { file, kind } = queue[i];
         ids[kind].push(await uploadOne(file, kind, i + 1, queue.length));
+        setUploadPct(Math.round(((i + 1) / queue.length) * 90));
       }
 
       setStage("submitting");
       setProgress("Starting reconciliation…");
+      setUploadPct(95);
       const fd = new FormData();
       ids.company.forEach((id) => fd.append("companyUploadId", id));
       ids.partner.forEach((id) => fd.append("partnerUploadId", id));
@@ -97,6 +102,10 @@ export function UploadForm(_props: Props) {
 
   const busy = stage !== "idle";
   const ready = companyFiles.length > 0 && partnerFiles.length > 0 && !busy;
+
+  if (busy) {
+    return <JobProgress stage="uploading" detail={progress} pct={uploadPct} />;
+  }
 
   return (
     <form onSubmit={onSubmit}>
@@ -197,9 +206,7 @@ export function UploadForm(_props: Props) {
               : "none",
             transition: "all .25s var(--ease)",
           }}>
-          {stage === "uploading" ? "Uploading…" :
-           stage === "submitting" ? "Starting…" :
-           "▶  RECONCILE NOW"}
+          ▶  RECONCILE NOW
         </button>
 
         {!ready && !busy && !error && (
@@ -216,14 +223,6 @@ export function UploadForm(_props: Props) {
           </div>
         )}
 
-        {busy && (
-          <div style={{
-            marginTop: 14, color: "var(--ink-200)", fontSize: 13,
-            fontFamily: "var(--font-mono)",
-          }}>
-            {progress}
-          </div>
-        )}
 
         {error && (
           <div style={{

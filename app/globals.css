@@ -60,3 +60,21 @@ button {
   outline-offset: 3px;
   border-radius: 4px;
 }
+
+/* Job progress card (core/ui/job-progress.tsx) — spinner + bar shimmer. */
+@keyframes kx-spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes kx-bar-shimmer {
+  0% { transform: translateX(-120%); }
+  100% { transform: translateX(360%); }
+}
+.kx-spin {
+  animation: kx-spin 0.8s linear infinite;
+}
+.kx-bar-shimmer {
+  animation: kx-bar-shimmer 1.5s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .kx-spin, .kx-bar-shimmer { animation: none; }
+}
