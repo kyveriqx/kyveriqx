@@ -234,15 +234,18 @@ function GapAnalysisSection({ res }: { res: ReconcileResultJson }) {
               </tr>
             </thead>
             <tbody>
-              {ga.cutoffItems.slice(0, 12).map((c, i) => (
-                <tr key={i}>
-                  <td style={{ padding: "6px 10px", borderBottom: "1px solid var(--line)" }}>{c.side === "company" ? "Your books" : "Partner"}</td>
-                  <td style={{ padding: "6px 10px", borderBottom: "1px solid var(--line)" }}>{c.location}</td>
-                  <td style={{ padding: "6px 10px", borderBottom: "1px solid var(--line)" }}>{c.ref}</td>
-                  <td style={{ padding: "6px 10px", borderBottom: "1px solid var(--line)" }}>{dateStr(c.date)}</td>
-                  <td style={{ padding: "6px 10px", borderBottom: "1px solid var(--line)", textAlign: "right", fontFamily: "var(--font-mono)" }}>{inr(c.amount)}</td>
-                </tr>
-              ))}
+              {ga.cutoffItems.slice(0, 12).map((c, i) => {
+                const cell = { padding: "6px 10px", borderBottom: "1px solid var(--line)", color: "var(--ink-100)" } as const;
+                return (
+                  <tr key={i}>
+                    <td style={cell}>{c.side === "company" ? "Your books" : "Partner"}</td>
+                    <td style={cell}>{c.location}</td>
+                    <td style={cell}>{c.ref}</td>
+                    <td style={cell}>{dateStr(c.date)}</td>
+                    <td style={{ ...cell, textAlign: "right", fontFamily: "var(--font-mono)" }}>{inr(c.amount)}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

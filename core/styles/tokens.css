@@ -159,6 +159,14 @@
   --radius-lg: 20px;
   --radius-badge: 999px;
   --font-ui: "Inter", system-ui, -apple-system, Helvetica, Arial, sans-serif;
+
+  /* Re-resolve the text aliases in this theme scope. Declared only at :root,
+     `--text-primary: var(--ink-100)` would freeze to the :root (dark) value and
+     never follow a theme flip — so any element that inherits color (instead of
+     setting var(--ink-*) directly) would render with the wrong-theme text. */
+  --text-primary: var(--ink-100);
+  --text-secondary: var(--ink-200);
+  --text-muted: var(--ink-400);
 }
 
 /* ── Light theme override ───────────────────────────────────────────────
@@ -227,4 +235,12 @@
 
   /* Font — Segoe UI for the workspace (Windows-native, falls back gracefully) */
   --font-ui: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+
+  /* Re-resolve the text aliases in the light scope (see the dark block above).
+     This is what makes the workspace's base `color: var(--text-primary)` in
+     app/tools/layout.tsx compute to #000 instead of the dark near-white, so
+     every tool's inherited body text is readable. */
+  --text-primary: var(--ink-100);
+  --text-secondary: var(--ink-200);
+  --text-muted: var(--ink-400);
 }
