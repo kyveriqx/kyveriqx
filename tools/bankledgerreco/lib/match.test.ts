@@ -90,6 +90,37 @@ describe("reconcile — tiered matching", () => {
     expect(r.summary.unmatchedBankCount).toBe(0);
   });
 
+  it("pass 5b: far-apart equal-and-opposite books pair nets out as contra", () => {
+    // An own-account transfer booked out (30-Jun) then back in (07-Jul): 7 days
+    // apart, no "reversal" wording — too far/quiet for pass 3, but it never hit
+    // the bank on net, so it must leave the exception list as a net-zero contra.
+    const r = reconcile(
+      [],
+      [
+        book(1, "2026-06-30", "HDFC BANK 50200053122539", 0, 2_000_000),
+        book(2, "2026-07-07", "HDFC BANK 50200053122539", 2_000_000, 0),
+      ],
+    );
+    expect(r.groups).toHaveLength(1);
+    expect(r.groups[0].method).toBe("contra");
+    expect(r.groups[0].booksRows).toHaveLength(2);
+    expect(r.groups[0].bankAmount + r.groups[0].booksAmount).toBe(0);
+    expect(r.summary.unmatchedBooksCount).toBe(0);
+  });
+
+  it("contra never steals a pair the bank can legitimately match", () => {
+    // A +50k receipt that matches a real bank credit must not be grabbed by a
+    // -50k payment as a contra: the group passes run first, so only the genuine
+    // leftover (the -50k payment) is left unmatched here.
+    const r = reconcile(
+      [bank(1, "2026-04-01", "NEFT IN", 0, 50_000)],
+      [book(1, "2026-04-01", "Sales", 50_000, 0), book(2, "2026-04-20", "Vendor pay", 0, 50_000)],
+    );
+    expect(r.groups.find((g) => g.method === "exact")).toBeTruthy();
+    expect(r.groups.some((g) => g.method === "contra")).toBe(false);
+    expect(r.summary.unmatchedBooksCount).toBe(1);
+  });
+
   it("pass 6: classifies bank charges, interest and TDS", () => {
     const r = reconcile(
       [
