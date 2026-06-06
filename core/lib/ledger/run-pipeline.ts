@@ -46,17 +46,36 @@ export async function parseCompanyFiles(
   const notes: string[] = [];
   const parsed: CompanyLedger[] = [];
   for (const f of files) {
-    if (isPdf(f)) {
-      const { ledger, tiesOut } = await parseCompanyPdf(f.buffer, { source: f.filename });
-      if (!tiesOut) {
-        notes.push(
-          `${f.filename}: parsed closing ₹${r2(ledger.closingRaw)} does not match the printed closing — please review.`,
-        );
+    try {
+      if (isPdf(f)) {
+        const { ledger, tiesOut } = await parseCompanyPdf(f.buffer, { source: f.filename });
+        if (!tiesOut) {
+          notes.push(
+            `${f.filename}: parsed closing ₹${r2(ledger.closingRaw)} does not match the printed closing — please review.`,
+          );
+        }
+        parsed.push(ledger);
+      } else {
+        parsed.push(parseCompanyLedger(f.buffer));
       }
-      parsed.push(ledger);
-    } else {
-      parsed.push(parseCompanyLedger(f.buffer));
+    } catch (err) {
+      // One unreadable file must not sink the whole job: if another company
+      // file parses, skip this one with a named note. A common cause is the
+      // partner's own ledger being dropped on the company side.
+      void err;
+      notes.push(
+        `Skipped “${f.filename}” — it doesn't look like your company's ledger ` +
+        `(no readable Date / Document No columns). If this is your business ` +
+        `partner's ledger, upload it on the partner side instead.`,
+      );
     }
+  }
+  if (parsed.length === 0) {
+    // Nothing on the company side parsed — surface the original guidance.
+    throw new Error(
+      "Could not read Your Company's Ledger — please check the file format. " +
+      "The file must contain a header row with 'Date' and 'Document No'.",
+    );
   }
   if (parsed.length === 1) return { ledger: parsed[0], notes };
 
