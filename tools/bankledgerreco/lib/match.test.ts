@@ -90,6 +90,34 @@ describe("reconcile — tiered matching", () => {
     expect(r.summary.unmatchedBankCount).toBe(0);
   });
 
+  it("pass 5a-wide: a large item booked a few days apart still matches 1:1", () => {
+    // Loan EMI: books post it 8 days before the bank debits it — beyond the ±3
+    // tolerant window, inside the 15-day wide mop-up. Both are money out (equal
+    // signed), so they must pair instead of sitting unmatched on both sides.
+    const r = reconcile(
+      [bank(1, "2026-04-20", "LOAN EMI", 558950, 0)],
+      [book(1, "2026-04-12", "Term loan EMI", 0, 558950)],
+    );
+    expect(r.groups).toHaveLength(1);
+    expect(r.groups[0].method).toBe("date-tolerant");
+    expect(r.groups[0].confidence).toBe("low");
+    expect(r.groups[0].note).toContain("wide-date");
+    expect(r.summary.unmatchedBankCount).toBe(0);
+    expect(r.summary.unmatchedBooksCount).toBe(0);
+  });
+
+  it("wide-date mop-up never steals a row from a UPI group", () => {
+    // The group pass runs first, so the three same-day book rows aggregate to
+    // the 6000 bank line; the lone far 3000 bank line has no free partner left.
+    const r = reconcile(
+      [bank(1, "2026-04-10", "UPI CR", 0, 6000), bank(2, "2026-04-25", "NEFT", 0, 3000)],
+      [book(1, "2026-04-10", "A", 1000, 0), book(2, "2026-04-10", "B", 2000, 0), book(3, "2026-04-10", "C", 3000, 0)],
+    );
+    const grp = r.groups.find((g) => g.method === "group-exact");
+    expect(grp?.booksRows).toHaveLength(3);
+    expect(r.summary.unmatchedBankCount).toBe(1);
+  });
+
   it("pass 5b: far-apart equal-and-opposite books pair nets out as contra", () => {
     // An own-account transfer booked out (30-Jun) then back in (07-Jul): 7 days
     // apart, no "reversal" wording — too far/quiet for pass 3, but it never hit

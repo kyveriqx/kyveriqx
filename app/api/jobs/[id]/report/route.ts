@@ -9,8 +9,16 @@ import { NextResponse } from "next/server";
 import { supabaseServer } from "../../../../../core/lib/supabase-server";
 import { buildReport } from "../../../../../core/lib/ledger/build-report";
 import type { ReconcileResult } from "../../../../../core/lib/ledger/types";
+import { buildBankReport } from "../../../../../tools/bankledgerreco/lib/build-report";
+import type { BankReconcileResult } from "../../../../../tools/bankledgerreco/lib/types";
 
 export const dynamic = "force-dynamic";
+
+/** Tools that can emit a styled Excel report, keyed by job_key. */
+const REPORT_FILENAME: Record<string, string> = {
+  "org-ledger-reconcile": "ledger-reconciliation",
+  "bank-ledger-reconcile": "bank-reconciliation",
+};
 
 export async function GET(_req: Request, { params }: { params: { id: string } }) {
   const supabase = supabaseServer();
@@ -26,14 +34,16 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   if (!data) return NextResponse.json({ error: "not found" }, { status: 404 });
-  if (data.job_key !== "org-ledger-reconcile") {
+  if (!REPORT_FILENAME[data.job_key]) {
     return NextResponse.json({ error: "report not available for this tool" }, { status: 400 });
   }
   if (data.status !== "succeeded" || !data.result) {
     return NextResponse.json({ error: "job is not yet complete" }, { status: 409 });
   }
 
-  const buffer = await buildReport(data.result as ReconcileResult);
+  const buffer = data.job_key === "bank-ledger-reconcile"
+    ? await buildBankReport(data.result as BankReconcileResult)
+    : await buildReport(data.result as ReconcileResult);
 
   return new NextResponse(buffer, {
     status: 200,
@@ -41,7 +51,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
       "Content-Type":
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       "Content-Disposition":
-        `attachment; filename="ledger-reconciliation-${data.id.slice(0, 8)}.xlsx"`,
+        `attachment; filename="${REPORT_FILENAME[data.job_key]}-${data.id.slice(0, 8)}.xlsx"`,
       "Cache-Control": "no-store",
     },
   });

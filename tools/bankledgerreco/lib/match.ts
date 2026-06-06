@@ -324,6 +324,36 @@ export function reconcile(
     );
   }
 
+  // ── Pass 5a-wide: wide-window exact 1:1 mop-up ─────────────────────────
+  // Large single items the books and bank record the SAME but several days
+  // apart — a loan EMI, a vendor RTGS, an inter-account transfer that did land
+  // on this statement — fall outside the tolerant ±window and would otherwise
+  // sit unmatched on BOTH sides (equal and opposite across the two ledgers),
+  // bloating the exception totals even though they are the same money. We pair
+  // them here by EXACT signed amount, nearest date, within a wider window —
+  // crucially AFTER the group passes, so a row that belongs to a UPI/instalment
+  // group is never stolen. Marked low confidence + a "wide-date" note so it is
+  // visible for review (exact-amount-only keeps false pairs unlikely).
+  {
+    const WIDE = Math.max(window, 15);
+    const idx = new Map<number, number[]>();
+    for (const b of freeBooks()) {
+      const k = cents(b.signed);
+      (idx.get(k) ?? idx.set(k, []).get(k)!).push(b.row);
+    }
+    for (const t of freeBank()) {
+      const q = idx.get(cents(t.signed));
+      if (!q || !q.length) continue;
+      let bestI = -1, bestD = Infinity;
+      for (let i = 0; i < q.length; i++) {
+        if (usedBooks.has(q[i])) continue;
+        const dd = gapDays(t.date, booksByRow.get(q[i])!.date);
+        if (dd <= WIDE && dd < bestD) { bestD = dd; bestI = i; }
+      }
+      if (bestI >= 0) addGroup("date-tolerant", "low", [t.row], [q[bestI]], `wide-date match (${bestD}d)`);
+    }
+  }
+
   // ── Pass 5b: contra / inter-account transfers that net to zero ─────────
   // Anything still unmatched that has an equal-and-opposite partner on the SAME
   // side never reached the bank on net: an own-account transfer booked out then
