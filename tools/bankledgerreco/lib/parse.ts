@@ -5,9 +5,10 @@
    strategy as analyze_financials.py — `Customer` matches `Customer Name`
    but not `Customer GST No.` (extra tokens score worse).
 
-   Supports XLSX and CSV. Header is normally on row 1 (banks) or rows
-   2-4 (BC / Tally exports with a title bar) — we try the first few
-   header offsets and pick the one that finds the most candidate fields. */
+   Supports XLSX, CSV and digital PDF. The header may be on row 1 (clean
+   exports), rows 2-4 (BC / Tally title bar) or ~20 rows down (HDFC-style bank
+   statements with a tall account/address banner) — probeHeaders scans a wide
+   window and picks the offset that finds the most candidate fields. */
 
 import * as XLSX from "xlsx";
 import type { BankTxn, BooksTxn, FileSource } from "./types";
@@ -103,7 +104,11 @@ export function toNum(v: unknown): number {
 export function toDate(v: unknown): Date | null {
   if (v instanceof Date) return v;
   if (typeof v === "number") {
-    // Excel serial date (1900-based with the 1900 leap-year quirk).
+    // Excel serial date (1900-based with the 1900 leap-year quirk). Bound it to
+    // a plausible range (~1990-01-01 .. 2100-12-31) so a stray number landing in
+    // the date column — e.g. a balance like -5990621.22 in a summary row — is
+    // rejected instead of coercing to an absurd year and surviving as a fake txn.
+    if (v < 32874 || v > 73415) return null;
     const ms = (v - 25569) * 86400 * 1000;
     const d = new Date(ms);
     return isNaN(d.getTime()) ? null : d;
@@ -131,9 +136,16 @@ export function toDate(v: unknown): Date | null {
       return isNaN(dt.getTime()) ? null : dt;
     }
   }
-  // Last-ditch: let Date parse.
+  // Last-ditch: let Date parse — but a bare number (e.g. a balance like
+  // "-5990621.22" sitting in a summary row's date cell) coerces to an absurd
+  // year, so reject pure-numeric strings and clamp to a plausible range. This
+  // is what stops a bank's trailing STATEMENT SUMMARY block from slipping past
+  // the date filter as a fake transaction.
+  if (/^[+-]?\d+(\.\d+)?$/.test(s)) return null;
   const dt = new Date(s);
-  return isNaN(dt.getTime()) ? null : dt;
+  if (isNaN(dt.getTime())) return null;
+  const year = dt.getUTCFullYear();
+  return year >= 1990 && year <= 2100 ? dt : null;
 }
 
 // ── Header-row probing ─────────────────────────────────────────────────
@@ -170,8 +182,15 @@ type ParsedFile = {
   headerRow: number;
 };
 
-/** Try header rows 0..4 and pick whichever finds the most candidate
- *  fields (date + at least one amount column). */
+/** Find the transaction header row and pick whichever candidate row matches the
+ *  most fields (date + amount/description columns).
+ *
+ *  We scan well past the first few rows: real bank exports often prepend a tall
+ *  title banner before the header — an HDFC `.xls` statement carries ~20 rows of
+ *  account holder / address / statement-period / asterisk-rule lines before its
+ *  "Date / Narration / Withdrawal Amt. / Deposit Amt. / Closing Balance" row.
+ *  This is safe because the scan matches header *names*: data rows (dates,
+ *  amounts, narrations) score zero hits, so a wider window can't mis-pick one. */
 export function probeHeaders(
   matrix: SheetMatrix,
   required: string[][],
@@ -179,7 +198,7 @@ export function probeHeaders(
   let best: ParsedFile = { rows: [], headers: [], headerRow: 0 };
   let bestHits = -1;
 
-  for (let r = 0; r < Math.min(5, matrix.length); r++) {
+  for (let r = 0; r < Math.min(60, matrix.length); r++) {
     const headers = (matrix[r] ?? []).map((c) => String(c ?? "").trim()).filter(Boolean);
     if (!headers.length) continue;
     const hits = required.reduce(
@@ -247,7 +266,16 @@ export async function parseBankStatement(buffer: Buffer): Promise<{
       signed: credit - debit,
       balance: balCol ? toNum(r[balCol]) : null,
     };
-  }).filter((t) => t.date !== null || t.debit !== 0 || t.credit !== 0);
+  }).filter((t) =>
+    // A real statement/ledger row always carries a date once a date column has
+    // been detected. Requiring one here drops the trailing summary block that
+    // banks append after the transactions — e.g. HDFC's "STATEMENT SUMMARY"
+    // (Opening/Closing balance, total Debits/Credits, Dr/Cr counts) — whose
+    // figures otherwise parse as enormous fake transactions and wreck both the
+    // totals and the running-balance tie-out. With no date column detected we
+    // fall back to the original amount test so amount-only formats still load.
+    dateCol ? t.date !== null : (t.debit !== 0 || t.credit !== 0),
+  );
 
   return {
     txns,
@@ -301,7 +329,16 @@ export async function parseBooksLedger(buffer: Buffer): Promise<{
       signed: debit - credit,
       balance: balCol ? toNum(r[balCol]) : null,
     };
-  }).filter((t) => t.date !== null || t.debit !== 0 || t.credit !== 0);
+  }).filter((t) =>
+    // A real statement/ledger row always carries a date once a date column has
+    // been detected. Requiring one here drops the trailing summary block that
+    // banks append after the transactions — e.g. HDFC's "STATEMENT SUMMARY"
+    // (Opening/Closing balance, total Debits/Credits, Dr/Cr counts) — whose
+    // figures otherwise parse as enormous fake transactions and wreck both the
+    // totals and the running-balance tie-out. With no date column detected we
+    // fall back to the original amount test so amount-only formats still load.
+    dateCol ? t.date !== null : (t.debit !== 0 || t.credit !== 0),
+  );
 
   return {
     txns,
