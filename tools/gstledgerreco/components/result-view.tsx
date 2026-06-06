@@ -13,6 +13,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "../../../core/ui/button";
 import { Card } from "../../../core/ui/card";
+import { JobProgress } from "../../../core/ui/job-progress";
 import type {
   GstReconcileResult, ItcException, ItcExceptionKind,
   SalesException, SupplierRollup,
@@ -86,35 +87,18 @@ export function ReconcileResultView({ jobId, initialJob }: { jobId: string; init
   }, [jobId, initialJob]);
 
   if (pollErr) {
-    return (
-      <div style={{ color: "var(--error-fg)", padding: 16, border: "1px solid var(--error-border)", background: "var(--error-bg)", borderRadius: 10 }}>
-        Polling error: {pollErr}
-      </div>
-    );
+    return <JobProgress stage="failed" error={`We lost connection while checking progress (${pollErr}). Please refresh the page.`} />;
   }
 
-  if (!job) return <div style={{ color: "var(--ink-400)", padding: 16 }}>Loading…</div>;
+  if (!job) return <JobProgress stage="queued" />;
 
   if (job.status !== "succeeded") {
-    const labels: Record<JobStatusValue, string> = {
-      queued: "Queued — waiting for a worker", running: "Running — parsing & matching…",
-      succeeded: "Done", failed: "Failed", cancelled: "Cancelled",
-    };
-    return (
-      <Card style={{ padding: 24 }}>
-        <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--ink-400)" }}>
-          job {job.id.slice(0, 8)} · {job.job_key}
-        </div>
-        <div style={{ fontSize: 22, fontWeight: 600, marginTop: 4, color: job.status === "failed" ? "var(--error-fg)" : "var(--ink-200)" }}>
-          {labels[job.status]}
-        </div>
-        {job.error && (
-          <pre style={{ color: "var(--error-fg)", marginTop: 12, fontSize: 13, background: "var(--error-bg)", border: "1px solid var(--error-border)", padding: 10, borderRadius: 8, whiteSpace: "pre-wrap" }}>
-            {job.error}
-          </pre>
-        )}
-      </Card>
-    );
+    const stage =
+      job.status === "failed" ? "failed"
+        : job.status === "cancelled" ? "cancelled"
+          : job.status === "running" ? "running"
+            : "queued";
+    return <JobProgress stage={stage} error={job.error} />;
   }
 
   const res = job.result;
