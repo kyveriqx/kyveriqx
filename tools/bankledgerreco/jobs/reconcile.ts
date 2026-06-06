@@ -55,6 +55,54 @@ function columnNotes(
   return out;
 }
 
+type ParsedFile<T> = { filename: string; txns: T[]; columns: Record<string, string | null> };
+
+/** Parse every file on one side, isolating per-file failures.
+ *
+ *  A single unreadable file must NOT sink the whole job: a PDF the parser
+ *  chokes on, a corrupt export, or — the common one — the *other* side's
+ *  ledger accidentally dropped into this dropzone. Each such file is skipped
+ *  with a named, dropzone-aware note and the run continues on the files that
+ *  did parse. A file that reads but yields no usable rows is treated the same
+ *  (it's almost always the wrong file in the slot). We abort the side only
+ *  when NOTHING on it parsed — then the original format guidance is surfaced. */
+async function parseSide<T>(
+  files: Array<{ filename: string; buffer: Buffer }>,
+  parse: (buf: Buffer) => Promise<{ txns: T[]; columns: Record<string, string | null>; headers: string[] }>,
+  label: string,
+  otherLabel: string,
+): Promise<{ ok: ParsedFile<T>[]; notes: string[] }> {
+  const ok: ParsedFile<T>[] = [];
+  const notes: string[] = [];
+  for (const f of files) {
+    try {
+      const parsed = await parse(f.buffer);
+      if (parsed.txns.length === 0) {
+        notes.push(
+          `Skipped “${f.filename}” — no readable rows for a ${label} ` +
+          `(couldn't find Date and Debit/Credit/Amount columns). ` +
+          `If this is your ${otherLabel}, upload it on the ${otherLabel} side instead.`,
+        );
+        continue;
+      }
+      ok.push({ filename: f.filename, txns: parsed.txns, columns: parsed.columns });
+    } catch (err) {
+      void err;
+      notes.push(
+        `Skipped “${f.filename}” — it couldn't be read as a ${label}. ` +
+        `If this is your ${otherLabel}, upload it on the ${otherLabel} side instead.`,
+      );
+    }
+  }
+  if (ok.length === 0) {
+    throw new Error(
+      `Could not read any ${label} — please check the file format. ` +
+      `Each file needs a header row with Date and Debit/Credit (or Amount) columns.`,
+    );
+  }
+  return { ok, notes };
+}
+
 export const bankReconcile = task({
   id: "bank-ledger-reconcile",
   maxDuration: 1800,
@@ -75,31 +123,44 @@ export const bankReconcile = task({
         Promise.all(p.booksUploadIds.map((id) => fetchNamed(id, "books ledger"))),
       ]);
 
-      // ── Parse each file, then merge into one dataset per side ───────────
-      const [bankParsed, booksParsed] = await Promise.all([
-        Promise.all(bankFiles.map((f) => parseBankStatement(f.buffer))),
-        Promise.all(booksFiles.map((f) => parseBooksLedger(f.buffer))),
+      // ── Parse each file independently, isolating per-file failures, then
+      //    merge into one dataset per side. One unreadable file is skipped with
+      //    a named note (see parseSide) rather than failing the whole run. ─────
+      const [bank, books] = await Promise.all([
+        parseSide(bankFiles, parseBankStatement, "bank statement", "books ledger"),
+        parseSide(booksFiles, parseBooksLedger, "books ledger", "bank statement"),
       ]);
 
       const bankMerge = mergeTxns(
-        bankParsed.map((parsed, i) => ({ file: bankFiles[i].filename, txns: parsed.txns })),
+        bank.ok.map((x) => ({ file: x.filename, txns: x.txns })),
         (t) => t.date,
       );
       const booksMerge = mergeTxns(
-        booksParsed.map((parsed, i) => ({ file: booksFiles[i].filename, txns: parsed.txns })),
+        books.ok.map((x) => ({ file: x.filename, txns: x.txns })),
         (t) => t.date,
       );
 
       // ── Optional Razorpay settlement report(s) ──────────────────────────
+      // Optional input — an unreadable settlement export must not fail the core
+      // reconciliation, so each file is parsed defensively and the run proceeds
+      // without it (with a note) if none parse.
       let settlementMerge: { merged: SettlementRow[]; sources: FileSource[]; notes: string[] } | null = null;
+      const settlementSkipNotes: string[] = [];
       const settlementIds = p.settlementUploadIds ?? [];
       if (settlementIds.length) {
         const sFiles = await Promise.all(settlementIds.map((id) => fetchNamed(id, "settlement report")));
-        const sParsed = sFiles.map((f) => parseSettlementReport(f.buffer));
-        settlementMerge = mergeTxns(
-          sParsed.map((parsed, i) => ({ file: sFiles[i].filename, txns: parsed.rows })),
-          (s) => s.settledAt,
-        );
+        const sParts: Array<{ file: string; txns: SettlementRow[] }> = [];
+        for (const f of sFiles) {
+          try {
+            sParts.push({ file: f.filename, txns: parseSettlementReport(f.buffer).rows });
+          } catch (err) {
+            void err;
+            settlementSkipNotes.push(
+              `Skipped settlement report “${f.filename}” — it couldn't be read as a Razorpay settlement export. The reconciliation ran without it.`,
+            );
+          }
+        }
+        if (sParts.length) settlementMerge = mergeTxns(sParts, (s) => s.settledAt);
       }
 
       const result = reconcile(
@@ -107,24 +168,27 @@ export const bankReconcile = task({
         booksMerge.merged,
         opts,
         settlementMerge?.merged ?? [],
-        { bankColumns: bankParsed[0].columns, booksColumns: booksParsed[0].columns },
+        { bankColumns: bank.ok[0].columns, booksColumns: books.ok[0].columns },
       );
 
       // Per-file running-balance tie-out: catches a row misread/dropped/duplicated
       // during parsing (esp. the PDF path) before the gap is trusted. Run per file
       // — balance continuity only holds within one statement, not across the merge.
       const balanceNotes = [
-        ...bankParsed.map((p, i) => checkRunningBalance(p.txns, bankFiles[i].filename)),
-        ...booksParsed.map((p, i) => checkRunningBalance(p.txns, booksFiles[i].filename)),
+        ...bank.ok.map((x) => checkRunningBalance(x.txns, x.filename)),
+        ...books.ok.map((x) => checkRunningBalance(x.txns, x.filename)),
       ].filter((n): n is string => n !== null);
 
       const extraNotes = [
+        ...bank.notes,
+        ...books.notes,
+        ...settlementSkipNotes,
         ...balanceNotes,
         ...bankMerge.notes,
         ...booksMerge.notes,
         ...(settlementMerge?.notes ?? []),
-        ...columnNotes("bank statement", bankFiles.map((f) => f.filename), bankParsed.map((x) => x.columns)),
-        ...columnNotes("books ledger", booksFiles.map((f) => f.filename), booksParsed.map((x) => x.columns)),
+        ...columnNotes("bank statement", bank.ok.map((x) => x.filename), bank.ok.map((x) => x.columns)),
+        ...columnNotes("books ledger", books.ok.map((x) => x.filename), books.ok.map((x) => x.columns)),
       ];
 
       logger.info("bank reconciliation done", {

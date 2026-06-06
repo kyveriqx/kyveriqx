@@ -52,19 +52,29 @@ async function loadPortalSide(
   const parsedParts: Array<{ file: string; invoices: GstInvoice[] }> = [];
   const notes: string[] = [];
   for (const f of files) {
-    if (looksLikeJson(f.buffer)) {
-      const r = jsonParser(f.buffer, f.filename);
-      parsedParts.push({ file: f.filename, invoices: r.invoices });
-      notes.push(...r.notes);
-    } else {
-      // Portal XLSX or user-converted CSV — re-use the register parser
-      // and re-tag the source after the fact.
-      const r = parsePurchaseRegister(f.buffer, f.filename);
-      const retagged = r.invoices.map((inv) => ({ ...inv, source }));
-      parsedParts.push({ file: f.filename, invoices: retagged });
-      if (r.invoices.length === 0) {
-        notes.push(`${f.filename}: no rows parsed from ${label} XLSX/CSV. Check column headers.`);
+    // One unreadable file (a PDF dropped here, malformed JSON, or a corrupt
+    // XLSX the reader throws on) must not sink the whole job — skip it with a
+    // named, slot-aware note and carry on with the files that did parse.
+    try {
+      if (looksLikeJson(f.buffer)) {
+        const r = jsonParser(f.buffer, f.filename);
+        parsedParts.push({ file: f.filename, invoices: r.invoices });
+        notes.push(...r.notes);
+      } else {
+        // Portal XLSX or user-converted CSV — re-use the register parser
+        // and re-tag the source after the fact.
+        const r = parsePurchaseRegister(f.buffer, f.filename);
+        const retagged = r.invoices.map((inv) => ({ ...inv, source }));
+        parsedParts.push({ file: f.filename, invoices: retagged });
+        if (r.invoices.length === 0) {
+          notes.push(`${f.filename}: no rows parsed from ${label} XLSX/CSV. Check column headers.`);
+        }
       }
+    } catch (err) {
+      void err;
+      notes.push(
+        `Skipped “${f.filename}” — it couldn't be read as ${label} (expected the portal's JSON export, or an XLSX/CSV with GSTIN / Invoice No / Value columns). A PDF or an unrelated file in this slot is the usual cause.`,
+      );
     }
   }
   const { merged, sources } = mergeInvoices(parsedParts);
@@ -84,11 +94,20 @@ async function loadRegisterSide(
   const notes: string[] = [];
   let columns: Record<string, string | null> = {};
   for (const f of files) {
-    const r = parser(f.buffer, f.filename);
-    parts.push({ file: f.filename, invoices: r.invoices });
-    if (!Object.keys(columns).length) columns = r.columns;
-    if (r.invoices.length === 0) {
-      notes.push(`${f.filename}: no rows parsed from ${label}. Check that the column headers include GSTIN, Invoice No, Invoice Date, and Taxable Value.`);
+    // Isolate per-file failures (PDF/corrupt file in this slot) so one bad
+    // upload doesn't fail the whole reconciliation.
+    try {
+      const r = parser(f.buffer, f.filename);
+      parts.push({ file: f.filename, invoices: r.invoices });
+      if (!Object.keys(columns).length) columns = r.columns;
+      if (r.invoices.length === 0) {
+        notes.push(`${f.filename}: no rows parsed from ${label}. Check that the column headers include GSTIN, Invoice No, Invoice Date, and Taxable Value.`);
+      }
+    } catch (err) {
+      void err;
+      notes.push(
+        `Skipped “${f.filename}” — it couldn't be read as a ${label} (expected an XLSX/CSV with GSTIN, Invoice No, Invoice Date and Taxable Value columns). A PDF or an unrelated file in this slot is the usual cause.`,
+      );
     }
   }
   const { merged, sources } = mergeInvoices(parts);
