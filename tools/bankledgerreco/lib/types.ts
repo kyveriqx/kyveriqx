@@ -100,7 +100,12 @@ export type MatchMethod =
   /** reconciled against an uploaded Razorpay settlement report (exact fee + GST). */
   | "settlement"
   /** an entry paired with its equal-and-opposite reversal/refund so both net out. */
-  | "reversal";
+  | "reversal"
+  /** an equal-and-opposite leftover pair on one side that nets to zero with no
+   *  bank counterpart — inter-account transfer (own account), FD placement &
+   *  redemption, or a provision & reversal booked far apart. Distinct from
+   *  "reversal" (a near, keyword-flagged refund). */
+  | "contra";
 
 export type Confidence = "high" | "medium" | "low";
 

@@ -33,6 +33,7 @@ const METHOD_LABEL: Record<MatchMethod, string> = {
   "group-fee": "Gateway settlement",
   settlement: "Razorpay settlement",
   reversal: "Reversal / refund",
+  contra: "Contra (nets to zero)",
 };
 
 const HINT_LABEL: Record<string, string> = {

@@ -324,6 +324,42 @@ export function reconcile(
     );
   }
 
+  // ── Pass 5b: contra / inter-account transfers that net to zero ─────────
+  // Anything still unmatched that has an equal-and-opposite partner on the SAME
+  // side never reached the bank on net: an own-account transfer booked out then
+  // back in (e.g. to a/c …3122539), an FD placed then redeemed, or a provision
+  // booked then reversed. Unlike Pass 3 these legs can be weeks apart and carry
+  // no "reversal" wording, so we pair them here — after the group passes, so a
+  // real UPI/instalment grouping is always preferred first — and label them a
+  // net-zero contra (low confidence) so they leave the exception list instead
+  // of showing as a scary large unmatched figure. netGap is unaffected (it is
+  // computed from column totals, not from matches).
+  function contraPass(side: "bank" | "books", free: RevRow[]) {
+    const buckets = new Map<number, { pos: RevRow[]; neg: RevRow[] }>();
+    for (const t of free) {
+      const k = Math.abs(cents(t.signed));
+      if (!k) continue;
+      const b = buckets.get(k) ?? buckets.set(k, { pos: [], neg: [] }).get(k)!;
+      (t.signed > 0 ? b.pos : b.neg).push(t);
+    }
+    for (const { pos, neg } of buckets.values()) {
+      pos.sort((a, b) => (a.date?.getTime() ?? 0) - (b.date?.getTime() ?? 0));
+      let pi = 0;
+      for (const n of neg) {
+        if (usedRow(side, n.row)) continue;
+        while (pi < pos.length && usedRow(side, pos[pi].row)) pi++;
+        if (pi >= pos.length) break;
+        const p = pos[pi];
+        const rows = [p.row, n.row];
+        if (side === "bank") addGroup("contra", "low", rows, [], "contra / nets to zero (no bank line)");
+        else addGroup("contra", "low", [], rows, "contra / nets to zero (no bank line)");
+        pi++;
+      }
+    }
+  }
+  contraPass("books", freeBooks());
+  contraPass("bank", freeBank());
+
   // ── Pass 6: classify the leftovers ─────────────────────────────────────
   const unmatchedBank: UnmatchedSide[] = freeBank().map((t) => ({
     row: t.row, file: t.file, fileRow: t.fileRow, date: ymd(t.date), description: t.description,
@@ -339,7 +375,7 @@ export function reconcile(
   // ── Summary ─────────────────────────────────────────────────────────────
   const sumBy = <T,>(arr: T[], f: (x: T) => number) => arr.reduce((a, x) => a + f(x), 0);
   const byMethod = {
-    exact: 0, "date-tolerant": 0, "group-exact": 0, "group-fee": 0, settlement: 0, reversal: 0,
+    exact: 0, "date-tolerant": 0, "group-exact": 0, "group-fee": 0, settlement: 0, reversal: 0, contra: 0,
   } as Record<MatchMethod, number>;
   for (const g of groups) byMethod[g.method]++;
 
