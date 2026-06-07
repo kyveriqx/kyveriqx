@@ -198,10 +198,11 @@ function fmt(d: string | null): string { return d ?? ""; }
 
 function buildMatched(wb: ExcelJS.Workbook, res: BankReconcileResult) {
   const ws = wb.addWorksheet("2. Matched", { properties: { tabColor: { argb: C.green } } });
-  setWidths(ws, [26, 13, 14, 16, 14, 16, 14, 7, 38]);
-  mergeRange(ws, "A1:I1", `MATCHED  (${res.groups.length} groups)`,
+  setWidths(ws, [26, 13, 14, 34, 13, 14, 34, 13, 8, 7, 34]);
+  mergeRange(ws, "A1:K1", `MATCHED  (${res.groups.length} groups)`,
     C.green, { color: C.white, bold: true, size: 12 }, { h: "left" });
-  hdr(ws, 2, ["Method", "Bank Date", "Bank Amount", "Books Date", "Books Amount", "Fee / diff", "Conf.", "Days", "Note"], C.navy);
+  hdr(ws, 2, ["Method", "Bank Date", "Bank Amount", "Bank Description",
+    "Books Date", "Books Amount", "Books Description", "Fee / diff", "Conf.", "Days", "Note"], C.navy);
 
   const groups = [...res.groups].sort((a, b) => (a.bankDate ?? a.booksDate ?? "").localeCompare(b.bankDate ?? b.booksDate ?? ""));
   let r = 3;
@@ -211,19 +212,21 @@ function buildMatched(wb: ExcelJS.Workbook, res: BankReconcileResult) {
     wc(ws, r, 1, METHOD_LABEL[g.method], band, { size: 9 }, { h: "left" }, null, true);
     wc(ws, r, 2, fmt(g.bankDate), band, { size: 9 }, { h: "center" }, null, true);
     wc(ws, r, 3, g.bankAmount, band, { size: 9 }, { h: "right" }, INR, true);
-    wc(ws, r, 4, fmt(g.booksDate), band, { size: 9 }, { h: "center" }, null, true);
-    wc(ws, r, 5, g.booksAmount, band, { size: 9 }, { h: "right" }, INR, true);
-    wc(ws, r, 6, g.fee ? r2(g.fee) : "", band, { size: 9 }, { h: "right" }, INR, true);
-    wc(ws, r, 7, g.confidence, band, { size: 9 }, { h: "center" }, null, true);
-    wc(ws, r, 8, g.dateGapDays, band, { size: 9 }, { h: "center" }, null, true);
-    wc(ws, r, 9, [METHOD_LABEL[g.method] === g.note ? "" : g.note ?? "",
+    wc(ws, r, 4, g.bankDesc, band, { size: 9 }, { h: "left" }, null, true);
+    wc(ws, r, 5, fmt(g.booksDate), band, { size: 9 }, { h: "center" }, null, true);
+    wc(ws, r, 6, g.booksAmount, band, { size: 9 }, { h: "right" }, INR, true);
+    wc(ws, r, 7, g.booksDesc, band, { size: 9 }, { h: "left" }, null, true);
+    wc(ws, r, 8, g.fee ? r2(g.fee) : "", band, { size: 9 }, { h: "right" }, INR, true);
+    wc(ws, r, 9, g.confidence, band, { size: 9 }, { h: "center" }, null, true);
+    wc(ws, r, 10, g.dateGapDays, band, { size: 9 }, { h: "center" }, null, true);
+    wc(ws, r, 11, [METHOD_LABEL[g.method] === g.note ? "" : g.note ?? "",
       `${g.bankRows.length}↔${g.booksRows.length} rows`].filter(Boolean).join(" · "),
       band, { size: 9 }, { h: "left" }, null, true);
     r++;
   }
   wc(ws, r, 2, "Σ matched", null, { bold: true }, { h: "right" }, null, true);
   wc(ws, r, 3, r2(sum(groups, (g) => g.bankAmount)), null, { bold: true }, { h: "right" }, INR, true);
-  wc(ws, r, 5, r2(sum(groups, (g) => g.booksAmount)), null, { bold: true }, { h: "right" }, INR, true);
+  wc(ws, r, 6, r2(sum(groups, (g) => g.booksAmount)), null, { bold: true }, { h: "right" }, INR, true);
   ws.views = [{ state: "frozen", ySplit: 2 }];
 }
 

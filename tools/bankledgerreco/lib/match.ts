@@ -135,6 +135,15 @@ function maxGap(bankDates: (Date | null)[], booksDates: (Date | null)[]): number
   return g;
 }
 
+/** One-line description for a group: the single line's text, or
+ *  "first + N more" when several rows aggregate into one match. */
+function summarizeDesc(txns: { description: string }[]): string {
+  const ds = txns.map((t) => t.description?.trim()).filter(Boolean);
+  if (ds.length === 0) return "";
+  if (ds.length === 1) return ds[0];
+  return `${ds[0]} +${ds.length - 1} more`;
+}
+
 function earliest(dates: (Date | null)[]): Date | null {
   const valid = dates.filter((d): d is Date => d != null);
   if (!valid.length) return null;
@@ -182,6 +191,8 @@ export function reconcile(
       bankAmount, booksAmount, fee, feeRatePct, dateGapDays,
       bankDate: ymd(earliest(bankTxns.map((t) => t.date))),
       booksDate: ymd(earliest(booksTxns.map((t) => t.date))),
+      bankDesc: summarizeDesc(bankTxns),
+      booksDesc: summarizeDesc(booksTxns),
       note,
     });
     bankRows.forEach((r) => usedBank.add(r));

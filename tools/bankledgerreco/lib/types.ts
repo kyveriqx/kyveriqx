@@ -133,6 +133,11 @@ export type MatchGroup = {
   dateGapDays: number;
   bankDate: string | null;
   booksDate: string | null;
+  /** Bank-side description(s) for the group — so a matched row can be traced
+   *  straight back to the statement line. Multiple rows collapse to "first +N more". */
+  bankDesc: string;
+  /** Books-side description(s), same convention as bankDesc. */
+  booksDesc: string;
   note?: string;
 };
 

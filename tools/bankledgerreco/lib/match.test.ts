@@ -195,6 +195,8 @@ describe("reconcile — round-off (paise) tolerance", () => {
     expect(r.groups).toHaveLength(1);
     expect(r.groups[0].method).toBe("rounding");
     expect(r.groups[0].fee).toBe(0.24);          // the round-off gap, surfaced in "Fee / diff"
+    expect(r.groups[0].bankDesc).toBe("RTGS IN");        // descriptions carried for tracing
+    expect(r.groups[0].booksDesc).toBe("Customer receipt");
     expect(r.groups[0].note).toContain("round-off gap ₹0.24");
     expect(r.summary.feesIdentified).toBe(0);    // a rounding gap is NOT a gateway fee
     expect(r.summary.unmatchedBankCount).toBe(0);
