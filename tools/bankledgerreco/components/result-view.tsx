@@ -35,6 +35,7 @@ const METHOD_LABEL: Record<MatchMethod, string> = {
   settlement: "Razorpay settlement",
   reversal: "Reversal / refund",
   contra: "Contra (nets to zero)",
+  rounding: "Matched – round-off",
 };
 
 const HINT_LABEL: Record<string, string> = {
@@ -252,7 +253,7 @@ function MatchedGroupsTable({ res }: { res: BankReconcileResult }) {
               <Td>{g.booksRows.join(", ") || "—"}</Td>
               <Td align="right">{inr(g.bankAmount)}</Td>
               <Td align="right">{inr(g.booksAmount)}</Td>
-              <Td align="right">{g.fee ? `${inr(g.fee)}${g.feeRatePct != null ? ` (${g.feeRatePct}%)` : ""}` : "—"}</Td>
+              <Td align="right">{g.fee ? `${inr(g.fee)}${g.feeRatePct ? ` (${g.feeRatePct}%)` : ""}` : "—"}</Td>
               <Td align="right">{g.dateGapDays ? `${g.dateGapDays}d` : "0"}</Td>
               <Td><Pill kind={g.confidence === "high" ? "ok" : g.confidence === "medium" ? "amber" : "neutral"}>{g.confidence}</Pill></Td>
             </tr>

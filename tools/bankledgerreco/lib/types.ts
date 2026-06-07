@@ -105,7 +105,10 @@ export type MatchMethod =
    *  bank counterpart — inter-account transfer (own account), FD placement &
    *  redemption, or a provision & reversal booked far apart. Distinct from
    *  "reversal" (a near, keyword-flagged refund). */
-  | "contra";
+  | "contra"
+  /** a 1:1 pair equal except for sub-rupee paise rounding — the bank carries
+   *  paise while the books are kept in whole rupees (e.g. 794097.76 ↔ 794098). */
+  | "rounding";
 
 export type Confidence = "high" | "medium" | "low";
 
@@ -189,11 +192,15 @@ export type ReconcileOptions = {
   dateWindowDays: number;
   /** Max inferred gateway fee as a % of gross, for the group-fee pass. */
   feeCeilingPct: number;
+  /** Max |amount| difference (₹) to still pair a 1:1 line; absorbs books-side
+   *  paise rounding (bank carries paise, books kept in whole rupees). 0 = off. */
+  roundingToleranceRupees: number;
 };
 
 export const DEFAULT_OPTIONS: ReconcileOptions = {
   dateWindowDays: 3,
   feeCeilingPct: 3,
+  roundingToleranceRupees: 1,
 };
 
 export type BankReconcileResult = {
