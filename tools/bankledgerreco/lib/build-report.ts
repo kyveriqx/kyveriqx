@@ -212,10 +212,10 @@ function buildMatched(wb: ExcelJS.Workbook, res: BankReconcileResult) {
     wc(ws, r, 1, METHOD_LABEL[g.method], band, { size: 9 }, { h: "left" }, null, true);
     wc(ws, r, 2, fmt(g.bankDate), band, { size: 9 }, { h: "center" }, null, true);
     wc(ws, r, 3, g.bankAmount, band, { size: 9 }, { h: "right" }, INR, true);
-    wc(ws, r, 4, g.bankDesc, band, { size: 9 }, { h: "left" }, null, true);
+    wc(ws, r, 4, g.bankDesc, band, { size: 9 }, { h: "left", wrap: true }, null, true);
     wc(ws, r, 5, fmt(g.booksDate), band, { size: 9 }, { h: "center" }, null, true);
     wc(ws, r, 6, g.booksAmount, band, { size: 9 }, { h: "right" }, INR, true);
-    wc(ws, r, 7, g.booksDesc, band, { size: 9 }, { h: "left" }, null, true);
+    wc(ws, r, 7, g.booksDesc, band, { size: 9 }, { h: "left", wrap: true }, null, true);
     wc(ws, r, 8, g.fee ? r2(g.fee) : "", band, { size: 9 }, { h: "right" }, INR, true);
     wc(ws, r, 9, g.confidence, band, { size: 9 }, { h: "center" }, null, true);
     wc(ws, r, 10, g.dateGapDays, band, { size: 9 }, { h: "center" }, null, true);
