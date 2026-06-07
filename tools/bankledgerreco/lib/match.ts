@@ -135,13 +135,12 @@ function maxGap(bankDates: (Date | null)[], booksDates: (Date | null)[]): number
   return g;
 }
 
-/** One-line description for a group: the single line's text, or
- *  "first + N more" when several rows aggregate into one match. */
+/** Description(s) for a group: every row's text in full, joined — so when
+ *  several rows aggregate into one match the user sees all the names, not a
+ *  "+N more" count. Duplicates are collapsed to keep it readable. */
 function summarizeDesc(txns: { description: string }[]): string {
   const ds = txns.map((t) => t.description?.trim()).filter(Boolean);
-  if (ds.length === 0) return "";
-  if (ds.length === 1) return ds[0];
-  return `${ds[0]} +${ds.length - 1} more`;
+  return [...new Set(ds)].join(" · ");
 }
 
 function earliest(dates: (Date | null)[]): Date | null {
