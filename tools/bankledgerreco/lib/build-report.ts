@@ -46,6 +46,7 @@ const METHOD_LABEL: Record<MatchMethod, string> = {
   settlement: "Razorpay settlement",
   reversal: "Reversal / refund",
   contra: "Contra (nets to zero)",
+  rounding: "Matched – round-off",
 };
 
 // ── style helpers ───────────────────────────────────────────────────────────
@@ -205,7 +206,8 @@ function buildMatched(wb: ExcelJS.Workbook, res: BankReconcileResult) {
   const groups = [...res.groups].sort((a, b) => (a.bankDate ?? a.booksDate ?? "").localeCompare(b.bankDate ?? b.booksDate ?? ""));
   let r = 3;
   for (const g of groups) {
-    const band = g.method === "contra" ? C.gray : g.method === "reversal" ? C.ltamb : null;
+    const band = g.method === "contra" ? C.gray : g.method === "reversal" ? C.ltamb
+      : g.method === "rounding" ? C.ltgrn : null;
     wc(ws, r, 1, METHOD_LABEL[g.method], band, { size: 9 }, { h: "left" }, null, true);
     wc(ws, r, 2, fmt(g.bankDate), band, { size: 9 }, { h: "center" }, null, true);
     wc(ws, r, 3, g.bankAmount, band, { size: 9 }, { h: "right" }, INR, true);

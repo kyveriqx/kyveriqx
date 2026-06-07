@@ -184,3 +184,61 @@ describe("reconcile — tiered matching", () => {
     expect(r.summary.unmatchedBooksCount).toBe(1);
   });
 });
+
+describe("reconcile — round-off (paise) tolerance", () => {
+  it("pairs a bank line carrying paise with whole-rupee books (≤ ₹1 gap)", () => {
+    // Bank shows 794097.76, books were keyed as 794098 — the same money.
+    const r = reconcile(
+      [bank(1, "2026-04-01", "RTGS IN", 0, 794097.76)],
+      [book(1, "2026-04-01", "Customer receipt", 794098, 0)],
+    );
+    expect(r.groups).toHaveLength(1);
+    expect(r.groups[0].method).toBe("rounding");
+    expect(r.groups[0].fee).toBe(0.24);          // the round-off gap, surfaced in "Fee / diff"
+    expect(r.groups[0].note).toContain("round-off gap ₹0.24");
+    expect(r.summary.feesIdentified).toBe(0);    // a rounding gap is NOT a gateway fee
+    expect(r.summary.unmatchedBankCount).toBe(0);
+    expect(r.summary.unmatchedBooksCount).toBe(0);
+  });
+
+  it("absorbs a tiny 5-paise gap", () => {
+    const r = reconcile(
+      [bank(1, "2026-04-02", "NEFT", 0, 47988.95)],
+      [book(1, "2026-04-02", "Sales", 47989, 0)],
+    );
+    expect(r.groups).toHaveLength(1);
+    expect(r.groups[0].method).toBe("rounding");
+    expect(r.groups[0].fee).toBe(0.05);
+  });
+
+  it("exact still wins — rounding only mops up what exact passes leave", () => {
+    const r = reconcile(
+      [bank(1, "2026-04-01", "A", 0, 1000), bank(2, "2026-04-02", "B", 0, 5000.5)],
+      [book(1, "2026-04-01", "A", 1000, 0), book(2, "2026-04-02", "B", 5001, 0)],
+    );
+    expect(r.groups.find((g) => g.method === "exact")?.bankRows).toEqual([1]);
+    expect(r.groups.find((g) => g.method === "rounding")?.fee).toBe(0.5);
+    expect(r.summary.unmatchedBankCount).toBe(0);
+    expect(r.summary.unmatchedBooksCount).toBe(0);
+  });
+
+  it("does not pair beyond the ₹1 ceiling", () => {
+    const r = reconcile(
+      [bank(1, "2026-04-01", "A", 0, 1000)],
+      [book(1, "2026-04-01", "A", 1001.5, 0)],
+    );
+    expect(r.groups).toHaveLength(0);
+    expect(r.summary.unmatchedBankCount).toBe(1);
+    expect(r.summary.unmatchedBooksCount).toBe(1);
+  });
+
+  it("is disabled when the tolerance is 0", () => {
+    const r = reconcile(
+      [bank(1, "2026-04-01", "RTGS", 0, 794097.76)],
+      [book(1, "2026-04-01", "Receipt", 794098, 0)],
+      { ...DEFAULT_OPTIONS, roundingToleranceRupees: 0 },
+    );
+    expect(r.groups).toHaveLength(0);
+    expect(r.summary.unmatchedBankCount).toBe(1);
+  });
+});

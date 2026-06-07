@@ -152,6 +152,7 @@ export function reconcile(
 ): BankReconcileResult {
   const window = opts.dateWindowDays;
   const feeCeiling = opts.feeCeilingPct / 100;
+  const tolCents = cents(opts.roundingToleranceRupees ?? 0); // 0 disables rounding match
 
   const bankByRow = new Map<number, BankTxn>(bank.map((t) => [t.row, t]));
   const booksByRow = new Map<number, BooksTxn>(books.map((t) => [t.row, t]));
@@ -189,6 +190,54 @@ export function reconcile(
 
   const freeBank = () => bank.filter((t) => !usedBank.has(t.row));
   const freeBooks = () => books.filter((t) => !usedBooks.has(t.row));
+
+  // Pair a single bank line with a single book line that is equal except for
+  // sub-rupee paise rounding (the bank carries paise, the books are kept in
+  // whole rupees). Runs only after the exact 1:1 passes, so an exact partner is
+  // always preferred and never stolen. The gap (in ₹) is recorded in the note
+  // and surfaces in the "Fee / diff" column so the user sees it is a round-off
+  // match, not a clean tie. `wide` only changes the wording + confidence.
+  function roundingWave(maxWindow: number, conf: Confidence, wide: boolean) {
+    if (tolCents <= 0) return;
+    const tolR = Math.ceil(tolCents / 100); // rupee-bucket scan radius
+    const byRupee = new Map<number, BooksTxn[]>();
+    for (const b of freeBooks()) {
+      const k = Math.round(b.signed);
+      (byRupee.get(k) ?? byRupee.set(k, []).get(k)!).push(b);
+    }
+    // largest amounts first so a big single line claims its near-equal partner
+    const banks = freeBank().sort((a, b) => Math.abs(b.signed) - Math.abs(a.signed) || a.row - b.row);
+    for (const t of banks) {
+      if (usedBank.has(t.row)) continue;
+      const tc = cents(t.signed);
+      if (!tc) continue;
+      const base = Math.round(t.signed);
+      let best: { b: BooksTxn; diff: number; gap: number } | null = null;
+      for (let dr = -tolR; dr <= tolR; dr++) {
+        const list = byRupee.get(base + dr);
+        if (!list) continue;
+        for (const b of list) {
+          if (usedBooks.has(b.row) || Math.sign(b.signed) !== Math.sign(t.signed)) continue;
+          const diff = Math.abs(cents(b.signed) - tc);
+          if (diff === 0 || diff > tolCents) continue; // exact handled earlier
+          const gap = gapDays(t.date, b.date);
+          if (gap > maxWindow) continue;
+          if (!best || diff < best.diff
+            || (diff === best.diff && gap < best.gap)
+            || (diff === best.diff && gap === best.gap && b.row < best.b.row)) {
+            best = { b, diff, gap };
+          }
+        }
+      }
+      if (best) {
+        const gapR = r2(best.diff / 100);
+        const note = wide
+          ? `round-off gap ₹${gapR}, wide-date (${best.gap}d)`
+          : `round-off gap ₹${gapR}`;
+        addGroup("rounding", conf, [t.row], [best.b.row], note);
+      }
+    }
+  }
 
   // ── Pass 0: Razorpay settlement report ─────────────────────────────────
   for (const s of settlement) {
@@ -245,6 +294,11 @@ export function reconcile(
       addGroup("date-tolerant", gap <= 1 ? "high" : "medium", [t.row], [cand[0].row]);
     }
   }
+
+  // ── Pass 2b: rounding 1:1 within window (paise dropped on the books side) ─
+  // Before the group passes so a genuine large single line claims its near-equal
+  // partner instead of being absorbed into a subset-sum.
+  roundingWave(window, "medium", false);
 
   // ── Pass 3: reversals / refunds (equal-and-opposite pair on one side) ───
   type RevRow = { row: number; date: Date | null; description: string; signed: number };
@@ -354,6 +408,11 @@ export function reconcile(
     }
   }
 
+  // ── Pass 5a-rounding: rounding 1:1 over the wide window (mop-up) ────────
+  // After the group passes (like the exact wide-date pass above) so a row that
+  // belongs to a UPI/instalment group is never stolen. Low confidence.
+  roundingWave(Math.max(window, 15), "low", true);
+
   // ── Pass 5b: contra / inter-account transfers that net to zero ─────────
   // Anything still unmatched that has an equal-and-opposite partner on the SAME
   // side never reached the bank on net: an own-account transfer booked out then
@@ -405,7 +464,7 @@ export function reconcile(
   // ── Summary ─────────────────────────────────────────────────────────────
   const sumBy = <T,>(arr: T[], f: (x: T) => number) => arr.reduce((a, x) => a + f(x), 0);
   const byMethod = {
-    exact: 0, "date-tolerant": 0, "group-exact": 0, "group-fee": 0, settlement: 0, reversal: 0, contra: 0,
+    exact: 0, "date-tolerant": 0, "group-exact": 0, "group-fee": 0, settlement: 0, reversal: 0, contra: 0, rounding: 0,
   } as Record<MatchMethod, number>;
   for (const g of groups) byMethod[g.method]++;
 
@@ -428,7 +487,8 @@ export function reconcile(
     bankTotalDebits, bankTotalCredits, booksTotalDebits, booksTotalCredits,
     bankNet, booksNet,
     netGap: r2(bankNet - booksNet),
-    feesIdentified: r2(sumBy(groups, (g) => g.fee)),
+    // only genuine gateway fee + GST — not the sub-rupee gap on a rounding match
+    feesIdentified: r2(sumBy(groups.filter((g) => g.method === "settlement" || g.method === "group-fee"), (g) => g.fee)),
     bankChargesTotal: r2(sumBy(unmatchedBank.filter((u) => u.hint === "bank-charge"), (u) => u.debit)),
     interestTotal: r2(sumBy(unmatchedBank.filter((u) => u.hint === "interest"), (u) => u.credit)),
     tdsTotal: r2(sumBy(unmatchedBank.filter((u) => u.hint === "tds"), (u) => u.debit)),
