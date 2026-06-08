@@ -135,6 +135,7 @@ export function ReconcileResultView({
 
   return (
     <div style={{ display: "grid", gap: 24 }}>
+      <DownloadBar res={res} jobId={job.id} />
       <BalanceTiles res={res} />
       <NotesBanner res={res} />
       <GapAnalysisSection res={res} />
@@ -142,7 +143,6 @@ export function ReconcileResultView({
       <MatchedInvoicesTable res={res} />
       <GapsSection res={res} />
       <ActionPlan res={res} />
-      <DownloadBar jobId={job.id} />
     </div>
   );
 }
@@ -484,20 +484,40 @@ function ActionPlan({ res }: { res: ReconcileResultJson }) {
   );
 }
 
-function DownloadBar({ jobId }: { jobId: string }) {
+function DownloadBar({ res, jobId }: { res: ReconcileResultJson; jobId: string }) {
+  function download() {
+    const esc = (v: unknown) => { const x = String(v ?? ""); return /[",\n]/.test(x) ? `"${x.replace(/"/g, '""')}"` : x; };
+    const rows: (string | number)[][] = [
+      ["Side", "Ref", "Location / Partner Ref", "Date", "Amount", "Reason"],
+    ];
+    res.unmatchedCompanyPay.forEach((p) =>
+      rows.push(["Payment (yours)", p.companyRef, "", dateStr(p.date), p.amount, p.reason]));
+    res.unmatchedCompanyInv.forEach((g) =>
+      rows.push(["Invoice (yours)", g.docNo, g.extNo ?? "", dateStr(g.date), g.credit, g.reason]));
+    res.unmatchedPartnerInv.forEach((v) =>
+      rows.push(["Invoice (partner)", v.docNo, v.location, dateStr(v.date), v.amount, v.reason]));
+    const text = rows.map((r) => r.map(esc).join(",")).join("\n");
+    const url = URL.createObjectURL(new Blob([text], { type: "text/csv;charset=utf-8" }));
+    const a = document.createElement("a");
+    a.href = url; a.download = "ledger-reconciliation-exceptions.csv"; a.click();
+    URL.revokeObjectURL(url);
+  }
   return (
-    <Card style={{ padding: 24, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
+    <Card style={{ padding: 24, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
       <div>
         <div style={{ fontSize: 15, fontWeight: 700, color: "var(--ink-200)" }}>
           Need to share this with finance / your partner?
         </div>
         <div style={{ fontSize: 13, color: "var(--ink-100)", opacity: 0.75, marginTop: 4 }}>
-          Get the same result as a formatted 4-sheet Excel report (Summary · Matched · Gaps · Action Plan).
+          A formatted 4-sheet Excel report (Summary · Matched · Gaps · Action Plan), or just the gaps as a CSV.
         </div>
       </div>
-      <a href={`/api/jobs/${jobId}/report`}>
-        <Button size="sm">Download Excel report</Button>
-      </a>
+      <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+        <a href={`/api/jobs/${jobId}/report`}>
+          <Button size="sm">Download Excel report</Button>
+        </a>
+        <Button size="sm" variant="ghost" onClick={download}>Exceptions only (CSV)</Button>
+      </div>
     </Card>
   );
 }

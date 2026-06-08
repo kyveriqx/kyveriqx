@@ -95,13 +95,13 @@ export function ReconcileResultView({ jobId, initialJob }: { jobId: string; init
 
   return (
     <div style={{ display: "grid", gap: 24 }}>
+      <DownloadBar res={res} jobId={jobId} />
       <BalanceTiles res={res} />
       <MatchSummary res={res} />
       <FilesMerged res={res} />
       <MatchedGroupsTable res={res} />
       <GapsSection res={res} />
       <ActionPlan res={res} />
-      <DownloadBar res={res} jobId={jobId} />
     </div>
   );
 }
