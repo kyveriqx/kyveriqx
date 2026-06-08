@@ -11,6 +11,7 @@
    tells the user what to do about the gaps. */
 
 import { useEffect, useRef, useState } from "react";
+import { track } from "../../../core/lib/track";
 import { Button } from "../../../core/ui/button";
 import { Card } from "../../../core/ui/card";
 import { JobProgress } from "../../../core/ui/job-progress";
@@ -85,6 +86,15 @@ export function ReconcileResultView({ jobId, initialJob }: { jobId: string; init
     poll();
     return () => { cancelled.current = true; if (timer) clearTimeout(timer); };
   }, [jobId, initialJob]);
+
+  // Activity log: the user actually saw a finished report (vs. only running it).
+  const viewed = useRef(false);
+  useEffect(() => {
+    if (job?.status === "succeeded" && !viewed.current) {
+      viewed.current = true;
+      track("report_view", { jobId });
+    }
+  }, [job?.status, jobId]);
 
   if (pollErr) {
     return <JobProgress stage="failed" error={`We lost connection while checking progress (${pollErr}). Please refresh the page.`} />;
@@ -429,6 +439,7 @@ function downloadCsv(filename: string, rows: (string | number)[][]) {
   const a = document.createElement("a");
   a.href = url; a.download = filename; a.click();
   URL.revokeObjectURL(url);
+  track("report_download", { metadata: { format: "csv", filename } });
 }
 
 function downloadItcCsv(res: GstReconcileResult) {

@@ -9,6 +9,7 @@ import { useEffect, useRef, useState } from "react";
 import { Button } from "../../../core/ui/button";
 import { Card } from "../../../core/ui/card";
 import { JobProgress } from "../../../core/ui/job-progress";
+import { track } from "../../../core/lib/track";
 import type { BankReconcileResult, MatchGroup, MatchMethod, UnmatchedSide, FileSource } from "../lib/types";
 
 type JobStatusValue = "queued" | "running" | "succeeded" | "failed" | "cancelled";
@@ -72,6 +73,15 @@ export function ReconcileResultView({ jobId, initialJob }: { jobId: string; init
     poll();
     return () => { cancelled.current = true; if (timer) clearTimeout(timer); };
   }, [jobId, initialJob]);
+
+  // Activity log: the user actually saw a finished report (vs. only running it).
+  const viewed = useRef(false);
+  useEffect(() => {
+    if (job?.status === "succeeded" && !viewed.current) {
+      viewed.current = true;
+      track("report_view", { jobId });
+    }
+  }, [job?.status, jobId]);
 
   if (pollErr) {
     return <JobProgress stage="failed" error={`We lost connection while checking progress (${pollErr}). Please refresh the page.`} />;
@@ -390,6 +400,7 @@ function DownloadBar({ res, jobId }: { res: BankReconcileResult; jobId: string }
     const a = document.createElement("a");
     a.href = url; a.download = "bank-reconciliation-exceptions.csv"; a.click();
     URL.revokeObjectURL(url);
+    track("report_download", { jobId, metadata: { format: "csv" } });
   }
   return (
     <Card style={{ padding: 24, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
