@@ -17,7 +17,10 @@ import type { ReactNode } from "react";
 import { headers } from "next/headers";
 import { supabaseServer } from "../../core/lib/supabase-server";
 import { toolEntitlement } from "../../core/lib/entitlement";
+import { getToolId } from "../../core/lib/tools";
+import { logEvent } from "../../core/lib/events";
 import { TrialEndedGate } from "../../core/ui/trial-ended";
+import { ReportIssueButton } from "../../core/ui/report-issue-button";
 
 /** Which tool this request resolved to. Middleware sets x-tool-slug on the
  *  tool subdomain; for direct /tools/<slug> access (dev) fall back to the
@@ -32,16 +35,42 @@ function toolSlug(): string | null {
 
 export default async function ToolsLayout({ children }: { children: ReactNode }) {
   let content: ReactNode = children;
+  let toolName: string | null = null;
+  let showIssueButton = false;
 
   const slug = toolSlug();
   if (slug) {
     const supabase = supabaseServer();
     const { data: { user } } = await supabase.auth.getUser();
+
+    // Activity log: a tool was opened. userId is null for signed-out visitors.
+    const toolId = await getToolId(supabase, slug);
+    await logEvent({
+      type: "tool_open",
+      userId: user?.id ?? null,
+      toolId,
+      path: `/tools/${slug}`,
+    });
+
     // Signed-out users fall through: the tool page shows its own marketing
-    // SignedOutGate. We only lock signed-in users whose access has lapsed.
+    // SignedOutGate. We only lock signed-in users whose access has lapsed
+    // (or whose account an admin has disabled).
     if (user) {
+      showIssueButton = true;
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("is_active")
+        .eq("id", user.id)
+        .maybeSingle();
+
       const ent = await toolEntitlement(supabase, user.id, slug);
-      if (ent.locked && (ent.status === "expired" || ent.status === "cancelled")) {
+      toolName = ent.toolName;
+
+      if (profile && profile.is_active === false) {
+        content = <AccountDisabled email={user.email ?? undefined} />;
+        showIssueButton = false;
+      } else if (ent.locked && (ent.status === "expired" || ent.status === "cancelled")) {
         content = (
           <TrialEndedGate
             slug={slug}
@@ -66,6 +95,23 @@ export default async function ToolsLayout({ children }: { children: ReactNode })
       }}
     >
       {content}
+      {showIssueButton && slug && (
+        <ReportIssueButton toolSlug={slug} toolName={toolName ?? undefined} />
+      )}
     </div>
+  );
+}
+
+/** Shown when an admin has soft-disabled the account (profiles.is_active=false). */
+function AccountDisabled({ email }: { email?: string }) {
+  return (
+    <main style={{ maxWidth: 560, margin: "0 auto", padding: "120px 24px", textAlign: "center" }}>
+      <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 12 }}>Account paused</h1>
+      <p style={{ color: "var(--text-secondary)", fontSize: 15, lineHeight: 1.6 }}>
+        {email ? `${email}'s ` : "Your "} access has been paused. If you think this
+        is a mistake, please contact{" "}
+        <a href="mailto:hello@kyveriqx.com" style={{ color: "var(--accent)" }}>hello@kyveriqx.com</a>.
+      </p>
+    </main>
   );
 }

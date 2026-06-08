@@ -13,6 +13,7 @@ import { buildBankReport } from "../../../../../tools/bankledgerreco/lib/build-r
 import type { BankReconcileResult } from "../../../../../tools/bankledgerreco/lib/types";
 import { buildGstReport } from "../../../../../tools/gstledgerreco/lib/build-report";
 import type { GstReconcileResult } from "../../../../../tools/gstledgerreco/lib/types";
+import { logEvent } from "../../../../../core/lib/events";
 
 export const dynamic = "force-dynamic";
 
@@ -31,7 +32,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
 
   const { data, error } = await supabase
     .from("jobs")
-    .select("id, status, result, job_key")
+    .select("id, status, result, job_key, tool_id")
     .eq("id", params.id)
     .maybeSingle();
 
@@ -50,6 +51,15 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
       : data.job_key === "bank-ledger-reconcile"
         ? await buildBankReport(data.result as BankReconcileResult)
         : await buildReport(data.result as ReconcileResult);
+
+  await logEvent({
+    type: "report_download",
+    userId: user.id,
+    toolId: (data.tool_id as string | null) ?? null,
+    jobId: data.id as string,
+    path: `/api/jobs/${params.id}/report`,
+    metadata: { job_key: data.job_key, format: "xlsx" },
+  });
 
   return new NextResponse(buffer, {
     status: 200,

@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { supabaseServer } from "../../../core/lib/supabase-server";
 import { postAuthDefaultPath } from "../../../core/lib/subdomain";
+import { logEvent } from "../../../core/lib/events";
 
 function safeNext(raw: FormDataEntryValue | null): string | null {
   if (typeof raw !== "string") return null;
@@ -21,7 +22,7 @@ export async function loginAction(formData: FormData) {
   }
 
   const supabase = supabaseServer();
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) {
     // Supabase returns "Email not confirmed" when confirmation is on and the
@@ -31,6 +32,8 @@ export async function loginAction(formData: FormData) {
       : error.message;
     redirect(`/auth/login?error=${encodeURIComponent(message)}${nextQs}`);
   }
+
+  await logEvent({ type: "login", userId: data.user?.id ?? null, path: "/auth/login" });
 
   redirect(next ?? postAuthDefaultPath());
 }

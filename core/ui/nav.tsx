@@ -6,11 +6,20 @@ import { supabaseServer } from "../lib/supabase-server";
 import { mainSiteUrl, loginHrefWithReturn } from "../lib/subdomain";
 
 export async function Nav() {
-  let user: { email?: string | null } | null = null;
+  let user: { id?: string; email?: string | null } | null = null;
+  let admin = false;
   try {
     const supabase = supabaseServer();
     const res = await supabase.auth.getUser();
     user = res.data.user;
+    if (user?.id) {
+      const { data } = await supabase
+        .from("profiles")
+        .select("is_admin")
+        .eq("id", user.id)
+        .maybeSingle();
+      admin = data?.is_admin === true;
+    }
   } catch {
     // Fail open: render the page with a Login link if we can't resolve the
     // session. Common during build-time static probes (no request context)
@@ -64,6 +73,32 @@ export async function Nav() {
           >
             Store
           </a>
+          <a
+            href={mainSiteUrl("/feedback")}
+            style={{
+              padding: "8px 14px",
+              fontSize: 14,
+              color: "var(--ink-300)",
+              borderRadius: 999,
+              textDecoration: "none",
+            }}
+          >
+            Feedback
+          </a>
+          {admin && (
+            <a
+              href={mainSiteUrl("/admin")}
+              style={{
+                padding: "8px 14px",
+                fontSize: 14,
+                color: "var(--accent)",
+                borderRadius: 999,
+                textDecoration: "none",
+              }}
+            >
+              Admin
+            </a>
+          )}
           {user ? (
             <>
               <span

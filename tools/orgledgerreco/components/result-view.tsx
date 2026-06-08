@@ -5,6 +5,7 @@
    + a "Download Excel report" button instead of dumping JSON. */
 
 import { useEffect, useRef, useState } from "react";
+import { track } from "../../../core/lib/track";
 import { Button } from "../../../core/ui/button";
 import { Card } from "../../../core/ui/card";
 import { JobProgress } from "../../../core/ui/job-progress";
@@ -112,6 +113,15 @@ export function ReconcileResultView({
       if (timer) clearTimeout(timer);
     };
   }, [jobId, initialJob]);
+
+  // Activity log: the user actually saw a finished report (vs. only running it).
+  const viewed = useRef(false);
+  useEffect(() => {
+    if (job?.status === "succeeded" && !viewed.current) {
+      viewed.current = true;
+      track("report_view", { jobId });
+    }
+  }, [job?.status, jobId]);
 
   if (pollErr) {
     return <JobProgress stage="failed" error={`We lost connection while checking progress (${pollErr}). Please refresh the page.`} />;
@@ -501,6 +511,7 @@ function DownloadBar({ res, jobId }: { res: ReconcileResultJson; jobId: string }
     const a = document.createElement("a");
     a.href = url; a.download = "ledger-reconciliation-exceptions.csv"; a.click();
     URL.revokeObjectURL(url);
+    track("report_download", { jobId, metadata: { format: "csv" } });
   }
   return (
     <Card style={{ padding: 24, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>

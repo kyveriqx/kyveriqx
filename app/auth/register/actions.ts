@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { supabaseServer } from "../../../core/lib/supabase-server";
 import { postAuthDefaultPath } from "../../../core/lib/subdomain";
+import { logEvent } from "../../../core/lib/events";
 
 /** Origin of the current request (correct on every subdomain and in dev),
  *  used to build the email confirmation link's redirect target. */
@@ -43,6 +44,8 @@ export async function registerAction(formData: FormData) {
   if (error) {
     redirect(`/auth/register?error=${encodeURIComponent(error.message)}${nextQs}`);
   }
+
+  await logEvent({ type: "signup", userId: data.user?.id ?? null, path: "/auth/register" });
 
   // If email confirmation is disabled in Supabase Auth settings, a session is
   // returned and the user is logged in immediately. If confirmation is on, the
