@@ -1,11 +1,11 @@
 /* Admin overview — the at-a-glance numbers. Users, subscription mix, report
-   volume + reliability over the last 7 days, plus a recent-activity feed and a
-   "needs attention" panel (open feedback, recent failures). Report runs/errors
-   come from `jobs`; visits/views/downloads from `events`. */
+   volume + reliability over the last 7 days, plus a recent-activity feed.
+   Failed reports live on their own Errors tab (/admin/errors). Report
+   runs/errors come from `jobs`; visits/views/downloads from `events`. */
 
 import { supabaseAdmin } from "../../core/lib/supabase";
 import { countRows, toolsById, emailsByUserId } from "./lib/data";
-import { StatTile, Table, Td, Pill, SectionTitle, fmtDate, jobStatusKind, fmtDuration } from "./components/ui";
+import { StatTile, Table, Td, Pill, SectionTitle, fmtDate, fmtDuration } from "./components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -61,15 +61,6 @@ export default async function AdminOverview() {
   const tools = await toolsById();
   const emailMap = await emailsByUserId((events ?? []).map((e) => e.user_id as string | null));
 
-  // Recent failed jobs for the attention panel.
-  const { data: recentFails } = await admin
-    .from("jobs")
-    .select("id, tool_id, job_key, error, updated_at, user_id")
-    .eq("status", "failed")
-    .order("updated_at", { ascending: false })
-    .limit(8);
-  const failEmailMap = await emailsByUserId((recentFails ?? []).map((j) => j.user_id as string | null));
-
   return (
     <div style={{ display: "grid", gap: 28 }}>
       <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>Overview</h1>
@@ -106,27 +97,6 @@ export default async function AdminOverview() {
           })}
           {(events ?? []).length === 0 && (
             <tr><Td>No activity recorded yet.</Td></tr>
-          )}
-        </Table>
-      </section>
-
-      <section>
-        <SectionTitle>Needs attention — recent failed reports</SectionTitle>
-        <Table headers={["When", "User", "Tool", "Job", "Error"]}>
-          {(recentFails ?? []).map((j) => {
-            const tool = j.tool_id ? tools.get(j.tool_id as string) : null;
-            return (
-              <tr key={j.id as string}>
-                <Td>{fmtDate(j.updated_at as string)}</Td>
-                <Td>{j.user_id ? failEmailMap.get(j.user_id as string) ?? "—" : "—"}</Td>
-                <Td>{tool?.name ?? String(j.job_key)}</Td>
-                <Td><Pill kind={jobStatusKind("failed")}>failed</Pill></Td>
-                <Td><span style={{ color: "var(--warn-fg)", fontSize: 12 }}>{String(j.error ?? "—")}</span></Td>
-              </tr>
-            );
-          })}
-          {(recentFails ?? []).length === 0 && (
-            <tr><Td>No failures — nice.</Td></tr>
           )}
         </Table>
       </section>
