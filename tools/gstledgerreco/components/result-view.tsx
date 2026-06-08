@@ -109,7 +109,7 @@ export function ReconcileResultView({ jobId, initialJob }: { jobId: string; init
   return (
     <div style={{ display: "grid", gap: 24 }}>
       <Tabs current={tab} onChange={setTab} res={res} />
-      <ReportBar jobId={jobId} />
+      <ReportBar jobId={jobId} res={res} tab={tab} />
       {tab === "itc" && <ItcTab res={res} />}
       {tab === "sales" && <SalesTab res={res} />}
       {tab === "suppliers" && <SuppliersTab res={res} />}
@@ -120,18 +120,25 @@ export function ReconcileResultView({ jobId, initialJob }: { jobId: string; init
 
 // ── Excel report download (whole workbook) ───────────────────────────────────
 
-function ReportBar({ jobId }: { jobId: string }) {
+function ReportBar({ jobId, res, tab }: { jobId: string; res: GstReconcileResult; tab: Tab }) {
+  const csv =
+    tab === "itc" ? { label: "ITC exceptions", fn: () => downloadItcCsv(res) }
+      : tab === "sales" ? { label: "Sales exceptions", fn: () => downloadSalesCsv(res) }
+        : { label: "Supplier rollup", fn: () => downloadSuppliersCsv(res) };
   return (
     <Card style={{ padding: 24, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
       <div>
-        <div style={{ fontSize: 15, fontWeight: 700, color: "var(--ink-200)" }}>Download the full reconciliation report</div>
+        <div style={{ fontSize: 15, fontWeight: 700, color: "var(--ink-200)" }}>Download the reconciliation report</div>
         <div style={{ fontSize: 13, color: "var(--ink-100)", opacity: 0.75, marginTop: 4 }}>
-          A formatted multi-sheet Excel workbook — Summary · ITC Matched · ITC Exceptions · Sales · Supplier filing · Notes.
+          A formatted multi-sheet Excel workbook (all tabs), or the current view — {csv.label} — as a CSV.
         </div>
       </div>
-      <a href={`/api/jobs/${jobId}/report`} style={{ textDecoration: "none" }}>
-        <Button size="sm">Download Excel report</Button>
-      </a>
+      <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+        <a href={`/api/jobs/${jobId}/report`} style={{ textDecoration: "none" }}>
+          <Button size="sm">Download Excel report</Button>
+        </a>
+        <Button size="sm" variant="ghost" onClick={csv.fn}>Download CSV</Button>
+      </div>
     </Card>
   );
 }
@@ -232,12 +239,6 @@ function ItcTab({ res }: { res: GstReconcileResult }) {
       )}
 
       <ItcActionPlan res={res} />
-
-      <DownloadBar
-        title="Work the ITC exceptions in Excel"
-        body="Download every flagged invoice (with kind, GSTIN, invoice no, amounts, notes) as a CSV."
-        onClick={() => downloadItcCsv(res)}
-      />
     </>
   );
 }
@@ -351,12 +352,6 @@ function SalesTab({ res }: { res: GstReconcileResult }) {
           ✓ Every sales invoice ties between your books and GSTR-1.
         </Card>
       )}
-
-      <DownloadBar
-        title="Work the sales exceptions in Excel"
-        body="Download every short-filed / mismatched sales invoice as a CSV."
-        onClick={() => downloadSalesCsv(res)}
-      />
     </>
   );
 }
@@ -396,11 +391,6 @@ function SuppliersTab({ res }: { res: GstReconcileResult }) {
         </div>
       </Card>
 
-      <DownloadBar
-        title="Email this list to your team"
-        body="Download the per-supplier rollup as a CSV — tax at risk, filed-late counts, and books vs 2B totals."
-        onClick={() => downloadSuppliersCsv(res)}
-      />
     </>
   );
 }
@@ -549,18 +539,6 @@ function KpiTile({ heading, value, sub, tone }: { heading: string; value: string
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return <h2 style={{ fontSize: 18, fontWeight: 600, margin: "0 0 14px", letterSpacing: "-0.01em", color: "var(--ink-200)" }}>{children}</h2>;
-}
-
-function DownloadBar({ title, body, onClick }: { title: string; body: string; onClick: () => void }) {
-  return (
-    <Card style={{ padding: 24, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
-      <div>
-        <div style={{ fontSize: 15, fontWeight: 700, color: "var(--ink-200)" }}>{title}</div>
-        <div style={{ fontSize: 13, color: "var(--ink-100)", opacity: 0.75, marginTop: 4 }}>{body}</div>
-      </div>
-      <Button size="sm" onClick={onClick}>Download CSV</Button>
-    </Card>
-  );
 }
 
 function Table({ headers, children }: { headers: string[]; children: React.ReactNode }) {
