@@ -24,7 +24,12 @@ export async function loginAction(formData: FormData) {
   const { error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) {
-    redirect(`/auth/login?error=${encodeURIComponent(error.message)}${nextQs}`);
+    // Supabase returns "Email not confirmed" when confirmation is on and the
+    // user hasn't clicked the link yet — surface clearer guidance.
+    const message = /email not confirmed/i.test(error.message)
+      ? "Please confirm your email first — check your inbox for the confirmation link."
+      : error.message;
+    redirect(`/auth/login?error=${encodeURIComponent(message)}${nextQs}`);
   }
 
   redirect(next ?? postAuthDefaultPath());
