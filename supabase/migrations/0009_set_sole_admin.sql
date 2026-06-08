@@ -1,7 +1,7 @@
 -- Kyveriqx — lock admin access to a single account: kyveriqx@gmail.com.
 --
--- Supersedes the chandrakant.kant26@gmail.com seed in 0008 and any ad-hoc
--- promotions (e.g. the "promote oldest auth user" one-off). The two statements
+-- Supersedes the founder seed in 0008 and any ad-hoc promotions (e.g. the
+-- "promote oldest auth user" one-off). The two statements
 -- run together: first revoke admin from EVERYONE, then grant it to exactly one
 -- email. Order matters — revoke-all then grant-one guarantees a single admin
 -- regardless of prior state. Idempotent: safe to re-run.
