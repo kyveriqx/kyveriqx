@@ -22,8 +22,8 @@ alter table public.profiles add column if not exists is_active boolean not null 
 
 -- Seed the founder as admin (no-op if the profile row doesn't exist yet — the
 -- signup trigger creates it on email confirmation; re-running this migration
--- after that will flip the flag).
-update public.profiles set is_admin = true where email = 'chandrakant.kant26@gmail.com';
+-- after that will flip the flag). 0009 narrows admin to a single account.
+update public.profiles set is_admin = true where email = 'kyveriqx@gmail.com';
 
 -- ---------- events (activity log) -------------------------------------------
 
