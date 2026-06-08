@@ -72,6 +72,11 @@ export type GstInvoice = {
   /** GSTR-2B / 2A only: the date the supplier actually filed the return
    *  carrying this invoice (drives the "filed late" rollup). */
   filedAt: Date | null;
+
+  /** Register aggregation only: number of source spreadsheet line-rows
+   *  merged into this invoice. Undefined/1 for portal rows and single-line
+   *  register rows. Surfaced for traceability ("365 lines → 206 invoices"). */
+  mergedLines?: number;
 };
 
 /** One uploaded file's contribution to a merged side. */
@@ -228,12 +233,22 @@ export type GstReconcileResult = {
   salesColumns: Record<string, string | null>;
 };
 
-/** Normalise an invoice number for matching: uppercase, strip every
- *  non-alphanumeric character. "INV-001" ≡ "INV/001" ≡ "INV 001". The
- *  original string is preserved on the row so the UI can still display
- *  the supplier's actual numbering. */
+/** Normalise an invoice number for matching: uppercase, drop every
+ *  non-alphanumeric character, and strip leading zeros inside each numeric
+ *  run. "INV-001" ≡ "INV/001" ≡ "INV 001" ≡ "INV-1", and
+ *  "GLT/0826/25-26" ≡ "GLT/826/25-26" — zero-padding is a formatting
+ *  artifact, not a distinct invoice. The `(?=\d)` lookahead keeps the last
+ *  digit so "000" → "0" rather than "". The original string is preserved on
+ *  the row so the UI (and the invoice-no-diff warning) can still display the
+ *  supplier's actual numbering. */
 export function normalizeInvoiceNo(s: string): string {
-  return s.toUpperCase().replace(/[^A-Z0-9]/g, "");
+  return s
+    .toUpperCase()
+    // Strip leading zeros within each numeric run *first*, while the
+    // separators still delimit the runs — otherwise "2026-27-001" collapses
+    // into one run "202627001" with no leading zero to strip.
+    .replace(/\d+/g, (run) => run.replace(/^0+(?=\d)/, ""))
+    .replace(/[^A-Z0-9]/g, "");
 }
 
 /** Normalise a GSTIN: uppercase, trim, strip whitespace. Doesn't
