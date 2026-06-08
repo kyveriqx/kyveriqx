@@ -1,0 +1,43 @@
+name: Deploy Trigger.dev
+
+# The reconciliation math runs inside Trigger.dev tasks (tools/<slug>/jobs/*.ts),
+# which deploy SEPARATELY from the Vercel web app. A `git push` redeploys Vercel
+# but NOT the worker — so without this, task-code changes silently never reach
+# production (e.g. the GST matching fixes in PR #16 stayed on the Jun-7 worker and
+# live reconciliations kept returning 0 matches). This deploys the worker on every
+# push to main, keeping it in lockstep with the web app.
+#
+# Required repo secrets (Settings → Secrets and variables → Actions):
+#   TRIGGER_ACCESS_TOKEN        — Trigger.dev personal access token (tr_pat_...)
+#   NEXT_PUBLIC_SUPABASE_URL    } the worker env vars listed in trigger.config.ts's
+#   SUPABASE_SERVICE_ROLE_KEY   } syncEnvVars extension; recreated into .env.local
+#   SMTP_ENCRYPTION_KEY         } below so the CI deploy syncs them like a local one.
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: trigger-deploy-prod
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - name: Write .env.local for syncEnvVars
+        run: |
+          {
+            echo "NEXT_PUBLIC_SUPABASE_URL=${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}"
+            echo "SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}"
+            echo "SMTP_ENCRYPTION_KEY=${{ secrets.SMTP_ENCRYPTION_KEY }}"
+          } > .env.local
+      - name: Deploy to Trigger.dev (prod)
+        run: npm run trigger:deploy
+        env:
+          TRIGGER_ACCESS_TOKEN: ${{ secrets.TRIGGER_ACCESS_TOKEN }}
