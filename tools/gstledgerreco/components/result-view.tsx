@@ -109,11 +109,30 @@ export function ReconcileResultView({ jobId, initialJob }: { jobId: string; init
   return (
     <div style={{ display: "grid", gap: 24 }}>
       <Tabs current={tab} onChange={setTab} res={res} />
+      <ReportBar jobId={jobId} />
       {tab === "itc" && <ItcTab res={res} />}
       {tab === "sales" && <SalesTab res={res} />}
       {tab === "suppliers" && <SuppliersTab res={res} />}
       <NotesCard res={res} />
     </div>
+  );
+}
+
+// ── Excel report download (whole workbook) ───────────────────────────────────
+
+function ReportBar({ jobId }: { jobId: string }) {
+  return (
+    <Card style={{ padding: 24, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+      <div>
+        <div style={{ fontSize: 15, fontWeight: 700, color: "var(--ink-200)" }}>Download the full reconciliation report</div>
+        <div style={{ fontSize: 13, color: "var(--ink-100)", opacity: 0.75, marginTop: 4 }}>
+          A formatted multi-sheet Excel workbook — Summary · ITC Matched · ITC Exceptions · Sales · Supplier filing · Notes.
+        </div>
+      </div>
+      <a href={`/api/jobs/${jobId}/report`} style={{ textDecoration: "none" }}>
+        <Button size="sm">Download Excel report</Button>
+      </a>
+    </Card>
   );
 }
 

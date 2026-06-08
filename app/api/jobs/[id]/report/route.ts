@@ -11,6 +11,8 @@ import { buildReport } from "../../../../../core/lib/ledger/build-report";
 import type { ReconcileResult } from "../../../../../core/lib/ledger/types";
 import { buildBankReport } from "../../../../../tools/bankledgerreco/lib/build-report";
 import type { BankReconcileResult } from "../../../../../tools/bankledgerreco/lib/types";
+import { buildGstReport } from "../../../../../tools/gstledgerreco/lib/build-report";
+import type { GstReconcileResult } from "../../../../../tools/gstledgerreco/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +20,7 @@ export const dynamic = "force-dynamic";
 const REPORT_FILENAME: Record<string, string> = {
   "org-ledger-reconcile": "ledger-reconciliation",
   "bank-ledger-reconcile": "bank-reconciliation",
+  "gst-ledger-reconcile": "gst-reconciliation",
 };
 
 export async function GET(_req: Request, { params }: { params: { id: string } }) {
@@ -41,9 +44,12 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
     return NextResponse.json({ error: "job is not yet complete" }, { status: 409 });
   }
 
-  const buffer = data.job_key === "bank-ledger-reconcile"
-    ? await buildBankReport(data.result as BankReconcileResult)
-    : await buildReport(data.result as ReconcileResult);
+  const buffer =
+    data.job_key === "gst-ledger-reconcile"
+      ? await buildGstReport(data.result as GstReconcileResult)
+      : data.job_key === "bank-ledger-reconcile"
+        ? await buildBankReport(data.result as BankReconcileResult)
+        : await buildReport(data.result as ReconcileResult);
 
   return new NextResponse(buffer, {
     status: 200,

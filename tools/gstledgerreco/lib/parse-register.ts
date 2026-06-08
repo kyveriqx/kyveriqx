@@ -14,7 +14,7 @@
 
 import * as XLSX from "xlsx";
 import type { FileSource, GstInvoice, GstReturn } from "./types";
-import { normalizeGstin } from "./types";
+import { normalizeGstin, normalizeInvoiceNo } from "./types";
 
 // ── Column candidates ──────────────────────────────────────────────────
 
@@ -23,15 +23,24 @@ const GSTIN_KEYS = [
   "GSTIN", "GST No", "GST Number", "GSTIN/UIN", "GSTIN UIN",
 ];
 
+// Name-bearing columns first ("Trade/Legal name" is the GSTN portal header);
+// the bare "Supplier"/"Customer"/"Party" fallbacks come last so they don't
+// accidentally latch onto a "GSTIN of supplier" column before "Name" matches.
 const PARTY_KEYS = [
   "Party Name", "Supplier Name", "Customer Name", "Counterparty Name",
-  "Party", "Supplier", "Customer", "Name",
+  "Trade/Legal name", "Trade Name", "Legal Name", "Name",
+  "Party", "Supplier", "Customer",
 ];
 
+// Order matters: pickHeader returns the first candidate that *exactly* matches
+// a header. A GSTR-2B is keyed on the SUPPLIER's invoice number, never the
+// buyer's internal document/voucher number — so supplier/vendor invoice columns
+// come first and the ERP's own "Document No" / "Voucher No" are last-resort
+// fallbacks (used only when no real invoice-number column is present).
 const INVOICE_NO_KEYS = [
+  "Supplier Invoice No", "Vendor Invoice No", "Party Invoice No",
   "Invoice No", "Invoice Number", "Invoice #", "Inv No", "Inv #",
-  "Bill No", "Bill Number", "Document No", "Voucher No", "Reference No",
-  "Supplier Invoice No",
+  "Bill No", "Bill Number", "Reference No", "Document No", "Voucher No",
 ];
 
 const INVOICE_DATE_KEYS = [
@@ -44,9 +53,11 @@ const TAXABLE_KEYS = [
   "Net Amount", "Net Value", "Basic Amount", "Base Amount",
 ];
 
-const IGST_KEYS = ["IGST", "IGST Amount", "Integrated GST", "IGST Amt"];
-const CGST_KEYS = ["CGST", "CGST Amount", "Central GST", "CGST Amt"];
-const SGST_KEYS = ["SGST", "SGST Amount", "State GST", "SGST/UTGST", "UTGST", "SGST Amt"];
+// "Integrated/Central/State-UT Tax" are the column names on the official
+// GSTN portal XLSX (GSTR-2B/2A) — the rest cover Tally/BC/Zoho exports.
+const IGST_KEYS = ["IGST", "IGST Amount", "Integrated GST", "Integrated Tax", "IGST Amt"];
+const CGST_KEYS = ["CGST", "CGST Amount", "Central GST", "Central Tax", "CGST Amt"];
+const SGST_KEYS = ["SGST", "SGST Amount", "State GST", "State/UT Tax", "State Tax", "SGST/UTGST", "UTGST", "SGST Amt"];
 const CESS_KEYS = ["Cess", "Cess Amount", "Compensation Cess", "Cess Amt"];
 
 const TAX_TOTAL_KEYS = [
@@ -139,9 +150,26 @@ export function toDate(v: unknown): Date | null {
 
 type SheetMatrix = unknown[][];
 
+/** Choose which sheet holds the invoice rows.
+ *
+ *  The official GSTN portal export (GSTR-2B / 2A) is a multi-sheet workbook
+ *  whose FIRST sheet is "Read me" — the invoices live on the "B2B" sheet. We
+ *  only reroute when the workbook is unmistakably a GSTN export (it has a
+ *  "Read me" sheet AND a "B2B" sheet), so an ordinary single-sheet
+ *  Tally/BC/Zoho register still reads its first sheet exactly as before. */
+function pickSheetName(wb: XLSX.WorkBook): string {
+  const names = wb.SheetNames;
+  const isGstnExport = names.some((n) => n.replace(/\s+/g, "").toLowerCase() === "readme");
+  if (isGstnExport) {
+    const b2b = names.find((n) => n.trim().toUpperCase() === "B2B");
+    if (b2b) return b2b;
+  }
+  return names[0] ?? "";
+}
+
 export function readMatrix(buffer: Buffer): SheetMatrix {
   const wb = XLSX.read(buffer, { type: "buffer", cellDates: true });
-  const sheetName = wb.SheetNames[0];
+  const sheetName = pickSheetName(wb);
   if (!sheetName) return [];
   const ws = wb.Sheets[sheetName];
   return XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, defval: "" });
@@ -183,7 +211,62 @@ export type RegisterParseResult = {
   invoices: GstInvoice[];
   columns: Record<string, string | null>;
   headers: string[];
+  /** Pre-aggregation row count, for "N line rows → M invoices" display.
+   *  Equals invoices.length when the register is already invoice-level. */
+  lineRows?: number;
 };
+
+/** Collapse line-level register rows to invoice level.
+ *
+ *  Indian ERP exports (Business Central, Tally, Zoho) often emit one row per
+ *  invoice *line* — a single invoice spans many HSN/item rows. GST ITC is
+ *  claimed at invoice granularity and the matcher consumes each 2B row once,
+ *  so without this collapse every line after the first becomes a false
+ *  "missing-in-2b" exception.
+ *
+ *  Groups rows sharing (partyGstin, normalizeInvoiceNo(invoiceNo)) ONLY when
+ *  both keys are non-empty — a row we can't identify is passed through
+ *  untouched (it can't be safely merged, and will surface as its own
+ *  exception). Sums every money field; keeps the first row's
+ *  date/file/fileRow/source; prefers the longest non-empty partyName; records
+ *  how many lines were merged. First-seen order is preserved so downstream row
+ *  numbering stays stable. A register that is already invoice-level is a
+ *  no-op (every key is unique). */
+export function aggregateRegister(invoices: GstInvoice[]): GstInvoice[] {
+  const byKey = new Map<string, GstInvoice>();
+  const out: GstInvoice[] = [];
+
+  for (const inv of invoices) {
+    const keyable = inv.partyGstin !== "" && inv.invoiceNo !== "";
+    if (!keyable) {
+      out.push({ ...inv, mergedLines: 1 });
+      continue;
+    }
+    const k = `${inv.partyGstin}::${normalizeInvoiceNo(inv.invoiceNo)}`;
+    const existing = byKey.get(k);
+    if (!existing) {
+      // Push the live seed object that we keep mutating, so `out` stays in
+      // first-seen order without a second pass.
+      const seed: GstInvoice = { ...inv, mergedLines: 1 };
+      byKey.set(k, seed);
+      out.push(seed);
+      continue;
+    }
+    existing.taxableValue += inv.taxableValue;
+    existing.igst += inv.igst;
+    existing.cgst += inv.cgst;
+    existing.sgst += inv.sgst;
+    existing.cess += inv.cess;
+    existing.totalTax += inv.totalTax;
+    existing.invoiceValue += inv.invoiceValue;
+    existing.mergedLines = (existing.mergedLines ?? 1) + 1;
+    if (inv.partyName && inv.partyName.length > existing.partyName.length) {
+      existing.partyName = inv.partyName;
+    }
+    if (!existing.invoiceDate && inv.invoiceDate) existing.invoiceDate = inv.invoiceDate;
+  }
+  return out;
+}
 
 function parseRegister(
   buffer: Buffer,
@@ -249,14 +332,18 @@ function parseRegister(
     });
   });
 
+  const lineRows = invoices.length;
+  const aggregated = aggregateRegister(invoices);
+
   return {
-    invoices,
+    invoices: aggregated,
     columns: {
       gstin: gstinCol, party: partyCol, invoiceNo: invNoCol, invoiceDate: invDateCol,
       taxable: taxableCol, igst: igstCol, cgst: cgstCol, sgst: sgstCol, cess: cessCol,
       taxTotal: taxTotalCol, invoiceValue: invValueCol,
     },
     headers,
+    lineRows,
   };
 }
 

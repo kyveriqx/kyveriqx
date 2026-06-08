@@ -1,8 +1,9 @@
 import { describe, it, expect } from "vitest";
 import * as XLSX from "xlsx";
 import { parseGstr2bJson, parseGstr2aJson, parseGstr1Json, parseGstnDate, looksLikeJson } from "./parse-gst-json";
-import { parsePurchaseRegister, parseSalesRegister, mergeInvoices, toNum, toDate, pickHeader } from "./parse-register";
+import { parsePurchaseRegister, parseSalesRegister, mergeInvoices, aggregateRegister, toNum, toDate, pickHeader } from "./parse-register";
 import { normalizeGstin, normalizeInvoiceNo } from "./types";
+import type { GstInvoice } from "./types";
 
 // ── helpers ──────────────────────────────────────────────────────────
 
@@ -24,7 +25,14 @@ describe("normalizeInvoiceNo", () => {
   it("treats punctuation-only differences as equal", () => {
     expect(normalizeInvoiceNo("INV-001")).toBe(normalizeInvoiceNo("INV/001"));
     expect(normalizeInvoiceNo("INV-001")).toBe(normalizeInvoiceNo("inv 001"));
-    expect(normalizeInvoiceNo("S/2026-27/001")).toBe("S202627001");
+    // Leading zeros inside numeric runs are stripped: "001" → "1", "27" stays.
+    expect(normalizeInvoiceNo("S/2026-27/001")).toBe("S2026271");
+  });
+  it("treats leading-zero differences as equal", () => {
+    expect(normalizeInvoiceNo("GLT/0826/25-26")).toBe(normalizeInvoiceNo("GLT/826/25-26"));
+    expect(normalizeInvoiceNo("INV-001")).toBe(normalizeInvoiceNo("INV-1"));
+    // An all-zero run collapses to a single "0", not "".
+    expect(normalizeInvoiceNo("X/000")).toBe("X0");
   });
 });
 
@@ -244,5 +252,60 @@ describe("mergeInvoices", () => {
       { file: "p1.xlsx", rows: 1, rowStart: 1, rowEnd: 1 },
       { file: "p2.xlsx", rows: 1, rowStart: 2, rowEnd: 2 },
     ]);
+  });
+});
+
+describe("aggregateRegister", () => {
+  function line(over: Partial<GstInvoice>): GstInvoice {
+    return {
+      row: 0, file: "p.xlsx", fileRow: 0, source: "purchase",
+      partyGstin: "29AABCT2727Q1ZH", partyName: "Acme", invoiceNo: "INV-1",
+      invoiceDate: null, taxableValue: 0, igst: 0, cgst: 0, sgst: 0, cess: 0,
+      totalTax: 0, invoiceValue: 0, itcEligible: null, itcReason: null, filedAt: null,
+      ...over,
+    };
+  }
+
+  it("collapses line-level rows of one invoice and sums the money", () => {
+    const out = aggregateRegister([
+      line({ fileRow: 1, taxableValue: 1000, cgst: 90, sgst: 90, totalTax: 180, invoiceValue: 1180 }),
+      line({ fileRow: 2, taxableValue: 2000, cgst: 180, sgst: 180, totalTax: 360, invoiceValue: 2360 }),
+      line({ fileRow: 3, taxableValue: 500, cgst: 45, sgst: 45, totalTax: 90, invoiceValue: 590 }),
+    ]);
+    expect(out).toHaveLength(1);
+    expect(out[0].taxableValue).toBe(3500);
+    expect(out[0].totalTax).toBe(630);
+    expect(out[0].invoiceValue).toBe(4130);
+    expect(out[0].mergedLines).toBe(3);
+    expect(out[0].fileRow).toBe(1); // keeps the first line's row
+  });
+
+  it("keeps distinct invoices separate and collapses leading-zero variants", () => {
+    const out = aggregateRegister([
+      line({ invoiceNo: "GLT/0826/25-26", taxableValue: 100, totalTax: 18 }),
+      line({ invoiceNo: "GLT/826/25-26", taxableValue: 200, totalTax: 36 }),
+      line({ invoiceNo: "OTHER-1", taxableValue: 50, totalTax: 9 }),
+    ]);
+    expect(out).toHaveLength(2);
+    expect(out[0].taxableValue).toBe(300); // the two GLT forms merged
+    expect(out[0].mergedLines).toBe(2);
+    expect(out[1].invoiceNo).toBe("OTHER-1");
+  });
+
+  it("passes through rows that lack a usable key", () => {
+    const out = aggregateRegister([
+      line({ partyGstin: "", invoiceNo: "", taxableValue: 30088, totalTax: 0 }),
+      line({ partyGstin: "", invoiceNo: "", taxableValue: 11750, totalTax: 0 }),
+    ]);
+    expect(out).toHaveLength(2); // unkeyable rows are never merged together
+    expect(out[0].mergedLines).toBe(1);
+  });
+
+  it("prefers the longest non-empty party name across lines", () => {
+    const out = aggregateRegister([
+      line({ partyName: "Acme" }),
+      line({ partyName: "Acme Supplies Private Limited" }),
+    ]);
+    expect(out[0].partyName).toBe("Acme Supplies Private Limited");
   });
 });
