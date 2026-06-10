@@ -178,12 +178,25 @@ export default async function EmailCampaign({ searchParams }: Props) {
         ) : (
           <>
             <MailboxStrip oauth={oauth} />
-            <UploadForm />
+            <UploadForm defaultPreviewName={previewNameFromUser(user.email, user.user_metadata)} />
           </>
         )}
       </main>
     </>
   );
+}
+
+/** Best-guess first name for the live-preview default: prefer a name set at
+ *  signup (user_metadata), otherwise derive it from the email's local part
+ *  ("chandrakant@alpha.co.in" → "Chandrakant"). */
+function previewNameFromUser(
+  email: string | undefined,
+  meta: Record<string, unknown> | undefined,
+): string {
+  const metaName = (meta?.full_name ?? meta?.name ?? meta?.display_name) as string | undefined;
+  if (metaName && metaName.trim()) return metaName.trim().split(/\s+/)[0];
+  const local = (email ?? "").split("@")[0]?.split(/[._-]/)[0] ?? "";
+  return local ? local.charAt(0).toUpperCase() + local.slice(1) : "there";
 }
 
 /** Clear, always-visible strip at the top of the compose screen showing which
