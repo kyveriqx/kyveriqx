@@ -165,15 +165,54 @@ export default async function EmailCampaign({ searchParams }: Props) {
           <ConnectMailboxCard hasSmtp={hasSmtp} oauth={oauth} />
         ) : (
           <>
+            <MailboxStrip oauth={oauth} />
             <UploadForm />
-            <div style={{ marginTop: 28, textAlign: "right" }}>
-              <a href="/tools/emailcampaign?settings=1" style={{ fontSize: 13, color: "var(--ink-400)", textDecoration: "none" }}>
-                Update mailbox connection →
-              </a>
-            </div>
           </>
         )}
       </main>
     </>
+  );
+}
+
+/** Clear, always-visible strip at the top of the compose screen showing which
+ *  mailbox the campaign sends from, with an obvious "Change mailbox" button —
+ *  so a non-technical user never has to hunt for where to connect/switch. */
+function MailboxStrip({ oauth }: { oauth: { provider: string; accountEmail: string } | null }) {
+  const isMs = oauth?.provider === "microsoft";
+  const email = oauth?.accountEmail ?? null;
+  const method = oauth ? (isMs ? "Microsoft 365 / Outlook" : oauth.provider) : "Custom SMTP server";
+
+  return (
+    <div style={{
+      display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16,
+      flexWrap: "wrap", marginBottom: 24, padding: "14px 18px",
+      background: "var(--bg-elev)", border: "1px solid var(--line)", borderRadius: 12,
+    }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
+        <span style={{ fontSize: 20 }}>📤</span>
+        <div style={{ minWidth: 0 }}>
+          <div style={{
+            fontSize: 11, color: "var(--ink-400)", fontFamily: "var(--font-mono)",
+            letterSpacing: "0.05em", textTransform: "uppercase",
+          }}>
+            Sending from
+          </div>
+          <div style={{ fontSize: 14, color: "var(--ink-100)", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {email ? `${email} · ${method}` : method}
+          </div>
+        </div>
+      </div>
+      <a
+        href="/tools/emailcampaign?settings=1"
+        style={{
+          flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 6,
+          padding: "8px 14px", fontSize: 13, fontWeight: 600,
+          color: "var(--accent)", background: "var(--accent-bg-soft)",
+          border: "1px solid var(--accent-border-soft)", borderRadius: 8, textDecoration: "none",
+        }}
+      >
+        Change mailbox →
+      </a>
+    </div>
   );
 }
