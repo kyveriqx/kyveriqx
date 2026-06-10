@@ -29,7 +29,7 @@ const TARGET: Record<ProgressStage, number> = {
 };
 
 export function JobProgress({
-  stage, detail, pct, error,
+  stage, detail, pct, error, title,
 }: {
   stage: ProgressStage;
   /** Optional sub-line override (e.g. "Uploading file 1 of 2…"). */
@@ -38,6 +38,9 @@ export function JobProgress({
   pct?: number;
   /** Error text for failed/cancelled — shown softly, not as a red dump. */
   error?: string | null;
+  /** Optional heading override — lets non-reconciliation tools (e.g. email
+   *  campaigns) reuse the same calm card with their own wording. */
+  title?: string;
 }) {
   const isError = stage === "failed" || stage === "cancelled";
   const [display, setDisplay] = useState(stage === "uploading" ? Math.max(pct ?? 0, 6) : 16);
@@ -75,7 +78,7 @@ export function JobProgress({
         )}
         <div>
           <div style={{ fontSize: 17, fontWeight: 650, color: isError ? "var(--error-fg)" : "var(--ink-100)" }}>
-            {copy.title}
+            {title ?? copy.title}
           </div>
           <div style={{ fontSize: 13, color: "var(--ink-300)", marginTop: 3 }}>
             {detail ?? copy.sub}
