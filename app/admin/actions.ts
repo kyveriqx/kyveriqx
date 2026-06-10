@@ -108,6 +108,37 @@ export async function setUserActive(
   return { ok: true };
 }
 
+/** Approve or reject a customer's request to use the email campaign tool.
+ *  Upserts so it also works if the admin is acting before any request row
+ *  exists. Records who decided and when. */
+export async function setEmailCampaignApproval(
+  userId: string,
+  approved: boolean,
+  notes?: string,
+): Promise<ActionResult> {
+  const admin_user = await requireAdmin();
+  if (!userId) return { ok: false, error: "Invalid input." };
+  const admin = supabaseAdmin();
+
+  const { error } = await admin
+    .from("emailcampaign_approvals")
+    .upsert(
+      {
+        user_id: userId,
+        status: approved ? "approved" : "rejected",
+        admin_notes: notes ?? null,
+        decided_at: new Date().toISOString(),
+        decided_by: admin_user.id,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "user_id" },
+    );
+
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/admin/approvals");
+  return { ok: true };
+}
+
 /** Triage a feedback item: change its status and/or attach an admin note. */
 export async function updateFeedback(
   id: string,

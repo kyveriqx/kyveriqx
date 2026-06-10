@@ -16,8 +16,12 @@ const WORKER_ENV_KEYS = [
   "NEXT_PUBLIC_SUPABASE_URL",
   "SUPABASE_SERVICE_ROLE_KEY",
   // emailcampaign — needed by core/lib/smtp-crypto.ts to decrypt the saved
-  // SMTP password inside the send-email-campaign task.
+  // SMTP password / OAuth refresh token inside the send-email-campaign task.
   "SMTP_ENCRYPTION_KEY",
+  // emailcampaign — the OAuth (Microsoft) send path refreshes an access token
+  // at send time via core/lib/ms-oauth.ts, which needs the app credentials.
+  "MS_OAUTH_CLIENT_ID",
+  "MS_OAUTH_CLIENT_SECRET",
 ];
 
 function readDotEnvLocal(): Record<string, string> {

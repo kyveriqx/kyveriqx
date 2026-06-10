@@ -12,6 +12,7 @@ import {
   setSubscriptionStatus,
   setUserActive,
   updateFeedback,
+  setEmailCampaignApproval,
   type ActionResult,
 } from "../actions";
 
@@ -99,6 +100,53 @@ export function SubscriptionControls({
       </button>
       <Msg msg={msg} />
     </span>
+  );
+}
+
+export function ApprovalControls({
+  userId,
+  status,
+  notes,
+}: {
+  userId: string;
+  status: string;
+  notes: string | null;
+}) {
+  const { pending, msg, run } = useAction();
+  const [note, setNote] = useState(notes ?? "");
+  return (
+    <div style={{ display: "grid", gap: 8 }}>
+      <div style={{ display: "inline-flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+        <button
+          style={{ ...btn, color: "var(--success-fg)" }}
+          disabled={pending || status === "approved"}
+          onClick={() => run(() => setEmailCampaignApproval(userId, true, note || undefined), "Approved")}
+        >
+          Approve
+        </button>
+        <button
+          style={{ ...btn, color: "var(--warn-fg)" }}
+          disabled={pending || status === "rejected"}
+          onClick={() => run(() => setEmailCampaignApproval(userId, false, note || undefined), "Rejected")}
+        >
+          Reject
+        </button>
+        <Msg msg={msg} />
+      </div>
+      <input
+        value={note}
+        onChange={(e) => setNote(e.target.value)}
+        placeholder="Optional note shown to the user if rejected…"
+        style={{
+          padding: "5px 8px",
+          fontSize: 12,
+          borderRadius: 8,
+          border: "1px solid var(--line-strong)",
+          background: "var(--bg-elev)",
+          color: "var(--ink-100)",
+        }}
+      />
+    </div>
   );
 }
 
