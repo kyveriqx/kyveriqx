@@ -6,6 +6,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Card } from "../../../core/ui/card";
+import { JobProgress } from "../../../core/ui/job-progress";
 import type { CampaignResult } from "../lib/types";
 
 type JobStatusValue = "queued" | "running" | "succeeded" | "failed" | "cancelled";
@@ -49,49 +50,40 @@ export function CampaignResultView({ jobId, initialJob }: { jobId: string; initi
     return () => { cancelled.current = true; if (timer) clearTimeout(timer); };
   }, [jobId, initialJob]);
 
+  // Same calm progress card the ledgerreco tools use (spinner + animated bar),
+  // with email-appropriate wording, so the in-progress experience is consistent
+  // across every tool.
   if (pollErr) {
     return (
-      <div style={{
-        color: "var(--error-fg)", padding: 16, border: "1px solid var(--error-border)",
-        background: "var(--error-bg)", borderRadius: 10,
-      }}>
-        Polling error: {pollErr}
-      </div>
+      <JobProgress
+        stage="failed"
+        title="We lost connection while checking progress"
+        error={`${pollErr} — please refresh the page.`}
+      />
     );
   }
 
-  if (!job) return <div style={{ color: "var(--ink-400)", padding: 16 }}>Loading…</div>;
+  if (!job) return <JobProgress stage="queued" title="Getting your campaign ready…" detail="Your campaign is starting up." />;
 
   if (job.status !== "succeeded") {
-    const labels: Record<JobStatusValue, string> = {
-      queued: "Queued — waiting for a worker",
-      running: "Running — sending emails…",
-      succeeded: "Done",
-      failed: "Failed",
-      cancelled: "Cancelled",
+    const stage =
+      job.status === "failed" ? "failed"
+        : job.status === "cancelled" ? "cancelled"
+          : job.status === "running" ? "running"
+            : "queued";
+    const TITLE: Record<typeof stage, string> = {
+      queued: "Getting your campaign ready…",
+      running: "Sending your emails…",
+      failed: "We couldn’t send this campaign",
+      cancelled: "Campaign cancelled",
     };
-    return (
-      <Card style={{ padding: 24 }}>
-        <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--ink-400)" }}>
-          job {job.id.slice(0, 8)} · {job.job_key}
-        </div>
-        <div style={{
-          fontSize: 22, fontWeight: 600, marginTop: 4,
-          color: job.status === "failed" ? "var(--error-fg)" : "var(--ink-200)",
-        }}>
-          {labels[job.status]}
-        </div>
-        {job.error && (
-          <pre style={{
-            color: "var(--error-fg)", marginTop: 12, fontSize: 13,
-            background: "var(--error-bg)", border: "1px solid var(--error-border)",
-            padding: 10, borderRadius: 8, whiteSpace: "pre-wrap",
-          }}>
-            {job.error}
-          </pre>
-        )}
-      </Card>
-    );
+    const DETAIL: Record<typeof stage, string> = {
+      queued: "Your campaign is starting up.",
+      running: "Delivering to each recipient — this can take a little while.",
+      failed: "Please check the details and try again.",
+      cancelled: "This run was cancelled.",
+    };
+    return <JobProgress stage={stage} title={TITLE[stage]} detail={DETAIL[stage]} error={job.error} />;
   }
 
   const res = job.result;
