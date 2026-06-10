@@ -15,6 +15,7 @@
 import { useState, useRef, useTransition, type DragEvent } from "react";
 import { Button } from "../../../core/ui/button";
 import { runEmailCampaignAction } from "../run-action";
+import { applyMerge } from "../lib/merge";
 
 type Stage = "idle" | "uploading" | "submitting";
 
@@ -30,6 +31,7 @@ export function UploadForm() {
   const [stage, setStage] = useState<Stage>("idle");
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState("");
+  const [previewName, setPreviewName] = useState("Asha");
   const [, startTransition] = useTransition();
 
   async function uploadFile(file: File): Promise<string> {
@@ -89,6 +91,26 @@ export function UploadForm() {
     }
   }
 
+  // Build a tiny sample CSV on the fly and download it — shows the exact
+  // shape we expect (a Name column + an Email column, one row per recipient)
+  // so the user doesn't have to guess the format.
+  function downloadSample() {
+    const csv =
+      "Name,Email\r\n" +
+      "Asha Mehta,asha@example.com\r\n" +
+      "Ravi Kumar,ravi@example.com\r\n" +
+      "Priya Nair,priya@example.com\r\n";
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "sample-recipients.csv";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
   const busy = stage !== "idle";
   const ready = files.length === 1 && subject.trim() && body.trim() && !busy;
 
@@ -123,6 +145,15 @@ export function UploadForm() {
         </div>
       </div>
 
+      {/* Two columns: editor on the left, live preview on the right. Collapses
+          to a single column on narrow screens via auto-fit. */}
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))",
+        gap: 28,
+        alignItems: "start",
+      }}>
+        <div>
       {/* Step 1 — Recipients */}
       <StepLabel>Step 1 — Recipient list</StepLabel>
       <DescCard
@@ -130,6 +161,25 @@ export function UploadForm() {
         title="CSV or Excel with one row per recipient"
         body="Your file needs at least an Email column. A Name column is optional — when present, it powers the {{name}} merge field in your subject and body. Blank rows and invalid email addresses are skipped automatically."
       />
+      <div style={{
+        marginTop: 12, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap",
+        fontSize: 13, color: "var(--ink-300)",
+      }}>
+        <span>New here? Download a sample to see the exact format:</span>
+        <button
+          type="button"
+          onClick={downloadSample}
+          style={{
+            display: "inline-flex", alignItems: "center", gap: 6,
+            padding: "6px 12px", fontSize: 12.5, fontWeight: 600,
+            color: "var(--accent)", background: "var(--accent-bg-soft)",
+            border: "1px solid var(--accent-border-soft)", borderRadius: 8,
+            cursor: "pointer",
+          }}
+        >
+          ⬇ Download sample CSV
+        </button>
+      </div>
       <div style={{ marginTop: 14 }}>
         <Dropzone
           label="Upload recipient list"
@@ -232,9 +282,100 @@ export function UploadForm() {
         marginTop: 28, textAlign: "center", fontSize: 11.5,
         color: "var(--ink-400)", fontFamily: "var(--font-mono)", letterSpacing: "0.03em",
       }}>
-        Email Campaigns · Sent via your own SMTP relay · {`{{name}}`} merge supported
+        Email Campaigns · Sent from your connected mailbox · {`{{name}}`} merge supported
       </div>
+        </div>{/* end left column */}
+
+        <EmailPreview
+          subject={subject}
+          body={body}
+          previewName={previewName}
+          onPreviewName={setPreviewName}
+        />
+      </div>{/* end two-column grid */}
     </form>
+  );
+}
+
+/** Live preview of the email exactly as a recipient will see it: the subject
+ *  and HTML body rendered with {{name}} merged for a sample recipient. Sticky
+ *  so it stays in view while the editor on the left scrolls. */
+function EmailPreview({
+  subject,
+  body,
+  previewName,
+  onPreviewName,
+}: {
+  subject: string;
+  body: string;
+  previewName: string;
+  onPreviewName: (v: string) => void;
+}) {
+  const mergedSubject = applyMerge(subject, { name: previewName });
+  const mergedBody = applyMerge(body, { name: previewName });
+  const sampleEmail = `${(previewName || "asha").toLowerCase().split(" ")[0]}@example.com`;
+
+  return (
+    <div style={{ position: "sticky", top: 24 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 8, flexWrap: "wrap" }}>
+        <div style={{
+          fontSize: 12, color: "var(--ink-400)", fontFamily: "var(--font-mono)",
+          letterSpacing: "0.04em", textTransform: "uppercase",
+        }}>
+          Live preview
+        </div>
+        <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--ink-400)" }}>
+          Preview as
+          <input
+            type="text"
+            value={previewName}
+            onChange={(e) => onPreviewName(e.target.value)}
+            placeholder="Asha"
+            style={{
+              width: 120, padding: "5px 8px", fontSize: 12.5,
+              background: "var(--bg-card)", color: "var(--ink-100)",
+              border: "1px solid var(--line-strong)", borderRadius: 8, outline: "none",
+            }}
+          />
+        </label>
+      </div>
+
+      {/* The email itself — rendered on white so it looks like a real inbox
+          message regardless of the app's dark theme. */}
+      <div style={{
+        border: "1px solid var(--line-strong)", borderRadius: "var(--radius-md)",
+        overflow: "hidden", boxShadow: "var(--shadow-card)", background: "#ffffff",
+      }}>
+        <div style={{ padding: "14px 18px", borderBottom: "1px solid #e5e7eb", background: "#f9fafb" }}>
+          <div style={{ fontSize: 11, color: "#6b7280", fontFamily: "var(--font-mono)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+            To
+          </div>
+          <div style={{ fontSize: 13, color: "#374151" }}>
+            {previewName || "Asha"} &lt;{sampleEmail}&gt;
+          </div>
+          <div style={{ fontSize: 11, color: "#6b7280", fontFamily: "var(--font-mono)", textTransform: "uppercase", letterSpacing: "0.04em", marginTop: 10 }}>
+            Subject
+          </div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: "#111827", wordBreak: "break-word" }}>
+            {mergedSubject || <span style={{ color: "#9ca3af", fontWeight: 400 }}>(your subject appears here)</span>}
+          </div>
+        </div>
+        <div style={{ padding: "18px", minHeight: 160, color: "#1f2937", fontSize: 14, lineHeight: 1.6 }}>
+          {body.trim() ? (
+            <div
+              style={{ wordBreak: "break-word" }}
+              dangerouslySetInnerHTML={{ __html: mergedBody }}
+            />
+          ) : (
+            <div style={{ color: "#9ca3af" }}>Your email body appears here as you type — exactly as the recipient will see it.</div>
+          )}
+        </div>
+      </div>
+
+      <div style={{ marginTop: 8, fontSize: 11.5, color: "var(--ink-400)" }}>
+        {`{{name}}`} is replaced per recipient. This preview uses the name above.
+      </div>
+    </div>
   );
 }
 
