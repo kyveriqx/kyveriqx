@@ -162,7 +162,19 @@ export default async function EmailCampaign({ searchParams }: Props) {
             </a>
           </div>
         ) : !hasCreds || wantsSettings ? (
-          <ConnectMailboxCard hasSmtp={hasSmtp} oauth={oauth} />
+          <>
+            {hasCreds && (
+              <div style={{ marginBottom: 16 }}>
+                <a
+                  href="/tools/emailcampaign"
+                  style={{ fontSize: 14, color: "var(--accent)", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6 }}
+                >
+                  ← Back to your campaign
+                </a>
+              </div>
+            )}
+            <ConnectMailboxCard hasSmtp={hasSmtp} oauth={oauth} />
+          </>
         ) : (
           <>
             <MailboxStrip oauth={oauth} />
