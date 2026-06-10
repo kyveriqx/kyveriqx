@@ -145,6 +145,8 @@ export function UploadForm({ defaultPreviewName }: { defaultPreviewName?: string
         </div>
       </div>
 
+      <HowItWorks />
+
       {/* Two columns: editor on the left, live preview on the right. Collapses
           to a single column on narrow screens via auto-fit. */}
       <div style={{
@@ -375,6 +377,87 @@ function EmailPreview({
       <div style={{ marginTop: 8, fontSize: 11.5, color: "var(--ink-400)" }}>
         {`{{name}}`} is replaced per recipient. This preview uses the name above.
       </div>
+    </div>
+  );
+}
+
+// ── In-app user guide ───────────────────────────────────────────────────────
+
+/** Plain-language, collapsible "how to run a campaign" guide for non-technical
+ *  customers. Sits at the top of the compose screen; collapsed by default so it
+ *  doesn't crowd repeat users. */
+function HowItWorks() {
+  const [open, setOpen] = useState(false);
+  const steps: { title: string; body: React.ReactNode }[] = [
+    {
+      title: "Connect your mailbox (once)",
+      body: <>Click <b>Connect Microsoft</b> and sign in on Microsoft’s own page. Campaigns are sent <i>from your own mailbox</i> — we never see or store your password. Use <b>Change mailbox</b> any time to switch accounts.</>,
+    },
+    {
+      title: "Upload your contact list",
+      body: <>Drop a CSV or Excel file that has an <b>Email</b> column (a <b>Name</b> column is optional). Not sure of the format? Click <b>Download sample CSV</b>. Blank rows and invalid addresses are skipped automatically.</>,
+    },
+    {
+      title: "Write your message",
+      body: <>Type a subject and body. Put <b>{`{{name}}`}</b> anywhere to greet each person by name. The <b>live preview</b> on the right shows exactly what a recipient will receive.</>,
+    },
+    {
+      title: "Send & track",
+      body: <>Click <b>Send campaign</b>. You’ll see live progress, then a summary of how many were delivered and any that failed — with the reason for each.</>,
+    },
+  ];
+
+  return (
+    <div style={{
+      border: "1px solid var(--line)", borderRadius: "var(--radius-md)",
+      background: "var(--bg-card)", marginBottom: 24, overflow: "hidden",
+    }}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        style={{
+          width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
+          gap: 12, padding: "14px 18px", background: "transparent", border: "none",
+          cursor: "pointer", textAlign: "left", color: "var(--ink-100)", fontSize: 14.5, fontWeight: 600,
+        }}
+      >
+        <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <span style={{ fontSize: 18 }}>📖</span> How email campaigns work — a quick guide
+        </span>
+        <span style={{ fontSize: 12, color: "var(--ink-400)", fontFamily: "var(--font-mono)" }}>
+          {open ? "hide" : "show"}
+        </span>
+      </button>
+
+      {open && (
+        <div style={{ padding: "4px 20px 20px", borderTop: "1px solid var(--line)" }}>
+          <ol style={{ margin: "16px 0 0", padding: 0, listStyle: "none", display: "grid", gap: 14 }}>
+            {steps.map((s, i) => (
+              <li key={i} style={{ display: "grid", gridTemplateColumns: "28px 1fr", gap: 12, alignItems: "start" }}>
+                <span style={{
+                  width: 26, height: 26, borderRadius: "50%", flexShrink: 0,
+                  display: "inline-flex", alignItems: "center", justifyContent: "center",
+                  background: "var(--accent-bg-soft)", color: "var(--accent)",
+                  fontSize: 13, fontWeight: 700, fontFamily: "var(--font-mono)",
+                }}>
+                  {i + 1}
+                </span>
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: "var(--ink-100)" }}>{s.title}</div>
+                  <div style={{ fontSize: 13.5, color: "var(--ink-300)", lineHeight: 1.55, marginTop: 3 }}>{s.body}</div>
+                </div>
+              </li>
+            ))}
+          </ol>
+          <div style={{
+            marginTop: 16, padding: "10px 14px", fontSize: 13, lineHeight: 1.55,
+            background: "var(--bg-elev)", border: "1px solid var(--line)", borderRadius: 10, color: "var(--ink-300)",
+          }}>
+            <b style={{ color: "var(--ink-200)" }}>If something goes wrong:</b> we’ll explain it in plain language and show you exactly how to fix it — most often it’s just reconnecting your mailbox.
+          </div>
+        </div>
+      )}
     </div>
   );
 }
