@@ -22,7 +22,7 @@ type Stage = "idle" | "uploading" | "submitting";
 const ACCEPT = ".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv";
 const MAX_BYTES = 50 * 1024 * 1024;
 
-export function UploadForm() {
+export function UploadForm({ defaultPreviewName }: { defaultPreviewName?: string }) {
   const [files, setFiles] = useState<File[]>([]);
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState(
@@ -31,7 +31,7 @@ export function UploadForm() {
   const [stage, setStage] = useState<Stage>("idle");
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState("");
-  const [previewName, setPreviewName] = useState("Asha");
+  const [previewName, setPreviewName] = useState(defaultPreviewName?.trim() || "Asha");
   const [, startTransition] = useTransition();
 
   async function uploadFile(file: File): Promise<string> {
