@@ -13,7 +13,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseServer } from "../../../../../core/lib/supabase-server";
 import { exchangeCodeForTokens } from "../../../../../core/lib/ms-oauth";
 import { encryptSecret } from "../../../../../core/lib/smtp-crypto";
-import { OAUTH_TX_COOKIE } from "../start/route";
+import { OAUTH_TX_COOKIE, OAUTH_TX_PATH } from "../../../../../core/lib/ms-oauth-cookie";
 
 export const dynamic = "force-dynamic";
 
@@ -114,7 +114,7 @@ function closingPage(origin: string, result: Result): NextResponse {
     headers: { "Content-Type": "text/html; charset=utf-8" },
   });
   // One-shot transaction — clear it regardless of outcome.
-  res.cookies.set(OAUTH_TX_COOKIE, "", { path: "/api/oauth/microsoft", maxAge: 0 });
+  res.cookies.set(OAUTH_TX_COOKIE, "", { path: OAUTH_TX_PATH, maxAge: 0 });
   return res;
 }
 
