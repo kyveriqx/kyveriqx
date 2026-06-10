@@ -68,6 +68,12 @@ export function encryptSmtpPassword(plaintext: string): EncryptedSecret {
   return { ciphertext: Buffer.concat([enc, tag]), iv };
 }
 
+/** Generic aliases — the same AES-256-GCM primitive is reused to protect
+ *  other server-side secrets (e.g. the emailcampaign OAuth refresh token),
+ *  not just SMTP passwords. Same key, same wire format; the alias just
+ *  reads correctly at those call sites. */
+export const encryptSecret = encryptSmtpPassword;
+
 /** Inverse of encryptSmtpPassword. Throws if the ciphertext / tag has
  *  been tampered with (GCM authentication failure) — never silently
  *  returns garbled output. */
@@ -86,3 +92,6 @@ export function decryptSmtpPassword(ciphertext: Buffer, iv: Buffer): string {
   const dec = Buffer.concat([decipher.update(body), decipher.final()]);
   return dec.toString("utf8");
 }
+
+/** Generic alias — see encryptSecret. */
+export const decryptSecret = decryptSmtpPassword;

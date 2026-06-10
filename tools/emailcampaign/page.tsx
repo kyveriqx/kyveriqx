@@ -16,7 +16,9 @@ import { ToolLanding } from "../../core/ui/tool-landing";
 import type { GallerySlide } from "../../core/ui/output-gallery";
 import { supabaseServer } from "../../core/lib/supabase-server";
 import { loginHrefWithReturn } from "../../core/lib/subdomain";
-import { SmtpSetupCard } from "./components/smtp-setup-card";
+import { ConnectMailboxCard } from "./components/smtp-setup-card";
+import { ApprovalGate } from "./components/approval-gate";
+import { emailCampaignApproval } from "./lib/approval";
 import { UploadForm } from "./components/upload-form";
 import { CampaignResultView, type Job } from "./components/result-view";
 
@@ -95,12 +97,48 @@ export default async function EmailCampaign({ searchParams }: Props) {
     );
   }
 
-  const { data: creds } = await supabase
-    .from("user_smtp_credentials")
-    .select("user_id")
-    .eq("user_id", user.id)
-    .maybeSingle();
-  const hasCreds = !!creds;
+  // Owner approval gate: a customer must be approved before they can connect a
+  // mailbox or send (anti-abuse / sender reputation). Admins are auto-approved.
+  const approval = await emailCampaignApproval(supabase, user.id);
+  if (approval !== "approved") {
+    let adminNotes: string | null = null;
+    if (approval === "rejected") {
+      const { data } = await supabase
+        .from("emailcampaign_approvals")
+        .select("admin_notes")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      adminNotes = (data?.admin_notes as string | null) ?? null;
+    }
+    return (
+      <>
+        <Nav />
+        <main style={{ maxWidth: 1120, margin: "0 auto", padding: "40px 24px 80px" }}>
+          <ApprovalGate status={approval} adminNotes={adminNotes} />
+        </main>
+      </>
+    );
+  }
+
+  // A user can send if they've connected a mailbox via OAuth (Microsoft) OR
+  // saved a custom SMTP server. Check both.
+  const [{ data: smtp }, { data: oauthRow }] = await Promise.all([
+    supabase
+      .from("user_smtp_credentials")
+      .select("user_id")
+      .eq("user_id", user.id)
+      .maybeSingle(),
+    supabase
+      .from("user_mail_oauth")
+      .select("provider, account_email")
+      .eq("user_id", user.id)
+      .maybeSingle(),
+  ]);
+  const hasSmtp = !!smtp;
+  const oauth = oauthRow
+    ? { provider: oauthRow.provider as string, accountEmail: oauthRow.account_email as string }
+    : null;
+  const hasCreds = hasSmtp || !!oauth;
 
   let initialJob: Job | null = null;
   if (jobId) {
@@ -124,13 +162,13 @@ export default async function EmailCampaign({ searchParams }: Props) {
             </a>
           </div>
         ) : !hasCreds || wantsSettings ? (
-          <SmtpSetupCard hasExisting={hasCreds} />
+          <ConnectMailboxCard hasSmtp={hasSmtp} oauth={oauth} />
         ) : (
           <>
             <UploadForm />
             <div style={{ marginTop: 28, textAlign: "right" }}>
               <a href="/tools/emailcampaign?settings=1" style={{ fontSize: 13, color: "var(--ink-400)", textDecoration: "none" }}>
-                Update SMTP settings →
+                Update mailbox connection →
               </a>
             </div>
           </>

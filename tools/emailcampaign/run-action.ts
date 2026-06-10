@@ -32,15 +32,15 @@ export async function runEmailCampaignAction(formData: FormData) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect(loginHrefWithReturn());
 
-  // The campaign can only run if the user has saved SMTP credentials —
-  // surface that early instead of failing inside the Trigger.dev task.
-  const { data: creds } = await supabase
-    .from("user_smtp_credentials")
-    .select("user_id")
-    .eq("user_id", user.id)
-    .maybeSingle();
-  if (!creds) {
-    throw new Error("Please save your SMTP credentials before sending a campaign.");
+  // The campaign can only run if the user has connected a mailbox — either via
+  // OAuth (Microsoft) or a custom SMTP server. Surface that early instead of
+  // failing inside the Trigger.dev task.
+  const [{ data: smtp }, { data: oauth }] = await Promise.all([
+    supabase.from("user_smtp_credentials").select("user_id").eq("user_id", user.id).maybeSingle(),
+    supabase.from("user_mail_oauth").select("user_id").eq("user_id", user.id).maybeSingle(),
+  ]);
+  if (!smtp && !oauth) {
+    throw new Error("Please connect a mailbox before sending a campaign.");
   }
 
   const toolId = await getToolId(supabase, "emailcampaign");

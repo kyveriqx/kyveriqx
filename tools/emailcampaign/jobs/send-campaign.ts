@@ -16,10 +16,11 @@ import { runJob } from "../../../core/lib/job-runner";
 import { downloadSupabaseUpload } from "../../../core/lib/supabase-uploads";
 import { STORAGE_BUCKETS } from "../../../core/lib/storage-buckets";
 import { supabaseAdmin } from "../../../core/lib/supabase";
-import { decryptSmtpPassword } from "../../../core/lib/smtp-crypto";
+import { decryptSmtpPassword, decryptSecret } from "../../../core/lib/smtp-crypto";
+import { refreshAccessToken, sendMailViaGraph } from "../../../core/lib/ms-oauth";
 import { parseRecipients } from "../lib/parse";
 import { applyMerge } from "../lib/merge";
-import type { CampaignResult, SendError } from "../lib/types";
+import type { CampaignResult, SendError, Recipient } from "../lib/types";
 
 type Payload = {
   jobId: string;
@@ -42,6 +43,20 @@ type SmtpCredsRow = {
   from_email: string;
   from_name: string | null;
 };
+
+type OAuthRow = {
+  provider: string;
+  account_email: string;
+  display_name: string | null;
+  from_name: string | null;
+  refresh_token_enc: string;
+  refresh_token_iv: string;
+};
+
+/** Sends one templated email; returns nothing on success, throws on failure.
+ *  Both send paths (OAuth/Graph and SMTP/nodemailer) implement this shape so
+ *  the serial loop below doesn't care which mailbox backend is in use. */
+type SendOne = (r: Recipient) => Promise<void>;
 
 function toBuffer(bytea: unknown): Buffer {
   if (Buffer.isBuffer(bytea)) return bytea;
@@ -84,55 +99,96 @@ export const sendEmailCampaign = task({
         );
       }
 
-      // ── 2. Load + decrypt SMTP credentials ──────────────────────────────
+      // ── 2. Resolve the send path: OAuth (Microsoft/Graph) or SMTP ────────
+      // An OAuth connection takes precedence over a stored SMTP server.
       const admin = supabaseAdmin();
-      const { data: creds, error: credsErr } = await admin
-        .from("user_smtp_credentials")
-        .select("host, port, secure, username, password_enc, password_iv, from_email, from_name")
+      const { data: oauth } = await admin
+        .from("user_mail_oauth")
+        .select("provider, account_email, display_name, from_name, refresh_token_enc, refresh_token_iv")
         .eq("user_id", p.userId)
-        .maybeSingle<SmtpCredsRow>();
-      if (credsErr || !creds) {
-        throw new Error(
-          credsErr
-            ? `Could not load SMTP credentials: ${credsErr.message}`
-            : "No SMTP credentials saved — please complete SMTP setup first.",
+        .maybeSingle<OAuthRow>();
+
+      let sendOne: SendOne;
+      let closeTransport: () => void = () => {};
+
+      if (oauth) {
+        // ── OAuth path: refresh an access token, send via Graph ───────────
+        const refreshToken = decryptSecret(
+          toBuffer(oauth.refresh_token_enc),
+          toBuffer(oauth.refresh_token_iv),
         );
+        let accessToken: string;
+        try {
+          ({ accessToken } = await refreshAccessToken(refreshToken));
+        } catch (err) {
+          const m = err instanceof Error ? err.message : String(err);
+          throw new Error(
+            `Could not refresh your Microsoft sign-in (${m}). Please reconnect your ` +
+              `mailbox under "Update mailbox connection".`,
+          );
+        }
+        const fromName = oauth.from_name ?? oauth.display_name ?? null;
+        sendOne = (r) =>
+          sendMailViaGraph({
+            accessToken,
+            accountEmail: oauth.account_email,
+            fromName,
+            to: r.email,
+            subject: applyMerge(p.subject, r),
+            html: applyMerge(p.body, r),
+          });
+        logger.info("send path: oauth", { provider: oauth.provider, account: oauth.account_email });
+      } else {
+        // ── SMTP path: existing nodemailer relay ──────────────────────────
+        const { data: creds, error: credsErr } = await admin
+          .from("user_smtp_credentials")
+          .select("host, port, secure, username, password_enc, password_iv, from_email, from_name")
+          .eq("user_id", p.userId)
+          .maybeSingle<SmtpCredsRow>();
+        if (credsErr || !creds) {
+          throw new Error(
+            credsErr
+              ? `Could not load SMTP credentials: ${credsErr.message}`
+              : "No mailbox connected — please complete mailbox setup first.",
+          );
+        }
+        const password = decryptSmtpPassword(
+          toBuffer(creds.password_enc),
+          toBuffer(creds.password_iv),
+        );
+        const transporter: Transporter = nodemailer.createTransport({
+          host: creds.host,
+          port: creds.port,
+          secure: creds.secure,
+          auth: { user: creds.username, pass: password },
+        });
+        try {
+          await transporter.verify();
+        } catch (err) {
+          const m = err instanceof Error ? err.message : String(err);
+          throw new Error(`SMTP connection failed: ${m}`);
+        }
+        const fromHeader = creds.from_name
+          ? `"${creds.from_name.replace(/"/g, '\\"')}" <${creds.from_email}>`
+          : creds.from_email;
+        sendOne = (r) =>
+          transporter.sendMail({
+            from: fromHeader,
+            to: r.email,
+            subject: applyMerge(p.subject, r),
+            html: applyMerge(p.body, r),
+          }).then(() => undefined);
+        closeTransport = () => transporter.close();
+        logger.info("send path: smtp", { host: creds.host });
       }
-      const password = decryptSmtpPassword(
-        toBuffer(creds.password_enc),
-        toBuffer(creds.password_iv),
-      );
 
-      // ── 3. Build transporter + verify connection ─────────────────────────
-      const transporter: Transporter = nodemailer.createTransport({
-        host: creds.host,
-        port: creds.port,
-        secure: creds.secure,
-        auth: { user: creds.username, pass: password },
-      });
-      try {
-        await transporter.verify();
-      } catch (err) {
-        const m = err instanceof Error ? err.message : String(err);
-        throw new Error(`SMTP connection failed: ${m}`);
-      }
-
-      const fromHeader = creds.from_name
-        ? `"${creds.from_name.replace(/"/g, '\\"')}" <${creds.from_email}>`
-        : creds.from_email;
-
-      // ── 4. Serial send loop ─────────────────────────────────────────────
+      // ── 3. Serial send loop ─────────────────────────────────────────────
       const errors: SendError[] = [];
       let sent = 0;
       for (let i = 0; i < recipients.length; i++) {
         const r = recipients[i];
         try {
-          await transporter.sendMail({
-            from: fromHeader,
-            to: r.email,
-            subject: applyMerge(p.subject, r),
-            html: applyMerge(p.body, r),
-          });
+          await sendOne(r);
           sent++;
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);
@@ -143,7 +199,7 @@ export const sendEmailCampaign = task({
         }
       }
 
-      transporter.close();
+      closeTransport();
 
       const result: CampaignResult = {
         total: recipients.length,

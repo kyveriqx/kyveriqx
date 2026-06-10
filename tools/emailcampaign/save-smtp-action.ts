@@ -25,10 +25,15 @@ function str(formData: FormData, key: string): string {
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-export async function saveSmtpCredentialsAction(formData: FormData): Promise<void> {
+/* Returns `{ error }` on any failure instead of throwing: Next.js replaces
+   thrown server-action error messages with an opaque digest in production, so
+   the setup card reads the return value to surface a real message. */
+export async function saveSmtpCredentialsAction(
+  formData: FormData,
+): Promise<{ error?: string }> {
   const providerRaw = str(formData, "provider").toLowerCase();
   if (!isKnownSmtpProvider(providerRaw)) {
-    throw new Error("Please choose a mail provider.");
+    return { error: "Please choose a mail provider." };
   }
   const provider = providerRaw as SmtpProvider;
 
@@ -37,10 +42,10 @@ export async function saveSmtpCredentialsAction(formData: FormData): Promise<voi
   const fromEmail = str(formData, "fromEmail").toLowerCase();
   const fromName = str(formData, "fromName");
 
-  if (!username) throw new Error("Username (mailbox login) is required.");
-  if (!password) throw new Error("Password is required.");
+  if (!username) return { error: "Username (mailbox login) is required." };
+  if (!password) return { error: "Password is required." };
   if (!fromEmail || !EMAIL_RE.test(fromEmail)) {
-    throw new Error("From email is required and must be a valid address.");
+    return { error: "From email is required and must be a valid address." };
   }
 
   // For "other", read manual host/port/secure from the form. For known
@@ -54,13 +59,28 @@ export async function saveSmtpCredentialsAction(formData: FormData): Promise<voi
       secure: str(formData, "secure") === "true",
     };
   }
-  const { host, port, secure } = resolveSmtpConfig(provider, manual);
+
+  let host: string;
+  let port: number;
+  let secure: boolean;
+  try {
+    ({ host, port, secure } = resolveSmtpConfig(provider, manual));
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Invalid SMTP settings." };
+  }
 
   const supabase = supabaseServer();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect(loginHrefWithReturn());
 
-  const { ciphertext, iv } = encryptSmtpPassword(password);
+  let ciphertext: Buffer;
+  let iv: Buffer;
+  try {
+    ({ ciphertext, iv } = encryptSmtpPassword(password));
+  } catch (err) {
+    // Most likely SMTP_ENCRYPTION_KEY missing/invalid in this environment.
+    return { error: err instanceof Error ? err.message : "Could not secure the password." };
+  }
 
   const { error } = await supabase
     .from("user_smtp_credentials")
@@ -81,7 +101,8 @@ export async function saveSmtpCredentialsAction(formData: FormData): Promise<voi
       },
       { onConflict: "user_id" },
     );
-  if (error) throw new Error(`Could not save SMTP credentials: ${error.message}`);
+  if (error) return { error: `Could not save SMTP credentials: ${error.message}` };
 
   revalidatePath("/tools/emailcampaign");
+  return {};
 }
