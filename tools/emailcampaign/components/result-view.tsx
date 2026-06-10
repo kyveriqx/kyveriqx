@@ -65,25 +65,25 @@ export function CampaignResultView({ jobId, initialJob }: { jobId: string; initi
 
   if (!job) return <JobProgress stage="queued" title="Getting your campaign ready…" detail="Your campaign is starting up." />;
 
+  // A clear, plain-language failure card (what went wrong + how to fix it +
+  // a one-click action), instead of dumping a raw SMTP/Graph error string.
+  if (job.status === "failed") {
+    return <SendFailure error={job.error} />;
+  }
+
   if (job.status !== "succeeded") {
-    const stage =
-      job.status === "failed" ? "failed"
-        : job.status === "cancelled" ? "cancelled"
-          : job.status === "running" ? "running"
-            : "queued";
+    const stage = job.status === "cancelled" ? "cancelled" : job.status === "running" ? "running" : "queued";
     const TITLE: Record<typeof stage, string> = {
       queued: "Getting your campaign ready…",
       running: "Sending your emails…",
-      failed: "We couldn’t send this campaign",
       cancelled: "Campaign cancelled",
     };
     const DETAIL: Record<typeof stage, string> = {
       queued: "Your campaign is starting up.",
       running: "Delivering to each recipient — this can take a little while.",
-      failed: "Please check the details and try again.",
       cancelled: "This run was cancelled.",
     };
-    return <JobProgress stage={stage} title={TITLE[stage]} detail={DETAIL[stage]} error={job.error} />;
+    return <JobProgress stage={stage} title={TITLE[stage]} detail={DETAIL[stage]} />;
   }
 
   const res = job.result;
@@ -101,6 +101,123 @@ export function CampaignResultView({ jobId, initialJob }: { jobId: string; initi
         </Card>
       )}
     </div>
+  );
+}
+
+/** Turn a raw worker error (SMTP/Graph/parse) into plain language: what
+ *  happened, how to fix it, and — where relevant — a one-click action. */
+function humanizeSendError(raw: string | null): {
+  title: string;
+  what: string;
+  fix: string[];
+  action?: { label: string; href: string };
+} {
+  const e = raw ?? "";
+  const SETTINGS = "/tools/emailcampaign?settings=1";
+
+  // Microsoft 365 / SMTP rejecting password sign-in (the classic 535 wall).
+  if (/535|5\.7\.\d|authentication unsuccessful|invalid login|auth.*fail|basic auth/i.test(e)) {
+    return {
+      title: "Your mailbox wouldn’t accept the sign-in",
+      what: "Microsoft is blocking password-based sending for this mailbox — that’s a Microsoft security setting, not a problem with your list or your message.",
+      fix: [
+        "Click “Change mailbox” below and choose “Connect Microsoft”.",
+        "Sign in on Microsoft’s page and approve — no password is stored.",
+        "Then send your campaign again.",
+      ],
+      action: { label: "Connect Microsoft →", href: SETTINGS },
+    };
+  }
+
+  // OAuth token no longer valid — needs reconnect.
+  if (/reconnect|invalid_grant|refresh token|token (expired|invalid)|unauthor/i.test(e)) {
+    return {
+      title: "Your mailbox connection has expired",
+      what: "We can no longer send on your behalf — the secure connection to your mailbox needs to be refreshed.",
+      fix: ["Click “Reconnect mailbox” below and sign in again.", "Then resend your campaign."],
+      action: { label: "Reconnect mailbox →", href: SETTINGS },
+    };
+  }
+
+  // Nothing valid to send to.
+  if (/no valid email|recipient file is empty|all .* (row|rows).* rejected|empty/i.test(e)) {
+    return {
+      title: "We couldn’t find any valid email addresses",
+      what: "Your file didn’t have any usable rows — the email column may be missing, mis-named, or every address was blank/invalid.",
+      fix: [
+        "Download the sample CSV on the compose screen to see the exact format.",
+        "Make sure there’s a column headed “Email” with one address per row.",
+        "Re-upload and send again.",
+      ],
+    };
+  }
+
+  // Couldn't reach the custom SMTP server.
+  if (/smtp connection failed|econn|timeout|getaddrinfo|connect/i.test(e)) {
+    return {
+      title: "We couldn’t reach your mail server",
+      what: "The custom SMTP server didn’t respond, or the host/port/security settings don’t match.",
+      fix: [
+        "Open “Change mailbox” and double-check the host, port and security mode.",
+        "If you’re on Microsoft 365 or Gmail, use the “Connect” button instead of a custom server.",
+      ],
+      action: { label: "Change mailbox →", href: SETTINGS },
+    };
+  }
+
+  // Fallback — still framed kindly, with the raw detail tucked away.
+  return {
+    title: "We couldn’t send this campaign",
+    what: "Something went wrong while sending. Your list and message are saved — you can try again.",
+    fix: ["Try sending again.", "If it keeps happening, use “Report an issue” and we’ll look into it."],
+  };
+}
+
+function SendFailure({ error }: { error: string | null }) {
+  const h = humanizeSendError(error);
+  return (
+    <Card style={{ padding: 24, borderColor: "var(--warn-border)" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+        <span style={{ fontSize: 22 }}>⚠️</span>
+        <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0, color: "var(--warn-fg)" }}>{h.title}</h2>
+      </div>
+      <p style={{ fontSize: 14, color: "var(--ink-200)", lineHeight: 1.6, margin: "0 0 16px" }}>{h.what}</p>
+
+      <div style={{ fontSize: 12.5, color: "var(--ink-400)", fontFamily: "var(--font-mono)", letterSpacing: "0.04em", textTransform: "uppercase", marginBottom: 8 }}>
+        How to fix it
+      </div>
+      <ol style={{ margin: "0 0 18px 18px", padding: 0, display: "grid", gap: 7, color: "var(--ink-200)", fontSize: 14, lineHeight: 1.5 }}>
+        {h.fix.map((step, i) => <li key={i}>{step}</li>)}
+      </ol>
+
+      <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+        {h.action && (
+          <a href={h.action.href} style={{
+            display: "inline-flex", alignItems: "center", gap: 6, padding: "10px 16px",
+            fontSize: 14, fontWeight: 600, color: "var(--accent-fg)",
+            background: "linear-gradient(180deg, var(--accent-grad-start) 0%, var(--accent-grad-end) 100%)",
+            borderRadius: 10, textDecoration: "none",
+          }}>
+            {h.action.label}
+          </a>
+        )}
+        <a href="/tools/emailcampaign" style={{ fontSize: 13.5, color: "var(--ink-400)", textDecoration: "none" }}>
+          ← Back to compose
+        </a>
+      </div>
+
+      {error && (
+        <details style={{ marginTop: 18 }}>
+          <summary style={{ fontSize: 12, color: "var(--ink-400)", cursor: "pointer" }}>Technical details</summary>
+          <pre style={{
+            marginTop: 8, fontSize: 12, whiteSpace: "pre-wrap", color: "var(--ink-300)",
+            background: "var(--bg-elev)", border: "1px solid var(--line)", borderRadius: 8, padding: 10,
+          }}>
+            {error}
+          </pre>
+        </details>
+      )}
+    </Card>
   );
 }
 
