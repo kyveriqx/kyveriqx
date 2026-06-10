@@ -13,11 +13,9 @@ import {
   generateCodeVerifier,
   generateState,
 } from "../../../../../core/lib/ms-oauth";
+import { OAUTH_TX_COOKIE, OAUTH_TX_PATH } from "../../../../../core/lib/ms-oauth-cookie";
 
 export const dynamic = "force-dynamic";
-
-export const OAUTH_TX_COOKIE = "ms_oauth_tx";
-const OAUTH_TX_PATH = "/api/oauth/microsoft";
 
 export async function GET(req: NextRequest) {
   const supabase = supabaseServer();
