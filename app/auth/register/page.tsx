@@ -16,7 +16,7 @@ export default function Register({ searchParams }: Props) {
       <main style={{ maxWidth: 460, margin: "0 auto", padding: "80px 24px" }}>
         <h1 style={{ fontSize: 32, fontWeight: 600, margin: "0 0 8px" }}>Create your account</h1>
         <p style={{ color: "var(--ink-300)", margin: "0 0 24px", fontSize: 14 }}>
-          14-day free trial on every tool.
+          15-day free trial on every tool. No credit card or bank details — just sign up with your email.
         </p>
 
         {errorMsg && (

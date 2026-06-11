@@ -1,6 +1,6 @@
 /* Signed-out auth gate — Architecture §8.5.
 
-   The "Sign in to start your 14-day free trial" card that every tool's
+   The "Sign in to start your 15-day free trial" card that every tool's
    signed-out landing renders. Same hero copy varies (subdomain, title,
    description) but the gate itself is identical, so centralising stops
    it being copy-pasted into each new tool's page. */
@@ -42,7 +42,7 @@ export function SignedOutGate({ subdomain, title, description }: Props) {
       </p>
       <Card style={{ padding: 24, maxWidth: 720 }}>
         <p style={{ color: "var(--ink-300)", margin: "0 0 16px" }}>
-          Sign in to start your 14-day free trial.
+          Sign in to start your 15-day free trial — no card or payment details needed.
         </p>
         <div style={{ display: "flex", gap: 12 }}>
           <a href="/auth/register"><Button>Start free trial</Button></a>

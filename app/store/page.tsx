@@ -56,7 +56,7 @@ export default async function Store() {
           Kyveriqx Stack
         </h1>
         <p style={{ color: "var(--ink-300)", maxWidth: 720, margin: "0 0 48px", fontSize: 16 }}>
-          Some tools you can start using in minutes with a 14-day free trial.
+          Some tools you can start using in minutes with a 15-day free trial — no card or payment details required.
           Others need a quick implementation call so we can set them up against
           your systems.
         </p>
