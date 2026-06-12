@@ -55,6 +55,11 @@ export default function Login({ searchParams }: Props) {
                 style={inputStyle}
               />
             </label>
+            <div style={{ textAlign: "right", marginTop: -6 }}>
+              <a href="/auth/forgot" style={{ fontSize: 13, color: "var(--blue-400)" }}>
+                Forgot password?
+              </a>
+            </div>
             <Button type="submit">Continue</Button>
           </form>
         </Card>
