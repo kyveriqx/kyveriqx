@@ -19,7 +19,8 @@ import { decryptSmtpPassword, decryptSecret } from "../../../core/lib/smtp-crypt
 import { refreshAccessToken, sendMailViaGraph } from "../../../core/lib/ms-oauth";
 import { parseRecipients } from "../lib/parse";
 import { applyMerge } from "../lib/merge";
-import type { CampaignResult, SendError, Recipient } from "../lib/types";
+import { groupByEmail, consolidatedExtras } from "../lib/consolidate";
+import type { CampaignResult, SendError, Recipient, SendMode } from "../lib/types";
 
 type Payload = {
   jobId: string;
@@ -28,7 +29,13 @@ type Payload = {
   recipientsUploadId: string;
   subject: string;
   body: string;
+  mode?: SendMode;
 };
+
+/** One thing to send: the row whose customer-level fields drive the merge, plus
+ *  any consolidated-mode extra tokens ({{total}}, {{invoice_table}}, {{count}}).
+ *  In per-invoice mode `extra` is undefined and `row` is the single invoice. */
+type SendUnit = { row: Recipient; extra?: Record<string, string> };
 
 const BUCKET = STORAGE_BUCKETS.paymentReminderUploads;
 
@@ -55,7 +62,7 @@ type OAuthRow = {
 /** Sends one templated reminder; returns nothing on success, throws on failure.
  *  Both send paths (OAuth/Graph and SMTP/nodemailer) implement this shape so
  *  the serial loop below doesn't care which mailbox backend is in use. */
-type SendOne = (r: Recipient) => Promise<void>;
+type SendOne = (u: SendUnit) => Promise<void>;
 
 function toBuffer(bytea: unknown): Buffer {
   if (Buffer.isBuffer(bytea)) return bytea;
@@ -127,14 +134,14 @@ export const sendPaymentReminder = task({
           );
         }
         const fromName = oauth.from_name ?? oauth.display_name ?? null;
-        sendOne = (r) =>
+        sendOne = (u) =>
           sendMailViaGraph({
             accessToken,
             accountEmail: oauth.account_email,
             fromName,
-            to: r.email,
-            subject: applyMerge(p.subject, r),
-            html: applyMerge(p.body, r),
+            to: u.row.email,
+            subject: applyMerge(p.subject, u.row, u.extra),
+            html: applyMerge(p.body, u.row, u.extra),
           });
         logger.info("send path: oauth", { provider: oauth.provider, account: oauth.account_email });
       } else {
@@ -170,38 +177,51 @@ export const sendPaymentReminder = task({
         const fromHeader = creds.from_name
           ? `"${creds.from_name.replace(/"/g, '\\"')}" <${creds.from_email}>`
           : creds.from_email;
-        sendOne = (r) =>
+        sendOne = (u) =>
           transporter.sendMail({
             from: fromHeader,
-            to: r.email,
-            subject: applyMerge(p.subject, r),
-            html: applyMerge(p.body, r),
+            to: u.row.email,
+            subject: applyMerge(p.subject, u.row, u.extra),
+            html: applyMerge(p.body, u.row, u.extra),
           }).then(() => undefined);
         closeTransport = () => transporter.close();
         logger.info("send path: smtp", { host: creds.host });
       }
 
-      // ── 3. Serial send loop ─────────────────────────────────────────────
+      // ── 3. Build send units ─────────────────────────────────────────────
+      // per_invoice: one unit per row. consolidated: one unit per customer
+      // (rows grouped by email), with an invoice table + summed total.
+      const mode: SendMode = p.mode === "consolidated" ? "consolidated" : "per_invoice";
+      let units: SendUnit[];
+      if (mode === "consolidated") {
+        const groups = groupByEmail(recipients);
+        units = groups.map((g) => ({ row: g[0], extra: consolidatedExtras(g) }));
+        logger.info("consolidated send", { customers: units.length, rows: recipients.length });
+      } else {
+        units = recipients.map((r) => ({ row: r }));
+      }
+
+      // ── 4. Serial send loop ─────────────────────────────────────────────
       const errors: SendError[] = [];
       let sent = 0;
-      for (let i = 0; i < recipients.length; i++) {
-        const r = recipients[i];
+      for (let i = 0; i < units.length; i++) {
+        const u = units[i];
         try {
-          await sendOne(r);
+          await sendOne(u);
           sent++;
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);
-          errors.push({ email: r.email, message });
+          errors.push({ email: u.row.email, message });
         }
         if ((i + 1) % 25 === 0) {
-          logger.info("send progress", { sent, failed: errors.length, of: recipients.length });
+          logger.info("send progress", { sent, failed: errors.length, of: units.length });
         }
       }
 
       closeTransport();
 
       const result: CampaignResult = {
-        total: recipients.length,
+        total: units.length,
         sent,
         failed: errors.length,
         errors,

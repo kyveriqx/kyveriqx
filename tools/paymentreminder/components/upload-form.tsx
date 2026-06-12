@@ -18,15 +18,17 @@ import { useState, useRef, useTransition, type DragEvent } from "react";
 import { Button } from "../../../core/ui/button";
 import { runPaymentReminderAction } from "../run-action";
 import { applyMerge } from "../lib/merge";
-import type { Recipient } from "../lib/types";
+import { consolidatedExtras } from "../lib/consolidate";
+import type { Recipient, SendMode } from "../lib/types";
 
 type Stage = "idle" | "uploading" | "submitting";
 
 const ACCEPT = ".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv";
 const MAX_BYTES = 50 * 1024 * 1024;
 
-const DEFAULT_SUBJECT = "Payment reminder - invoice {{invoice_number}} ({{currency}} {{amount}} due)";
-const DEFAULT_BODY =
+// ── Per-invoice mode (one email per row) ────────────────────────────────────
+const PER_INVOICE_SUBJECT = "Payment reminder - invoice {{invoice_number}} ({{currency}} {{amount}} due)";
+const PER_INVOICE_BODY =
   "<p>Dear {{name}},</p>\n\n" +
   "<p>This is a gentle reminder that invoice <b>{{invoice_number}}</b> " +
   "({{invoice_details}}) for <b>{{currency}} {{amount}}</b> is currently pending.</p>\n\n" +
@@ -35,9 +37,25 @@ const DEFAULT_BODY =
   "<p>If you have already made the payment, please ignore this message.</p>\n\n" +
   "<p>Thanks,<br/>Your team</p>";
 
-// Fixed sample values for the live preview — name follows the "Preview as"
-// box, the rest stay constant so the user can see every merge field fill in.
-// Currency is a code (INR/USD), not a symbol, so it survives CSV/Excel cleanly.
+// ── Consolidated mode (one email per customer, invoices in a table) ──────────
+const CONSOLIDATED_SUBJECT = "Payment reminder - {{count}} pending invoice(s) ({{currency}} {{total}} due)";
+const CONSOLIDATED_BODY =
+  "<p>Dear {{name}},</p>\n\n" +
+  "<p>This is a gentle reminder that you have <b>{{count}}</b> pending invoice(s) with us, " +
+  "totalling <b>{{currency}} {{total}}</b>:</p>\n\n" +
+  "{{invoice_table}}\n\n" +
+  "<p>We request you to kindly clear the outstanding dues at the earliest. " +
+  "If you have already made the payment, please ignore this message.</p>\n\n" +
+  "<p>Thanks,<br/>Your team</p>";
+
+const DEFAULTS: Record<SendMode, { subject: string; body: string }> = {
+  per_invoice: { subject: PER_INVOICE_SUBJECT, body: PER_INVOICE_BODY },
+  consolidated: { subject: CONSOLIDATED_SUBJECT, body: CONSOLIDATED_BODY },
+};
+
+// Sample one-invoice row for the per-invoice live preview. Name follows the
+// "Preview as" box; the rest stay constant. Currency is a code (INR/USD), not a
+// symbol, so it survives CSV/Excel cleanly.
 const SAMPLE_PREVIEW: Omit<Recipient, "name" | "email"> = {
   currency: "INR",
   amount: "12,000",
@@ -47,15 +65,35 @@ const SAMPLE_PREVIEW: Omit<Recipient, "name" | "email"> = {
   dueDate: "20-06-2026",
 };
 
+// Sample multi-invoice set (same customer) for the consolidated live preview.
+const SAMPLE_INVOICES: Recipient[] = [
+  { email: "asha@example.com", name: "Asha", currency: "INR", amount: "12,000", balance: "50,500", invoiceNumber: "INV-2026-118", invoiceDetails: "Consulting - March 2026", dueDate: "20-06-2026" },
+  { email: "asha@example.com", name: "Asha", currency: "INR", amount: "8,500", balance: "50,500", invoiceNumber: "INV-2026-121", invoiceDetails: "Annual maintenance", dueDate: "22-06-2026" },
+  { email: "asha@example.com", name: "Asha", currency: "INR", amount: "30,000", balance: "50,500", invoiceNumber: "INV-2026-126", invoiceDetails: "Project milestone 2", dueDate: "25-06-2026" },
+];
+
 export function UploadForm({ defaultPreviewName }: { defaultPreviewName?: string }) {
   const [files, setFiles] = useState<File[]>([]);
-  const [subject, setSubject] = useState(DEFAULT_SUBJECT);
-  const [body, setBody] = useState(DEFAULT_BODY);
+  const [mode, setMode] = useState<SendMode>("per_invoice");
+  const [subject, setSubject] = useState(DEFAULTS.per_invoice.subject);
+  const [body, setBody] = useState(DEFAULTS.per_invoice.body);
   const [stage, setStage] = useState<Stage>("idle");
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState("");
   const [previewName, setPreviewName] = useState(defaultPreviewName?.trim() || "Asha");
   const [, startTransition] = useTransition();
+
+  // Switch sending mode. If the subject/body are still an untouched default,
+  // swap them to the new mode's default so the editor stays in sync; if the
+  // user has edited them, leave their text alone.
+  function switchMode(next: SendMode) {
+    if (next === mode) return;
+    const isDefaultSubject = subject === DEFAULTS[mode].subject || subject.trim() === "";
+    const isDefaultBody = body === DEFAULTS[mode].body || body.trim() === "";
+    if (isDefaultSubject) setSubject(DEFAULTS[next].subject);
+    if (isDefaultBody) setBody(DEFAULTS[next].body);
+    setMode(next);
+  }
 
   async function uploadFile(file: File): Promise<string> {
     if (file.size > MAX_BYTES) {
@@ -100,6 +138,7 @@ export function UploadForm({ defaultPreviewName }: { defaultPreviewName?: string
       fd.set("recipientsUploadId", uploadId);
       fd.set("subject", subject);
       fd.set("body", body);
+      fd.set("mode", mode);
       startTransition(async () => {
         try {
           await runPaymentReminderAction(fd);
@@ -221,15 +260,25 @@ export function UploadForm({ defaultPreviewName }: { defaultPreviewName?: string
         />
       </div>
 
-      {/* Step 2 — Message */}
+      {/* Step 2 — Sending mode */}
       <div style={{ marginTop: 36, borderTop: "1px solid var(--line)", paddingTop: 28 }}>
-        <StepLabel>Step 2 — Write your reminder</StepLabel>
+        <StepLabel>Step 2 — How to send</StepLabel>
+        <ModeToggle mode={mode} onMode={switchMode} disabled={busy} />
+      </div>
+
+      {/* Step 3 — Message */}
+      <div style={{ marginTop: 36, borderTop: "1px solid var(--line)", paddingTop: 28 }}>
+        <StepLabel>Step 3 — Write your reminder</StepLabel>
         <DescCard
           icon="✍️"
           title="Merge fields personalise every reminder"
-          body="Use {{name}}, {{invoice_number}}, {{currency}}, {{amount}}, {{balance}}, {{due_date}} and {{invoice_details}} anywhere in the subject or body — each one is replaced per customer from your file. Pair {{currency}} {{amount}} to show e.g. INR 12,000. Body is HTML — use simple tags (<p>, <br/>, <b>, <a href>) or paste a designed template."
+          body={
+            mode === "consolidated"
+              ? "Use {{name}}, {{currency}}, {{total}} (sum of all the customer's invoices), {{count}} and {{invoice_table}} (the auto-built list of invoices). {{invoice_table}} drops in a table of every pending invoice. Body is HTML — keep {{invoice_table}} on its own line."
+              : "Use {{name}}, {{invoice_number}}, {{currency}}, {{amount}}, {{balance}}, {{due_date}} and {{invoice_details}} anywhere in the subject or body — each one is replaced per customer from your file. Pair {{currency}} {{amount}} to show e.g. INR 12,000. Body is HTML — use simple tags (<p>, <br/>, <b>, <a href>) or paste a designed template."
+          }
         />
-        <MergeChips />
+        <MergeChips mode={mode} />
         <div style={{ display: "grid", gap: 16, marginTop: 18 }}>
           <Field label="Subject">
             <input
@@ -253,9 +302,9 @@ export function UploadForm({ defaultPreviewName }: { defaultPreviewName?: string
         </div>
       </div>
 
-      {/* Step 3 — Send */}
+      {/* Step 4 — Send */}
       <div style={{ marginTop: 36, borderTop: "1px solid var(--line)", paddingTop: 28 }}>
-        <StepLabel>Step 3 — Send</StepLabel>
+        <StepLabel>Step 4 — Send</StepLabel>
         <button
           type="submit"
           disabled={!ready}
@@ -318,6 +367,7 @@ export function UploadForm({ defaultPreviewName }: { defaultPreviewName?: string
         </div>{/* end left column */}
 
         <EmailPreview
+          mode={mode}
           subject={subject}
           body={body}
           previewName={previewName}
@@ -328,13 +378,61 @@ export function UploadForm({ defaultPreviewName }: { defaultPreviewName?: string
   );
 }
 
+/** Segmented control to pick the sending mode. */
+function ModeToggle({ mode, onMode, disabled }: {
+  mode: SendMode; onMode: (m: SendMode) => void; disabled: boolean;
+}) {
+  const options: { value: SendMode; title: string; sub: string }[] = [
+    { value: "per_invoice", title: "One email per invoice", sub: "Each row is sent as its own reminder." },
+    { value: "consolidated", title: "One email per customer", sub: "Group a customer's invoices into one email with a table + total." },
+  ];
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12 }}>
+      {options.map((o) => {
+        const active = mode === o.value;
+        return (
+          <button
+            key={o.value}
+            type="button"
+            onClick={() => !disabled && onMode(o.value)}
+            disabled={disabled}
+            aria-pressed={active}
+            style={{
+              textAlign: "left", padding: "14px 16px", borderRadius: "var(--radius-md)",
+              cursor: disabled ? "not-allowed" : "pointer",
+              background: active ? "var(--accent-bg-soft)" : "var(--bg-card)",
+              border: `1px solid ${active ? "var(--accent)" : "var(--line-strong)"}`,
+              transition: "all .15s var(--ease)", opacity: disabled ? 0.65 : 1,
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{
+                width: 16, height: 16, borderRadius: "50%", flexShrink: 0,
+                border: `1px solid ${active ? "var(--accent)" : "var(--line-strong)"}`,
+                background: active ? "var(--accent)" : "transparent",
+                boxShadow: active ? "inset 0 0 0 3px var(--bg-card)" : "none",
+              }} />
+              <span style={{ fontSize: 14, fontWeight: 600, color: "var(--ink-100)" }}>{o.title}</span>
+            </div>
+            <div style={{ fontSize: 12.5, color: "var(--ink-300)", lineHeight: 1.5, marginTop: 6, paddingLeft: 24 }}>
+              {o.sub}
+            </div>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 /** The merge fields available, shown as copyable-looking chips so a customer
  *  knows exactly what they can drop into the subject and body. */
-function MergeChips() {
-  const fields = [
-    "{{name}}", "{{invoice_number}}", "{{currency}}", "{{amount}}",
-    "{{balance}}", "{{due_date}}", "{{invoice_details}}",
-  ];
+function MergeChips({ mode }: { mode: SendMode }) {
+  const fields = mode === "consolidated"
+    ? ["{{name}}", "{{currency}}", "{{total}}", "{{count}}", "{{invoice_table}}"]
+    : [
+        "{{name}}", "{{invoice_number}}", "{{currency}}", "{{amount}}",
+        "{{balance}}", "{{due_date}}", "{{invoice_details}}",
+      ];
   return (
     <div style={{ marginTop: 14, display: "flex", flexWrap: "wrap", gap: 8 }}>
       {fields.map((f) => (
@@ -354,19 +452,33 @@ function MergeChips() {
  *  HTML body rendered with the merge fields filled for a sample customer.
  *  Sticky so it stays in view while the editor on the left scrolls. */
 function EmailPreview({
+  mode,
   subject,
   body,
   previewName,
   onPreviewName,
 }: {
+  mode: SendMode;
   subject: string;
   body: string;
   previewName: string;
   onPreviewName: (v: string) => void;
 }) {
-  const sampleRow: Partial<Recipient> = { name: previewName, ...SAMPLE_PREVIEW };
-  const mergedSubject = applyMerge(subject, sampleRow);
-  const mergedBody = applyMerge(body, sampleRow);
+  // Build the same merge context the send task uses, so the preview matches the
+  // real email. Consolidated mode shows a sample customer with 3 invoices.
+  let mergedSubject: string;
+  let mergedBody: string;
+  if (mode === "consolidated") {
+    const rows = SAMPLE_INVOICES.map((r) => ({ ...r, name: previewName }));
+    const row = rows[0];
+    const extra = consolidatedExtras(rows);
+    mergedSubject = applyMerge(subject, row, extra);
+    mergedBody = applyMerge(body, row, extra);
+  } else {
+    const sampleRow: Partial<Recipient> = { name: previewName, ...SAMPLE_PREVIEW };
+    mergedSubject = applyMerge(subject, sampleRow);
+    mergedBody = applyMerge(body, sampleRow);
+  }
   const sampleEmail = `${(previewName || "asha").toLowerCase().split(" ")[0]}@example.com`;
 
   return (
