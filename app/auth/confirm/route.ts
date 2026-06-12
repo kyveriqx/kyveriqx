@@ -25,17 +25,27 @@ export async function GET(request: NextRequest) {
 
   const supabase = supabaseServer();
 
+  // Surface the real failure reason instead of a blanket "link-expired" so we
+  // can tell apart an actually-expired token, a missing PKCE verifier cookie,
+  // and a link that arrived with no recognisable params at all.
+  let reason = "no-params";
+
   if (token_hash && type) {
     const { error } = await supabase.auth.verifyOtp({ type, token_hash });
     if (!error) {
       return NextResponse.redirect(new URL(next, origin));
     }
+    reason = `otp: ${error.message}`;
   } else if (code) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
       return NextResponse.redirect(new URL(next, origin));
     }
+    reason = `pkce: ${error.message}`;
   }
 
-  return NextResponse.redirect(new URL("/auth/login?error=link-expired", origin));
+  const dest = new URL("/auth/login", origin);
+  dest.searchParams.set("error", "link-expired");
+  dest.searchParams.set("why", reason);
+  return NextResponse.redirect(dest);
 }
