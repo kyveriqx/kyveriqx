@@ -17,7 +17,9 @@ export type EventType =
   | "report_view"
   | "report_download"
   | "login"
-  | "signup";
+  | "signup"
+  | "password_reset_requested"
+  | "password_reset_completed";
 
 export const EVENT_TYPES: EventType[] = [
   "visit",
@@ -26,6 +28,8 @@ export const EVENT_TYPES: EventType[] = [
   "report_download",
   "login",
   "signup",
+  "password_reset_requested",
+  "password_reset_completed",
 ];
 
 export type LogEventInput = {
