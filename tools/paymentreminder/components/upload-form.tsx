@@ -4,9 +4,9 @@
 
    Three-part flow:
      1. Drop a CSV/Excel of customers (must contain at least Email; name,
-        amount, balance, invoice number/details and due date are optional)
+        currency, amount, invoice number/details and due date are optional)
      2. Type a subject and HTML body — both support the merge fields
-        {{name}} {{amount}} {{balance}} {{invoice_number}}
+        {{name}} {{currency}} {{amount}} {{invoice_number}}
         {{invoice_details}} {{due_date}}
      3. Click Send Reminders
 
@@ -31,9 +31,8 @@ const PER_INVOICE_SUBJECT = "Payment reminder - invoice {{invoice_number}} ({{cu
 const PER_INVOICE_BODY =
   "<p>Dear {{name}},</p>\n\n" +
   "<p>This is a gentle reminder that invoice <b>{{invoice_number}}</b> " +
-  "({{invoice_details}}) for <b>{{currency}} {{amount}}</b> is currently pending.</p>\n\n" +
-  "<p>As on date, your total outstanding balance with us is <b>{{currency}} {{balance}}</b>. " +
-  "We request you to kindly clear the dues by <b>{{due_date}}</b>.</p>\n\n" +
+  "({{invoice_details}}) for <b>{{currency}} {{amount}}</b> is currently pending. " +
+  "We request you to kindly clear it by <b>{{due_date}}</b>.</p>\n\n" +
   "<p>If you have already made the payment, please ignore this message.</p>\n\n" +
   "<p>Thanks,<br/>Your team</p>";
 
@@ -59,7 +58,6 @@ const DEFAULTS: Record<SendMode, { subject: string; body: string }> = {
 const SAMPLE_PREVIEW: Omit<Recipient, "name" | "email"> = {
   currency: "INR",
   amount: "12,000",
-  balance: "45,000",
   invoiceNumber: "INV-2026-118",
   invoiceDetails: "Consulting - March 2026",
   dueDate: "20-06-2026",
@@ -67,9 +65,9 @@ const SAMPLE_PREVIEW: Omit<Recipient, "name" | "email"> = {
 
 // Sample multi-invoice set (same customer) for the consolidated live preview.
 const SAMPLE_INVOICES: Recipient[] = [
-  { email: "asha@example.com", name: "Asha", currency: "INR", amount: "12,000", balance: "50,500", invoiceNumber: "INV-2026-118", invoiceDetails: "Consulting - March 2026", dueDate: "20-06-2026" },
-  { email: "asha@example.com", name: "Asha", currency: "INR", amount: "8,500", balance: "50,500", invoiceNumber: "INV-2026-121", invoiceDetails: "Annual maintenance", dueDate: "22-06-2026" },
-  { email: "asha@example.com", name: "Asha", currency: "INR", amount: "30,000", balance: "50,500", invoiceNumber: "INV-2026-126", invoiceDetails: "Project milestone 2", dueDate: "25-06-2026" },
+  { email: "asha@example.com", name: "Asha", currency: "INR", amount: "12,000", invoiceNumber: "INV-2026-118", invoiceDetails: "Consulting - March 2026", dueDate: "20-06-2026" },
+  { email: "asha@example.com", name: "Asha", currency: "INR", amount: "8,500", invoiceNumber: "INV-2026-121", invoiceDetails: "Annual maintenance", dueDate: "22-06-2026" },
+  { email: "asha@example.com", name: "Asha", currency: "INR", amount: "30,000", invoiceNumber: "INV-2026-126", invoiceDetails: "Project milestone 2", dueDate: "25-06-2026" },
 ];
 
 export function UploadForm({ defaultPreviewName }: { defaultPreviewName?: string }) {
@@ -163,10 +161,10 @@ export function UploadForm({ defaultPreviewName }: { defaultPreviewName?: string
     // non-ASCII (names, particulars) also renders correctly.
     const csv =
       "﻿" +
-      "Name,Email,Invoice Number,Currency,Amount,Balance,Due Date,Invoice Details\r\n" +
-      "Asha Mehta,asha@example.com,INV-2026-118,INR,\"12,000\",\"45,000\",20-06-2026,Consulting - March 2026\r\n" +
-      "Ravi Kumar,ravi@example.com,INV-2026-121,INR,\"8,500\",\"8,500\",22-06-2026,Annual maintenance\r\n" +
-      "Priya Nair,priya@example.com,INV-2026-126,USD,\"1,200\",\"2,400\",25-06-2026,Project milestone 2\r\n";
+      "Name,Email,Invoice Number,Currency,Amount,Due Date,Invoice Details\r\n" +
+      "Asha Mehta,asha@example.com,INV-2026-118,INR,\"12,000\",20-06-2026,Consulting - March 2026\r\n" +
+      "Ravi Kumar,ravi@example.com,INV-2026-121,INR,\"8,500\",22-06-2026,Annual maintenance\r\n" +
+      "Priya Nair,priya@example.com,INV-2026-126,USD,\"1,200\",25-06-2026,Project milestone 2\r\n";
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -228,7 +226,7 @@ export function UploadForm({ defaultPreviewName }: { defaultPreviewName?: string
       <DescCard
         icon="📋"
         title="CSV or Excel with one row per customer"
-        body="Your file needs at least an Email column. Optional columns — Name, Invoice Number, Currency (e.g. INR/USD), Amount, Balance, Due Date and Invoice Details — power the merge fields in your reminder. Use a currency code, not a ₹/$ symbol, so amounts stay clean in Excel. Blank rows and invalid email addresses are skipped automatically."
+        body="Your file needs at least an Email column. Optional columns — Name, Invoice Number, Currency (e.g. INR/USD), Amount, Due Date and Invoice Details — power the merge fields in your reminder. Use a currency code, not a ₹/$ symbol, so amounts stay clean in Excel. Blank rows and invalid email addresses are skipped automatically."
       />
       <div style={{
         marginTop: 12, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap",
@@ -275,7 +273,7 @@ export function UploadForm({ defaultPreviewName }: { defaultPreviewName?: string
           body={
             mode === "consolidated"
               ? "Use {{name}}, {{currency}}, {{total}} (sum of all the customer's invoices), {{count}} and {{invoice_table}} (the auto-built list of invoices). {{invoice_table}} drops in a table of every pending invoice. Body is HTML — keep {{invoice_table}} on its own line."
-              : "Use {{name}}, {{invoice_number}}, {{currency}}, {{amount}}, {{balance}}, {{due_date}} and {{invoice_details}} anywhere in the subject or body — each one is replaced per customer from your file. Pair {{currency}} {{amount}} to show e.g. INR 12,000. Body is HTML — use simple tags (<p>, <br/>, <b>, <a href>) or paste a designed template."
+              : "Use {{name}}, {{invoice_number}}, {{currency}}, {{amount}}, {{due_date}} and {{invoice_details}} anywhere in the subject or body — each one is replaced per customer from your file. Pair {{currency}} {{amount}} to show e.g. INR 12,000. Body is HTML — use simple tags (<p>, <br/>, <b>, <a href>) or paste a designed template."
           }
         />
         <MergeChips mode={mode} />
@@ -431,7 +429,7 @@ function MergeChips({ mode }: { mode: SendMode }) {
     ? ["{{name}}", "{{currency}}", "{{total}}", "{{count}}", "{{invoice_table}}"]
     : [
         "{{name}}", "{{invoice_number}}", "{{currency}}", "{{amount}}",
-        "{{balance}}", "{{due_date}}", "{{invoice_details}}",
+        "{{due_date}}", "{{invoice_details}}",
       ];
   return (
     <div style={{ marginTop: 14, display: "flex", flexWrap: "wrap", gap: 8 }}>
@@ -559,7 +557,7 @@ function HowItWorks() {
     },
     {
       title: "Upload your customer list",
-      body: <>Drop a CSV or Excel file with an <b>Email</b> column. Add <b>Name</b>, <b>Invoice Number</b>, <b>Currency</b> (INR/USD), <b>Amount</b>, <b>Balance</b>, <b>Due Date</b> and <b>Invoice Details</b> columns to personalise each reminder. Not sure of the format? Click <b>Download sample CSV</b>.</>,
+      body: <>Drop a CSV or Excel file with an <b>Email</b> column. Add <b>Name</b>, <b>Invoice Number</b>, <b>Currency</b> (INR/USD), <b>Amount</b>, <b>Due Date</b> and <b>Invoice Details</b> columns to personalise each reminder. Not sure of the format? Click <b>Download sample CSV</b>.</>,
     },
     {
       title: "Write your reminder",

@@ -1,12 +1,12 @@
 /* Multi-field mail-merge helper for payment reminders.
 
-   Supports {{name}}, {{email}}, {{currency}}, {{amount}}, {{balance}},
+   Supports {{name}}, {{email}}, {{currency}}, {{amount}},
    {{invoice_number}}, {{invoice_details}} and {{due_date}}. Tokens are
    case-insensitive and tolerate inner whitespace ({{ Invoice_Number }}).
 
    A known token with no value yields the empty string — the surrounding
-   template controls the fallback ("balance is {{balance}}" becomes
-   "balance is " which is the user's choice to make). An unknown token is
+   template controls the fallback ("amount is {{amount}}" becomes
+   "amount is " which is the user's choice to make). An unknown token is
    left untouched so a mistyped field stays visible rather than silently
    vanishing.
 
@@ -27,7 +27,6 @@ export function applyMerge(
     email: (row.email ?? "").trim(),
     currency: (row.currency ?? "").trim(),
     amount: (row.amount ?? "").trim(),
-    balance: (row.balance ?? "").trim(),
     invoice_number: (row.invoiceNumber ?? "").trim(),
     invoice_details: (row.invoiceDetails ?? "").trim(),
     due_date: (row.dueDate ?? "").trim(),

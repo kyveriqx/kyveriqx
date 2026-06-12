@@ -16,8 +16,6 @@ export type Recipient = {
   currency: string;
   /** Amount due for the referenced invoice — {{amount}} merge field. */
   amount: string;
-  /** Total outstanding balance as on date — {{balance}} merge field. */
-  balance: string;
   /** Invoice / bill reference number — {{invoice_number}} merge field. */
   invoiceNumber: string;
   /** Free-text invoice particulars — {{invoice_details}} merge field. */

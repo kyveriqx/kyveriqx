@@ -26,21 +26,21 @@ export const dynamic = "force-dynamic";
 
 const STEPS = [
   { n: "01", title: "Connect your mailbox", body: "Connect Microsoft 365 / Outlook in one click, or paste an app password for Gmail/Zoho/Yahoo. Reminders go out from your own address." },
-  { n: "02", title: "Upload your customer list", body: "Drop a CSV or Excel file. We auto-detect Email, Name, Invoice, Amount, Balance and Due Date columns and skip blank or invalid rows." },
-  { n: "03", title: "Write & merge", body: "Compose a reminder with {{name}}, {{amount}}, {{invoice_number}}, {{balance}} and {{due_date}} — each one personalised per customer." },
+  { n: "02", title: "Upload your customer list", body: "Drop a CSV or Excel file. We auto-detect Email, Name, Invoice, Amount and Due Date columns and skip blank or invalid rows." },
+  { n: "03", title: "Write & merge", body: "Compose a reminder with {{name}}, {{amount}}, {{invoice_number}}, {{currency}} and {{due_date}} — each one personalised per customer." },
   { n: "04", title: "Send & track", body: "We send through your mailbox and show a live delivery summary with a per-customer error log." },
 ];
 
 const PILLARS = [
-  { title: "Chase dues, personally", body: "Every reminder is merged with the customer's name, invoice number, amount due and balance — no generic blasts, no manual copy-paste." },
+  { title: "Chase dues, personally", body: "Every reminder is merged with the customer's name, invoice number and amount due — no generic blasts, no manual copy-paste." },
   { title: "Your mailbox, your reputation", body: "Send from your own Microsoft 365 / Outlook / Gmail / Zoho mailbox. No third-party credits, no shared sending IPs." },
   { title: "Invoice-aware templates", body: "Reference the exact invoice and amount in each message, with automatic column detection from your existing receivables sheet." },
 ];
 
 const OUTPUT_ITEMS = [
-  "A personalised reminder per customer (name, invoice, amount, balance, due date)",
+  "A personalised reminder per customer (name, invoice, amount, due date)",
   "Sent through your own Microsoft 365 / Outlook / Gmail / Zoho mailbox",
-  "Auto-detected Email, Name, Invoice, Amount, Balance & Due Date columns",
+  "Auto-detected Email, Name, Invoice, Amount & Due Date columns",
   "Invalid / blank rows skipped, with a count",
   "Customers accepted from your file",
   "Sent — handed off to your mailbox",
@@ -81,7 +81,7 @@ export default async function PaymentReminder({ searchParams }: Props) {
               <span style={{ color: "var(--ink-200)" }}>From your own mailbox.</span>
             </>
           }
-          subhead="Send personalised payment reminders to your customers/debtors from your own Microsoft 365 / Outlook / Gmail / Zoho mailbox. Merge the customer's name, invoice number, amount and outstanding balance into every message."
+          subhead="Send personalised payment reminders to your customers/debtors from your own Microsoft 365 / Outlook / Gmail / Zoho mailbox. Merge the customer's name, invoice number and amount due into every message."
           primaryCta={{ label: "Start free trial", href: "/auth/register" }}
           secondaryCta={{ label: "Log in", href: loginHrefWithReturn() }}
           stepsHeading="Your mailbox, your receivables, chased — in four steps."

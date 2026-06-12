@@ -128,8 +128,8 @@ export function buildInvoiceTableHtml(rows: Recipient[]): string {
 }
 
 /** Extra merge values for a consolidated email: {{total}}, {{invoice_table}}
- *  and {{count}}. Customer-level fields ({{name}}, {{currency}}, {{balance}})
- *  come from the group's first row at the call site. */
+ *  and {{count}}. Customer-level fields ({{name}}, {{currency}}) come from the
+ *  group's first row at the call site. */
 export function consolidatedExtras(rows: Recipient[]): {
   total: string;
   invoice_table: string;

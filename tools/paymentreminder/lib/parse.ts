@@ -6,7 +6,6 @@
        Name / Customer  → name        ({{name}})
        Currency         → currency    ({{currency}}, e.g. INR / USD)
        Amount Due       → amount      ({{amount}})
-       Balance          → balance     ({{balance}})
        Invoice No       → invoiceNumber  ({{invoice_number}})
        Invoice Details  → invoiceDetails ({{invoice_details}})
        Due Date         → dueDate     ({{due_date}})
@@ -39,11 +38,6 @@ const AMOUNT_KEYS = [
   "Due Amount", "Invoice Amount",
 ];
 
-const BALANCE_KEYS = [
-  "Balance", "Balance Due", "Closing Balance",
-  "Outstanding Balance", "Outstanding",
-];
-
 const INVOICE_NO_KEYS = [
   "Invoice", "Invoice No", "Invoice Number", "Bill No",
   "Bill Number", "Reference", "Reference No",
@@ -64,7 +58,7 @@ const DUE_DATE_KEYS = [
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 type FieldKey =
-  | "email" | "name" | "currency" | "amount" | "balance"
+  | "email" | "name" | "currency" | "amount"
   | "invoiceNumber" | "invoiceDetails" | "dueDate";
 
 // Order doesn't affect detection (assignment is column-centric and
@@ -74,7 +68,6 @@ const FIELDS: { key: FieldKey; keys: string[] }[] = [
   { key: "name", keys: NAME_KEYS },
   { key: "currency", keys: CURRENCY_KEYS },
   { key: "amount", keys: AMOUNT_KEYS },
-  { key: "balance", keys: BALANCE_KEYS },
   { key: "invoiceNumber", keys: INVOICE_NO_KEYS },
   { key: "invoiceDetails", keys: INVOICE_DETAILS_KEYS },
   { key: "dueDate", keys: DUE_DATE_KEYS },
@@ -109,11 +102,11 @@ function scoreField(headerTokens: Set<string>, candidates: string[]): number {
  *  fields. Each field keeps only its highest-scoring column. */
 function detectColumns(headers: unknown[]): Record<FieldKey, number> {
   const result: Record<FieldKey, number> = {
-    email: -1, name: -1, currency: -1, amount: -1, balance: -1,
+    email: -1, name: -1, currency: -1, amount: -1,
     invoiceNumber: -1, invoiceDetails: -1, dueDate: -1,
   };
   const bestScore: Record<FieldKey, number> = {
-    email: 0, name: 0, currency: 0, amount: 0, balance: 0,
+    email: 0, name: 0, currency: 0, amount: 0,
     invoiceNumber: 0, invoiceDetails: 0, dueDate: 0,
   };
 
@@ -186,7 +179,6 @@ export function parseRecipients(buffer: Buffer): ParseResult {
       name: cell(row, cols.name),
       currency: cell(row, cols.currency),
       amount: cell(row, cols.amount),
-      balance: cell(row, cols.balance),
       invoiceNumber: cell(row, cols.invoiceNumber),
       invoiceDetails: cell(row, cols.invoiceDetails),
       dueDate: cell(row, cols.dueDate),
