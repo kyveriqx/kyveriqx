@@ -3,11 +3,19 @@ import { Card } from "../../../core/ui/card";
 import { Button } from "../../../core/ui/button";
 import { loginAction } from "./actions";
 
-type Props = { searchParams: { error?: string; next?: string } };
+type Props = { searchParams: { error?: string; next?: string; why?: string } };
 
 export default function Login({ searchParams }: Props) {
   const errorMsg = searchParams.error;
+  const why = searchParams.why;
   const next = searchParams.next;
+
+  const errorText =
+    errorMsg === "missing"
+      ? "Email and password are required."
+      : errorMsg === "link-expired"
+        ? "This password-reset link is no longer valid. Request a new one."
+        : errorMsg;
 
   return (
     <>
@@ -27,7 +35,12 @@ export default function Login({ searchParams }: Props) {
               marginBottom: 16,
             }}
           >
-            {errorMsg === "missing" ? "Email and password are required." : errorMsg}
+            {errorText}
+            {why && (
+              <div style={{ marginTop: 6, fontSize: 11, opacity: 0.7, fontFamily: "monospace" }}>
+                {why}
+              </div>
+            )}
           </div>
         )}
 
