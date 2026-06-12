@@ -12,7 +12,7 @@ import type { Recipient } from "./types";
 function row(over: Partial<Recipient>): Recipient {
   return {
     email: "asha@example.com", name: "Asha", currency: "INR",
-    amount: "", balance: "", invoiceNumber: "", invoiceDetails: "", dueDate: "",
+    amount: "", invoiceNumber: "", invoiceDetails: "", dueDate: "",
     ...over,
   };
 }

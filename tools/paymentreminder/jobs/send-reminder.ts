@@ -3,8 +3,8 @@
    Downloads the user's customer list, resolves their mailbox (OAuth via
    Microsoft Graph, or a saved SMTP relay — decrypted in-process), and sends
    one templated reminder per row. Each row's merge fields ({{name}},
-   {{amount}}, {{balance}}, {{invoice_number}}, {{invoice_details}},
-   {{due_date}}) are filled by applyMerge. Per-row results are collected and
+   {{amount}}, {{invoice_number}}, {{invoice_details}}, {{due_date}})
+   are filled by applyMerge. Per-row results are collected and
    the summary is written back to public.jobs.result via runJob.
 
    Serial by design — the user's own mailbox sets the rate. */

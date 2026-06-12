@@ -21,22 +21,21 @@ describe("applyMerge", () => {
       name: "Asha",
       currency: "INR",
       amount: "12,000",
-      balance: "45,000",
       invoiceNumber: "INV-2024-118",
       invoiceDetails: "Consulting - March",
       dueDate: "15-06-2026",
     };
     const tmpl =
       "Dear {{name}}, invoice {{invoice_number}} ({{invoice_details}}) for " +
-      "{{currency}} {{amount}} is due by {{due_date}}. Balance: {{currency}} {{balance}}.";
+      "{{currency}} {{amount}} is due by {{due_date}}.";
     expect(applyMerge(tmpl, row)).toBe(
       "Dear Asha, invoice INV-2024-118 (Consulting - March) for INR 12,000 is " +
-        "due by 15-06-2026. Balance: INR 45,000.",
+        "due by 15-06-2026.",
     );
   });
 
   it("renders empty string when a known field is missing", () => {
-    expect(applyMerge("Balance: {{balance}}.", {})).toBe("Balance: .");
+    expect(applyMerge("Amount: {{amount}}.", {})).toBe("Amount: .");
     expect(applyMerge("Amount {{amount}}", { amount: "   " })).toBe("Amount ");
   });
 
