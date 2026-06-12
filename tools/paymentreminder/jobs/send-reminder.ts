@@ -30,6 +30,9 @@ type Payload = {
   subject: string;
   body: string;
   mode?: SendMode;
+  /** Fixed addresses CC'd/BCC'd on every reminder (optional). */
+  cc?: string[];
+  bcc?: string[];
 };
 
 /** One thing to send: the row whose customer-level fields drive the merge, plus
@@ -142,6 +145,8 @@ export const sendPaymentReminder = task({
             to: u.row.email,
             subject: applyMerge(p.subject, u.row, u.extra),
             html: applyMerge(p.body, u.row, u.extra),
+            cc: p.cc,
+            bcc: p.bcc,
           });
         logger.info("send path: oauth", { provider: oauth.provider, account: oauth.account_email });
       } else {
@@ -181,6 +186,8 @@ export const sendPaymentReminder = task({
           transporter.sendMail({
             from: fromHeader,
             to: u.row.email,
+            cc: p.cc,
+            bcc: p.bcc,
             subject: applyMerge(p.subject, u.row, u.extra),
             html: applyMerge(p.body, u.row, u.extra),
           }).then(() => undefined);

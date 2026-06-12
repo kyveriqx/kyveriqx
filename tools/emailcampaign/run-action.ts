@@ -13,6 +13,7 @@ import { tasks } from "@trigger.dev/sdk";
 import { supabaseServer } from "../../core/lib/supabase-server";
 import { getToolId } from "../../core/lib/tools";
 import { loginHrefWithReturn } from "../../core/lib/subdomain";
+import { parseAddressList } from "../../core/lib/email-addr";
 import type { sendEmailCampaign } from "./jobs/send-campaign";
 
 function str(formData: FormData, key: string): string {
@@ -23,6 +24,9 @@ export async function runEmailCampaignAction(formData: FormData) {
   const recipientsUploadId = str(formData, "recipientsUploadId");
   const subject = str(formData, "subject");
   const body = String(formData.get("body") ?? ""); // preserve HTML whitespace
+  // Fixed CC/BCC applied to every email — parsed into validated, de-duped lists.
+  const cc = parseAddressList(str(formData, "cc"));
+  const bcc = parseAddressList(str(formData, "bcc"));
 
   if (!recipientsUploadId) throw new Error("Please upload a recipient list before sending.");
   if (!subject) throw new Error("Subject is required.");
@@ -66,6 +70,8 @@ export async function runEmailCampaignAction(formData: FormData) {
     recipientsUploadId,
     subject,
     body,
+    ...(cc.length ? { cc } : {}),
+    ...(bcc.length ? { bcc } : {}),
   });
 
   redirect(`/tools/emailcampaign?jobId=${job.id}`);

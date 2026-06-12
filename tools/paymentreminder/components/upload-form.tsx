@@ -75,6 +75,8 @@ export function UploadForm({ defaultPreviewName }: { defaultPreviewName?: string
   const [mode, setMode] = useState<SendMode>("per_invoice");
   const [subject, setSubject] = useState(DEFAULTS.per_invoice.subject);
   const [body, setBody] = useState(DEFAULTS.per_invoice.body);
+  const [cc, setCc] = useState("");
+  const [bcc, setBcc] = useState("");
   const [stage, setStage] = useState<Stage>("idle");
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState("");
@@ -137,6 +139,8 @@ export function UploadForm({ defaultPreviewName }: { defaultPreviewName?: string
       fd.set("subject", subject);
       fd.set("body", body);
       fd.set("mode", mode);
+      fd.set("cc", cc);
+      fd.set("bcc", bcc);
       startTransition(async () => {
         try {
           await runPaymentReminderAction(fd);
@@ -297,6 +301,30 @@ export function UploadForm({ defaultPreviewName }: { defaultPreviewName?: string
               style={{ ...inputStyle, fontFamily: "var(--font-mono)", fontSize: 13, resize: "vertical" }}
             />
           </Field>
+          <Field label="CC (optional)">
+            <input
+              type="text"
+              value={cc}
+              onChange={(e) => setCc(e.target.value)}
+              disabled={busy}
+              placeholder="accounts@yourco.com (comma-separated)"
+              style={inputStyle}
+            />
+          </Field>
+          <Field label="BCC (optional)">
+            <input
+              type="text"
+              value={bcc}
+              onChange={(e) => setBcc(e.target.value)}
+              disabled={busy}
+              placeholder="archive@yourco.com (comma-separated)"
+              style={inputStyle}
+            />
+          </Field>
+          <div style={{ fontSize: 12.5, color: "var(--ink-400)", lineHeight: 1.5, marginTop: -4 }}>
+            CC/BCC apply to every reminder — each send adds one copy to these inboxes.
+            For an audit trail, BCC a dedicated inbox.
+          </div>
         </div>
       </div>
 
