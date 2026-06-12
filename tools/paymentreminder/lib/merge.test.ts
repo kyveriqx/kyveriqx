@@ -19,18 +19,19 @@ describe("applyMerge", () => {
   it("merges every payment field", () => {
     const row = {
       name: "Asha",
-      amount: "₹12,000",
-      balance: "₹45,000",
+      currency: "INR",
+      amount: "12,000",
+      balance: "45,000",
       invoiceNumber: "INV-2024-118",
-      invoiceDetails: "Consulting — March",
+      invoiceDetails: "Consulting - March",
       dueDate: "15-06-2026",
     };
     const tmpl =
       "Dear {{name}}, invoice {{invoice_number}} ({{invoice_details}}) for " +
-      "{{amount}} is due by {{due_date}}. Balance: {{balance}}.";
+      "{{currency}} {{amount}} is due by {{due_date}}. Balance: {{currency}} {{balance}}.";
     expect(applyMerge(tmpl, row)).toBe(
-      "Dear Asha, invoice INV-2024-118 (Consulting — March) for ₹12,000 is " +
-        "due by 15-06-2026. Balance: ₹45,000.",
+      "Dear Asha, invoice INV-2024-118 (Consulting - March) for INR 12,000 is " +
+        "due by 15-06-2026. Balance: INR 45,000.",
     );
   });
 

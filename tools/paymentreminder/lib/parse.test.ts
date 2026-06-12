@@ -16,7 +16,7 @@ function xlsxBuffer(rows: unknown[][]): Buffer {
   return XLSX.write(wb, { type: "buffer", bookType: "xlsx" }) as Buffer;
 }
 
-const EMPTY = { amount: "", balance: "", invoiceNumber: "", invoiceDetails: "", dueDate: "" };
+const EMPTY = { currency: "", amount: "", balance: "", invoiceNumber: "", invoiceDetails: "", dueDate: "" };
 
 describe("parseRecipients", () => {
   it("parses a simple CSV with Email + Name", () => {
@@ -36,14 +36,15 @@ describe("parseRecipients", () => {
 
   it("captures all the payment columns in any order", () => {
     const buf = csvBuffer([
-      ["Invoice No", "Customer", "Amount Due", "Balance", "Due Date", "Email", "Particulars"],
-      ["INV-118", "Asha", "12000", "45000", "15-06-2026", "asha@example.com", "Consulting"],
+      ["Invoice No", "Customer", "Currency", "Amount Due", "Balance", "Due Date", "Email", "Particulars"],
+      ["INV-118", "Asha", "INR", "12000", "45000", "15-06-2026", "asha@example.com", "Consulting"],
     ]);
     const r = parseRecipients(buf);
     expect(r.recipients).toEqual([
       {
         email: "asha@example.com",
         name: "Asha",
+        currency: "INR",
         amount: "12000",
         balance: "45000",
         invoiceNumber: "INV-118",
@@ -109,12 +110,12 @@ describe("parseRecipients", () => {
 
   it("parses XLSX the same way as CSV", () => {
     const buf = xlsxBuffer([
-      ["Email", "Name", "Amount Due"],
-      ["asha@example.com", "Asha", "12000"],
+      ["Email", "Name", "Currency", "Amount Due"],
+      ["asha@example.com", "Asha", "USD", "12000"],
     ]);
     const r = parseRecipients(buf);
     expect(r.recipients).toEqual([
-      { email: "asha@example.com", name: "Asha", amount: "12000", balance: "", invoiceNumber: "", invoiceDetails: "", dueDate: "" },
+      { email: "asha@example.com", name: "Asha", currency: "USD", amount: "12000", balance: "", invoiceNumber: "", invoiceDetails: "", dueDate: "" },
     ]);
   });
 });
