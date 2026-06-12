@@ -12,6 +12,7 @@ import { tasks } from "@trigger.dev/sdk";
 import { supabaseServer } from "../../core/lib/supabase-server";
 import { getToolId } from "../../core/lib/tools";
 import { loginHrefWithReturn } from "../../core/lib/subdomain";
+import { parseAddressList } from "../../core/lib/email-addr";
 import type { sendPaymentReminder } from "./jobs/send-reminder";
 import type { SendMode } from "./lib/types";
 
@@ -27,6 +28,9 @@ export async function runPaymentReminderAction(formData: FormData) {
   // safe per-invoice default.
   const mode: SendMode =
     str(formData, "mode") === "consolidated" ? "consolidated" : "per_invoice";
+  // Fixed CC/BCC applied to every reminder — parsed into validated, de-duped lists.
+  const cc = parseAddressList(str(formData, "cc"));
+  const bcc = parseAddressList(str(formData, "bcc"));
 
   if (!recipientsUploadId) throw new Error("Please upload a customer list before sending.");
   if (!subject) throw new Error("Subject is required.");
@@ -71,6 +75,8 @@ export async function runPaymentReminderAction(formData: FormData) {
     subject,
     body,
     mode,
+    ...(cc.length ? { cc } : {}),
+    ...(bcc.length ? { bcc } : {}),
   });
 
   redirect(`/tools/paymentreminder?jobId=${job.id}`);

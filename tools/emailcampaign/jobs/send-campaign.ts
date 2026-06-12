@@ -29,6 +29,9 @@ type Payload = {
   recipientsUploadId: string;
   subject: string;
   body: string;
+  /** Fixed addresses CC'd/BCC'd on every email (optional). */
+  cc?: string[];
+  bcc?: string[];
 };
 
 const BUCKET = STORAGE_BUCKETS.emailcampaignUploads;
@@ -136,6 +139,8 @@ export const sendEmailCampaign = task({
             to: r.email,
             subject: applyMerge(p.subject, r),
             html: applyMerge(p.body, r),
+            cc: p.cc,
+            bcc: p.bcc,
           });
         logger.info("send path: oauth", { provider: oauth.provider, account: oauth.account_email });
       } else {
@@ -175,6 +180,8 @@ export const sendEmailCampaign = task({
           transporter.sendMail({
             from: fromHeader,
             to: r.email,
+            cc: p.cc,
+            bcc: p.bcc,
             subject: applyMerge(p.subject, r),
             html: applyMerge(p.body, r),
           }).then(() => undefined);

@@ -196,12 +196,23 @@ export async function sendMailViaGraph(opts: {
   to: string;
   subject: string;
   html: string;
+  /** Fixed addresses CC'd/BCC'd on every send (optional). */
+  cc?: string[];
+  bcc?: string[];
 }): Promise<void> {
   const message: Record<string, unknown> = {
     subject: opts.subject,
     body: { contentType: "HTML", content: opts.html },
     toRecipients: [{ emailAddress: { address: opts.to } }],
   };
+  // Fixed CC/BCC, applied to every message. Omitted entirely when empty so
+  // callers that don't set them are unaffected.
+  if (opts.cc?.length) {
+    message.ccRecipients = opts.cc.map((a) => ({ emailAddress: { address: a } }));
+  }
+  if (opts.bcc?.length) {
+    message.bccRecipients = opts.bcc.map((a) => ({ emailAddress: { address: a } }));
+  }
   // A display-name override is only honoured when paired with the mailbox's
   // own address (no SendAs needed for that case).
   if (opts.fromName) {
