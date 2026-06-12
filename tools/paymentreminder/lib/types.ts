@@ -5,6 +5,9 @@ export type Recipient = {
   email: string;
   /** Customer / debtor name — {{name}} merge field. May be empty. */
   name: string;
+  /** Currency code (e.g. INR, USD) — {{currency}} merge field. We use a code
+   *  rather than a symbol so it survives CSV/Excel encoding cleanly. */
+  currency: string;
   /** Amount due for the referenced invoice — {{amount}} merge field. */
   amount: string;
   /** Total outstanding balance as on date — {{balance}} merge field. */

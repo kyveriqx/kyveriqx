@@ -4,6 +4,7 @@
    else is optional and powers the merge fields in the reminder:
        Email           → email (required)
        Name / Customer  → name        ({{name}})
+       Currency         → currency    ({{currency}}, e.g. INR / USD)
        Amount Due       → amount      ({{amount}})
        Balance          → balance     ({{balance}})
        Invoice No       → invoiceNumber  ({{invoice_number}})
@@ -27,6 +28,10 @@ const NAME_KEYS = [
   "Name", "Full Name", "Customer", "Customer Name",
   "Debtor", "Debtor Name", "Party", "Party Name",
   "First Name", "Contact", "Contact Name",
+];
+
+const CURRENCY_KEYS = [
+  "Currency", "Currency Code", "Curr", "Ccy",
 ];
 
 const AMOUNT_KEYS = [
@@ -59,7 +64,7 @@ const DUE_DATE_KEYS = [
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 type FieldKey =
-  | "email" | "name" | "amount" | "balance"
+  | "email" | "name" | "currency" | "amount" | "balance"
   | "invoiceNumber" | "invoiceDetails" | "dueDate";
 
 // Order doesn't affect detection (assignment is column-centric and
@@ -67,6 +72,7 @@ type FieldKey =
 const FIELDS: { key: FieldKey; keys: string[] }[] = [
   { key: "email", keys: EMAIL_KEYS },
   { key: "name", keys: NAME_KEYS },
+  { key: "currency", keys: CURRENCY_KEYS },
   { key: "amount", keys: AMOUNT_KEYS },
   { key: "balance", keys: BALANCE_KEYS },
   { key: "invoiceNumber", keys: INVOICE_NO_KEYS },
@@ -103,11 +109,11 @@ function scoreField(headerTokens: Set<string>, candidates: string[]): number {
  *  fields. Each field keeps only its highest-scoring column. */
 function detectColumns(headers: unknown[]): Record<FieldKey, number> {
   const result: Record<FieldKey, number> = {
-    email: -1, name: -1, amount: -1, balance: -1,
+    email: -1, name: -1, currency: -1, amount: -1, balance: -1,
     invoiceNumber: -1, invoiceDetails: -1, dueDate: -1,
   };
   const bestScore: Record<FieldKey, number> = {
-    email: 0, name: 0, amount: 0, balance: 0,
+    email: 0, name: 0, currency: 0, amount: 0, balance: 0,
     invoiceNumber: 0, invoiceDetails: 0, dueDate: 0,
   };
 
@@ -178,6 +184,7 @@ export function parseRecipients(buffer: Buffer): ParseResult {
     recipients.push({
       email: rawEmail,
       name: cell(row, cols.name),
+      currency: cell(row, cols.currency),
       amount: cell(row, cols.amount),
       balance: cell(row, cols.balance),
       invoiceNumber: cell(row, cols.invoiceNumber),

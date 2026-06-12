@@ -25,23 +25,25 @@ type Stage = "idle" | "uploading" | "submitting";
 const ACCEPT = ".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv";
 const MAX_BYTES = 50 * 1024 * 1024;
 
-const DEFAULT_SUBJECT = "Payment reminder — invoice {{invoice_number}} ({{amount}} due)";
+const DEFAULT_SUBJECT = "Payment reminder - invoice {{invoice_number}} ({{currency}} {{amount}} due)";
 const DEFAULT_BODY =
   "<p>Dear {{name}},</p>\n\n" +
   "<p>This is a gentle reminder that invoice <b>{{invoice_number}}</b> " +
-  "({{invoice_details}}) for <b>{{amount}}</b> is currently pending.</p>\n\n" +
-  "<p>As on date, your total outstanding balance with us is <b>{{balance}}</b>. " +
+  "({{invoice_details}}) for <b>{{currency}} {{amount}}</b> is currently pending.</p>\n\n" +
+  "<p>As on date, your total outstanding balance with us is <b>{{currency}} {{balance}}</b>. " +
   "We request you to kindly clear the dues by <b>{{due_date}}</b>.</p>\n\n" +
   "<p>If you have already made the payment, please ignore this message.</p>\n\n" +
   "<p>Thanks,<br/>Your team</p>";
 
 // Fixed sample values for the live preview — name follows the "Preview as"
 // box, the rest stay constant so the user can see every merge field fill in.
+// Currency is a code (INR/USD), not a symbol, so it survives CSV/Excel cleanly.
 const SAMPLE_PREVIEW: Omit<Recipient, "name" | "email"> = {
-  amount: "₹12,000",
-  balance: "₹45,000",
+  currency: "INR",
+  amount: "12,000",
+  balance: "45,000",
   invoiceNumber: "INV-2026-118",
-  invoiceDetails: "Consulting — March 2026",
+  invoiceDetails: "Consulting - March 2026",
   dueDate: "20-06-2026",
 };
 
@@ -116,11 +118,16 @@ export function UploadForm({ defaultPreviewName }: { defaultPreviewName?: string
   // we expect (Email is required; the rest power the merge fields) so the user
   // doesn't have to guess the format.
   function downloadSample() {
+    // Currency is a code column (INR/USD), and amounts are plain numbers with
+    // no symbol — a "₹" stored in a CSV gets garbled when Excel opens it as
+    // ANSI. A leading BOM (﻿) tells Excel the file is UTF-8 so any other
+    // non-ASCII (names, particulars) also renders correctly.
     const csv =
-      "Name,Email,Invoice Number,Amount,Balance,Due Date,Invoice Details\r\n" +
-      "Asha Mehta,asha@example.com,INV-2026-118,\"₹12,000\",\"₹45,000\",20-06-2026,Consulting — March 2026\r\n" +
-      "Ravi Kumar,ravi@example.com,INV-2026-121,\"₹8,500\",\"₹8,500\",22-06-2026,Annual maintenance\r\n" +
-      "Priya Nair,priya@example.com,INV-2026-126,\"₹30,000\",\"₹72,000\",25-06-2026,Project milestone 2\r\n";
+      "﻿" +
+      "Name,Email,Invoice Number,Currency,Amount,Balance,Due Date,Invoice Details\r\n" +
+      "Asha Mehta,asha@example.com,INV-2026-118,INR,\"12,000\",\"45,000\",20-06-2026,Consulting - March 2026\r\n" +
+      "Ravi Kumar,ravi@example.com,INV-2026-121,INR,\"8,500\",\"8,500\",22-06-2026,Annual maintenance\r\n" +
+      "Priya Nair,priya@example.com,INV-2026-126,USD,\"1,200\",\"2,400\",25-06-2026,Project milestone 2\r\n";
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -182,7 +189,7 @@ export function UploadForm({ defaultPreviewName }: { defaultPreviewName?: string
       <DescCard
         icon="📋"
         title="CSV or Excel with one row per customer"
-        body="Your file needs at least an Email column. Optional columns — Name, Invoice Number, Amount, Balance, Due Date and Invoice Details — power the merge fields in your reminder. Blank rows and invalid email addresses are skipped automatically."
+        body="Your file needs at least an Email column. Optional columns — Name, Invoice Number, Currency (e.g. INR/USD), Amount, Balance, Due Date and Invoice Details — power the merge fields in your reminder. Use a currency code, not a ₹/$ symbol, so amounts stay clean in Excel. Blank rows and invalid email addresses are skipped automatically."
       />
       <div style={{
         marginTop: 12, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap",
@@ -220,7 +227,7 @@ export function UploadForm({ defaultPreviewName }: { defaultPreviewName?: string
         <DescCard
           icon="✍️"
           title="Merge fields personalise every reminder"
-          body="Use {{name}}, {{invoice_number}}, {{amount}}, {{balance}}, {{due_date}} and {{invoice_details}} anywhere in the subject or body — each one is replaced per customer from your file. Body is HTML — use simple tags (<p>, <br/>, <b>, <a href>) or paste a designed template."
+          body="Use {{name}}, {{invoice_number}}, {{currency}}, {{amount}}, {{balance}}, {{due_date}} and {{invoice_details}} anywhere in the subject or body — each one is replaced per customer from your file. Pair {{currency}} {{amount}} to show e.g. INR 12,000. Body is HTML — use simple tags (<p>, <br/>, <b>, <a href>) or paste a designed template."
         />
         <MergeChips />
         <div style={{ display: "grid", gap: 16, marginTop: 18 }}>
@@ -325,7 +332,7 @@ export function UploadForm({ defaultPreviewName }: { defaultPreviewName?: string
  *  knows exactly what they can drop into the subject and body. */
 function MergeChips() {
   const fields = [
-    "{{name}}", "{{invoice_number}}", "{{amount}}",
+    "{{name}}", "{{invoice_number}}", "{{currency}}", "{{amount}}",
     "{{balance}}", "{{due_date}}", "{{invoice_details}}",
   ];
   return (
@@ -440,7 +447,7 @@ function HowItWorks() {
     },
     {
       title: "Upload your customer list",
-      body: <>Drop a CSV or Excel file with an <b>Email</b> column. Add <b>Name</b>, <b>Invoice Number</b>, <b>Amount</b>, <b>Balance</b>, <b>Due Date</b> and <b>Invoice Details</b> columns to personalise each reminder. Not sure of the format? Click <b>Download sample CSV</b>.</>,
+      body: <>Drop a CSV or Excel file with an <b>Email</b> column. Add <b>Name</b>, <b>Invoice Number</b>, <b>Currency</b> (INR/USD), <b>Amount</b>, <b>Balance</b>, <b>Due Date</b> and <b>Invoice Details</b> columns to personalise each reminder. Not sure of the format? Click <b>Download sample CSV</b>.</>,
     },
     {
       title: "Write your reminder",

@@ -1,6 +1,6 @@
 /* Multi-field mail-merge helper for payment reminders.
 
-   Supports {{name}}, {{email}}, {{amount}}, {{balance}},
+   Supports {{name}}, {{email}}, {{currency}}, {{amount}}, {{balance}},
    {{invoice_number}}, {{invoice_details}} and {{due_date}}. Tokens are
    case-insensitive and tolerate inner whitespace ({{ Invoice_Number }}).
 
@@ -18,6 +18,7 @@ export function applyMerge(template: string, row: Partial<Recipient>): string {
   const values: Record<string, string> = {
     name: (row.name ?? "").trim(),
     email: (row.email ?? "").trim(),
+    currency: (row.currency ?? "").trim(),
     amount: (row.amount ?? "").trim(),
     balance: (row.balance ?? "").trim(),
     invoice_number: (row.invoiceNumber ?? "").trim(),
