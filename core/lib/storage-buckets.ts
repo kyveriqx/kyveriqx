@@ -14,6 +14,8 @@ export const STORAGE_BUCKETS = {
   orgmisOutputs: "orgmis-outputs",
   /** emailcampaign recipient lists (CSV / Excel). */
   emailcampaignUploads: "emailcampaign-uploads",
+  /** paymentreminder customer lists (CSV / Excel). */
+  paymentReminderUploads: "paymentreminder-uploads",
 } as const;
 
 export type StorageBucket = (typeof STORAGE_BUCKETS)[keyof typeof STORAGE_BUCKETS];
@@ -28,4 +30,5 @@ export const UPLOAD_BUCKET_BY_TOOL_SLUG: Record<string, StorageBucket> = {
   orgledgerreco: STORAGE_BUCKETS.ledgerUploads,
   orgmis: STORAGE_BUCKETS.orgmisUploads,
   emailcampaign: STORAGE_BUCKETS.emailcampaignUploads,
+  paymentreminder: STORAGE_BUCKETS.paymentReminderUploads,
 };
