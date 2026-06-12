@@ -16,11 +16,22 @@ export async function GET(request: NextRequest) {
   const { searchParams, origin } = request.nextUrl;
   const token_hash = searchParams.get("token_hash");
   const type = searchParams.get("type") as EmailOtpType | null;
+  // PKCE flow (the Supabase default) sends the user back with a one-time `code`
+  // instead of a token_hash — e.g. recovery links built from the stock
+  // {{ .ConfirmationURL }} email template. Support both so the route works
+  // regardless of how the email template is configured.
+  const code = searchParams.get("code");
   const next = safeNext(searchParams.get("next")) ?? postAuthDefaultPath();
 
+  const supabase = supabaseServer();
+
   if (token_hash && type) {
-    const supabase = supabaseServer();
     const { error } = await supabase.auth.verifyOtp({ type, token_hash });
+    if (!error) {
+      return NextResponse.redirect(new URL(next, origin));
+    }
+  } else if (code) {
+    const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
       return NextResponse.redirect(new URL(next, origin));
     }
