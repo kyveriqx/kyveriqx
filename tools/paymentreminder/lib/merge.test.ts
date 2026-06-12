@@ -48,4 +48,16 @@ describe("applyMerge", () => {
   it("returns the template unchanged when there is no token", () => {
     expect(applyMerge("Hello there", { name: "Asha" })).toBe("Hello there");
   });
+
+  it("merges consolidated-mode extra tokens", () => {
+    const extra = { total: "20,500", count: "2", invoice_table: "<table>…</table>" };
+    expect(
+      applyMerge("Hi {{name}}, {{count}} invoices totalling {{currency}} {{total}}. {{invoice_table}}",
+        { name: "Asha", currency: "INR" }, extra),
+    ).toBe("Hi Asha, 2 invoices totalling INR 20,500. <table>…</table>");
+  });
+
+  it("lets extra override a per-row field of the same name", () => {
+    expect(applyMerge("{{amount}}", { amount: "1" }, { amount: "999" })).toBe("999");
+  });
 });

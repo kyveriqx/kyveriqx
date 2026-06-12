@@ -1,5 +1,11 @@
 /* Shared types for the Customer Payment Reminder tool. */
 
+/** How reminders are grouped when sending.
+ *  - per_invoice: one email per row (a customer with N invoices gets N emails).
+ *  - consolidated: rows are grouped by email; one email per customer listing
+ *    all their invoices in a table. */
+export type SendMode = "per_invoice" | "consolidated";
+
 export type Recipient = {
   /** Lower-cased, trimmed email address (the only required field). */
   email: string;

@@ -13,6 +13,7 @@ import { supabaseServer } from "../../core/lib/supabase-server";
 import { getToolId } from "../../core/lib/tools";
 import { loginHrefWithReturn } from "../../core/lib/subdomain";
 import type { sendPaymentReminder } from "./jobs/send-reminder";
+import type { SendMode } from "./lib/types";
 
 function str(formData: FormData, key: string): string {
   return String(formData.get(key) ?? "").trim();
@@ -22,6 +23,10 @@ export async function runPaymentReminderAction(formData: FormData) {
   const recipientsUploadId = str(formData, "recipientsUploadId");
   const subject = str(formData, "subject");
   const body = String(formData.get("body") ?? ""); // preserve HTML whitespace
+  // Anything other than the explicit "consolidated" choice falls back to the
+  // safe per-invoice default.
+  const mode: SendMode =
+    str(formData, "mode") === "consolidated" ? "consolidated" : "per_invoice";
 
   if (!recipientsUploadId) throw new Error("Please upload a customer list before sending.");
   if (!subject) throw new Error("Subject is required.");
@@ -65,6 +70,7 @@ export async function runPaymentReminderAction(formData: FormData) {
     recipientsUploadId,
     subject,
     body,
+    mode,
   });
 
   redirect(`/tools/paymentreminder?jobId=${job.id}`);
